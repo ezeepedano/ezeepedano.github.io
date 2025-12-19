@@ -4,14 +4,14 @@ from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect('index') # redirect to dashboard
+        return redirect('home') # redirect to dashboard
         
     if request.method == 'POST':
         form = AuthenticationForm(data=request.POST)
         if form.is_valid():
             user = form.get_user()
             login(request, user)
-            return redirect('index')
+            return redirect('home')
     else:
         form = AuthenticationForm()
     
@@ -21,7 +21,7 @@ from .forms import CustomUserCreationForm
 
 def register_view(request):
     if request.user.is_authenticated:
-        return redirect('index')
+        return redirect('home')
 
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
@@ -29,7 +29,7 @@ def register_view(request):
             user = form.save()
             # Optional: Add user to specific groups here if needed
             login(request, user)
-            return redirect('index')
+            return redirect('home')
     else:
         form = CustomUserCreationForm()
         
