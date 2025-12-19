@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block title %}Plantillas de Costos - Portal.flow{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Plantillas de Costos Fijos</h1>
+            <p class="text-secondary text-sm">Define los costos que se repiten mes a mes.</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'fixed_cost_list' %}"
+                class="bg-white border border-gray-200 text-gray-700 hover:text-primary hover:border-primary px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center">
+                <i class="fas fa-calendar-alt mr-2"></i> Ver Historial Mensual
+            </a>
+            <a href="{% url 'fixed_cost_create' %}"
+                class="bg-primary hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-lg shadow-purple-200 flex items-center">
+                <i class="fas fa-plus mr-2"></i> Nueva Plantilla
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-3xl shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-gray-100">
+            <h2 class="text-lg font-bold text-gray-800">Listado de Gastos Recurrentes</h2>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="text-secondary text-xs font-semibold uppercase bg-gray-50 border-b border-gray-100">
+                        <th class="px-6 py-4">Concepto</th>
+                        <th class="px-6 py-4 text-center">Día Venc.</th>
+                        <th class="px-6 py-4 text-right">Monto Base</th>
+                        <th class="px-6 py-4 text-right">Acción</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for cost in definitions %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 align-middle">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-primary font-bold text-lg">
+                                    {{ cost.name|slice:":1" }}
+                                </div>
+                                <div>
+                                    <p class="font-bold text-gray-800 text-sm">{{ cost.name }}</p>
+                                    {% if cost.description %}
+                                    <p class="text-xs text-secondary">{{ cost.description|truncatechars:40 }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 align-middle text-center text-sm text-gray-600">
+                            <span class="bg-gray-100 px-2 py-1 rounded text-xs font-bold">Día {{ cost.due_day }}</span>
+                        </td>
+                        <td class="px-6 py-4 align-middle text-right text-sm font-bold text-gray-800">
+                            ${{ cost.amount|floatformat:2 }}
+                        </td>
+                        <td class="px-6 py-4 align-middle text-right">
+                            <div class="flex justify-end gap-2">
+                                <a href="{% url 'fixed_cost_edit' cost.pk %}"
+                                    class="w-8 h-8 rounded-lg flex items-center justify-center text-secondary hover:text-primary hover:bg-purple-50 transition-colors">
+                                    <i class="fas fa-pen text-xs"></i>
+                                </a>
+                                <a href="{% url 'fixed_cost_delete' cost.pk %}"
+                                    class="w-8 h-8 rounded-lg flex items-center justify-center text-secondary hover:text-red-500 hover:bg-red-50 transition-colors">
+                                    <i class="fas fa-trash text-xs"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-12 text-center text-secondary">
+                            <div class="flex flex-col items-center">
+                                <i class="fas fa-file-invoice text-4xl mb-3 text-gray-300"></i>
+                                <p>No hay plantillas definidas.</p>
+                                <a href="{% url 'fixed_cost_create' %}"
+                                    class="text-primary hover:underline mt-2 text-sm font-bold">Crear la primera</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

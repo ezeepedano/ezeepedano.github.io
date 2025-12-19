@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block title %}Nueva Venta Mayorista - Portal.flow{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="flex items-center gap-4 mb-8">
+        <a href="{% url 'sales_dashboard' %}"
+            class="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h1 class="text-2xl font-bold text-gray-900">Nueva Venta Mayorista</h1>
+    </div>
+
+    <form method="POST" class="space-y-8">
+        {% csrf_token %}
+        
+        <!-- Main Sale Info -->
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-6">Datos de la Venta</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    {{ form.customer.label_tag }}
+                    {{ form.customer }}
+                    {{ form.customer.errors }}
+                </div>
+                <div>
+                    {{ form.date.label_tag }}
+                    {{ form.date }}
+                    {{ form.date.errors }}
+                </div>
+                <div>
+                    {{ form.channel.label_tag }}
+                    {{ form.channel }}
+                    {{ form.channel.errors }}
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        {{ form.shipping_cost.label_tag }}
+                        {{ form.shipping_cost }}
+                        {{ form.shipping_cost.errors }}
+                    </div>
+                    <div>
+                        {{ form.discounts.label_tag }}
+                        {{ form.discounts }}
+                        {{ form.discounts.errors }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Items -->
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-6 flex justify-between items-center">
+                Productos
+            </h2>
+            
+            {{  formset.management_form }}
+            <div id="formset-container" class="space-y-4">
+                {% for item_form in formset %}
+                <div class="item-row grid grid-cols-1 md:grid-cols-12 gap-4 items-end p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <div class="col-span-1 md:col-span-6">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Producto</label>
+                        {{ item_form.product }}
+                    </div>
+                    <div class="col-span-1 md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Cant.</label>
+                        {{ item_form.quantity }}
+                    </div>
+                    <div class="col-span-1 md:col-span-3">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Precio Un.</label>
+                        {{ item_form.unit_price }}
+                    </div>
+                    <div class="col-span-1 md:col-span-1 flex justify-center pb-2">
+                        {% if formset.can_delete %}
+                            {{ item_form.DELETE }}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-4">
+            <a href="{% url 'sales_dashboard' %}" class="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">
+                Cancelar
+            </a>
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                Guardar Venta
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

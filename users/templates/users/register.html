@@ -1,0 +1,40 @@
+{% extends 'users/base_auth.html' %}
+
+{% block title %}Register - Budgetale{% endblock %}
+
+{% block content %}
+<div class="subtitle">
+    Already have an account? <a href="{% url 'login' %}" style="color: var(--primary); text-decoration: none;">Login
+        here</a>.
+</div>
+
+<h1 style="font-weight: 800; font-size: 2.5rem; color: #333; margin-bottom: 2rem;">Register</h1>
+
+<form method="post">
+    {% csrf_token %}
+
+    {% if form.errors %}
+    <div class="alert alert-error">
+        Por favor corrige los errores abajo.
+    </div>
+    {% endif %}
+
+    {% for field in form %}
+    <div class="form-group">
+        {{ field.label_tag }}
+        {{ field }}
+        {% if field.help_text %}
+        <small style="display: block; color: #8898aa; margin-top: 5px; font-size: 0.75rem;">{{ field.help_text|safe
+            }}</small>
+        {% endif %}
+        {% for error in field.errors %}
+        <div style="color: red; font-size: 0.75rem; margin-top: 5px;">{{ error }}</div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+
+    <button type="submit" class="btn-primary">
+        Create Account &rarr;
+    </button>
+</form>
+{% endblock %}

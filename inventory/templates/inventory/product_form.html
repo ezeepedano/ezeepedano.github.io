@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} - Portal.flow{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">{{ title }}</h1>
+            <p class="text-secondary text-sm">Fill in the details below.</p>
+        </div>
+        <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            {% if form.instance.pk %}
+            <a href="{% url 'product_recipe' form.instance.pk %}"
+                class="bg-white border border-gray-200 text-gray-700 hover:text-primary hover:border-primary px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center justify-center w-full sm:w-auto">
+                <i class="fas fa-flask mr-2 text-purple-500"></i> Manage Recipe
+            </a>
+            {% endif %}
+            <a href="{% url 'product_list' %}"
+                class="text-secondary hover:text-gray-800 font-medium text-sm flex items-center transition-colors justify-center w-full sm:w-auto">
+                <i class="fas fa-arrow-left mr-2"></i> Back to List
+            </a>
+        </div>
+    </div>
+
+    <!-- Form Card -->
+    <div class="bg-white rounded-3xl shadow-sm p-8">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="bg-red-50 text-red-600 p-4 rounded-xl text-sm">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- SKU -->
+                <div>
+                    <label for="{{ form.sku.id_for_label }}"
+                        class="block text-sm font-bold text-gray-700 mb-2">SKU</label>
+                    {{ form.sku }}
+                    {% if form.sku.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ form.sku.errors.as_text }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Category -->
+                <div>
+                    <label for="{{ form.category.id_for_label }}"
+                        class="block text-sm font-bold text-gray-700 mb-2">Category</label>
+                    {{ form.category }}
+                    <div class="mt-1 text-right">
+                        <a href="#" id="createCategoryBtn" class="text-xs text-primary font-bold hover:underline">+
+                            Create new
+                            category</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Name -->
+            <div>
+                <label for="{{ form.name.id_for_label }}" class="block text-sm font-bold text-gray-700 mb-2">Product
+                    Name</label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                <p class="text-red-500 text-xs mt-1">{{ form.name.errors.as_text }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label for="{{ form.description.id_for_label }}"
+                    class="block text-sm font-bold text-gray-700 mb-2">Description</label>
+                {{ form.description }}
+            </div>
+
+            <!-- Product Size -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="{{ form.net_weight.id_for_label }}"
+                        class="block text-sm font-bold text-gray-700 mb-2">Net Weight</label>
+                    {{ form.net_weight }}
+                </div>
+                <div>
+                    <label for="{{ form.unit_measure.id_for_label }}"
+                        class="block text-sm font-bold text-gray-700 mb-2">Unit</label>
+                    {{ form.unit_measure }}
+                </div>
+            </div>
+
+            <div class="border-t border-gray-100 my-6"></div>
+
+            <h3 class="text-lg font-bold text-gray-800 mb-4">Pricing & Stock</h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Cost Price -->
+                <div>
+                    <label for="{{ form.cost_price.id_for_label }}"
+                        class="block text-sm font-bold text-gray-700 mb-2">Cost ($)</label>
+                    <div class="relative">
+                        <span
+                            class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">$</span>
+                        {{ form.cost_price }}
+                    </div>
+                    {% if form.instance.pk %}
+                    <div class="mt-2 flex justify-between items-center px-1">
+                        <span class="text-xs text-gray-400 italic">Auto-calculated</span>
+                        <a href="{% url 'product_recipe' form.instance.pk %}"
+                            class="text-xs font-bold text-primary hover:text-purple-700 hover:underline">
+                            Edit components
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Sale Price -->
+                <div>
+                    <label for="{{ form.sale_price.id_for_label }}"
+                        class="block text-sm font-bold text-gray-700 mb-2">Sale Price ($)</label>
+                    <div class="relative">
+                        <span
+                            class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">$</span>
+                        {{ form.sale_price }}
+                    </div>
+                </div>
+
+                <!-- Stock -->
+                <div>
+                    <label for="{{ form.stock_quantity.id_for_label }}"
+                        class="block text-sm font-bold text-gray-700 mb-2">Stock Quantity</label>
+                    {{ form.stock_quantity }}
+                </div>
+            </div>
+
+            <div class="pt-6 flex justify-end">
+                <button type="submit"
+                    class="bg-primary hover:bg-purple-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-purple-200 transition-all transform hover:-translate-y-0.5">
+                    Save Product
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- Category Modal -->
+<div id="categoryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl">
+        <h3 class="text-xl font-bold text-gray-800 mb-4">Create New Category</h3>
+
+        <form id="createCategoryForm" class="space-y-4">
+            <div>
+                <label for="newCategoryName" class="block text-sm font-bold text-gray-700 mb-2">Category
+                    Name</label>
+                <input type="text" id="newCategoryName" name="name" required
+                    class="w-full px-4 py-2 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all font-medium">
+            </div>
+            <div>
+                <label for="newCategoryDesc" class="block text-sm font-bold text-gray-700 mb-2">Description
+                    (Optional)</label>
+                <textarea id="newCategoryDesc" name="description" rows="3"
+                    class="w-full px-4 py-2 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all font-medium"></textarea>
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-4">
+                <button type="button" onclick="closeCategoryModal()"
+                    class="px-6 py-2 rounded-xl text-gray-500 font-bold hover:bg-gray-100 transition-colors">
+                    Cancel
+                </button>
+                <button type="submit"
+                    class="bg-primary hover:bg-purple-700 text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-purple-200 transition-all">
+                    Create Category
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Helper to add Tailwind classes to Django form widgets
+    document.addEventListener('DOMContentLoaded', function () {
+        const inputs = document.querySelectorAll('input[type="text"], input[type="number"], textarea, select');
+        inputs.forEach(input => {
+            if (!input.classList.contains('form-control')) {
+                // Existing logic
+            }
+        });
+
+        // Modal Logic
+        const modal = document.getElementById('categoryModal');
+        const openBtn = document.getElementById('createCategoryBtn'); // Select by ID
+
+        if (openBtn) {
+            openBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                modal.classList.remove('hidden');
+                document.getElementById('newCategoryName').focus();
+            });
+        }
+
+        document.getElementById('createCategoryForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const name = document.getElementById('newCategoryName').value;
+            const description = document.getElementById('newCategoryDesc').value;
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            fetch('/api/categories/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    name: name,
+                    description: description
+                })
+            })
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
+                .then(data => {
+                    // Add new category to dropdown
+                    const select = document.getElementById('{{ form.category.id_for_label }}');
+                    const option = new Option(data.name, data.id);
+                    select.add(option, undefined); // Add to end
+                    select.value = data.id; // Select it
+
+                    closeCategoryModal();
+
+                    // Show success feedback (optional)
+                    alert('Category created successfully!');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error creating category');
+                });
+        });
+    });
+
+    function closeCategoryModal() {
+        document.getElementById('categoryModal').classList.add('hidden');
+        document.getElementById('createCategoryForm').reset();
+    }
+</script>
+{% endblock %}

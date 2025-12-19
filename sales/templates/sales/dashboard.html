@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block title %}Sales Orders - Portal.flow{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header Section -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Sales Orders</h1>
+            <p class="text-secondary text-sm">Manage and track your sales</p>
+            {% if last_updated %}
+            <p class="text-xs text-gray-400 mt-1"><i class="fas fa-clock mr-1"></i> Last Updated: {{
+                last_updated|date:"M j, Y H:i" }}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Actions -->
+        <div class="flex flex-col sm:flex-row w-full md:w-auto gap-3">
+            <a href="{% url 'wholesale_create' %}"
+                class="bg-white hover:bg-gray-50 text-gray-700 px-6 py-2 rounded-xl font-bold border border-gray-200 shadow-sm transition-all flex items-center justify-center">
+                <i class="fas fa-plus mr-2"></i> New Wholesale
+            </a>
+            <a href="{% url 'upload_sales' %}"
+                class="bg-primary hover:bg-purple-700 text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-purple-200 transition-all flex items-center justify-center">
+                <i class="fas fa-file-import mr-2"></i> Import Excel
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats & Filters -->
+    <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+        <div class="flex flex-wrap bg-gray-100 p-1 rounded-xl w-full md:w-auto overflow-x-auto no-scrollbar">
+            <a href="{% url 'sales_dashboard' %}" 
+               class="flex-1 md:flex-none text-center px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap {% if not current_channel %}bg-white text-gray-800 shadow-sm{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+               All
+            </a>
+            <a href="?channel=MERCADOLIBRE" 
+               class="flex-1 md:flex-none text-center px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap {% if current_channel == 'MERCADOLIBRE' %}bg-white text-[#FFE600] shadow-sm{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+               MercadoLibre
+            </a>
+            <a href="?channel=TIENDANUBE" 
+               class="flex-1 md:flex-none text-center px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap {% if current_channel == 'TIENDANUBE' %}bg-white text-[#2D3277] shadow-sm{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+               Tienda Nube
+            </a>
+            <a href="?channel=WHOLESALE" 
+               class="flex-1 md:flex-none text-center px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap {% if current_channel == 'WHOLESALE' %}bg-white text-primary shadow-sm{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+               Wholesale
+            </a>
+        </div>
+    </div>
+
+    <!-- Sales Table -->
+    <div class="bg-white rounded-3xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                        <th class="p-6">Date</th>
+                        <th class="p-6">Order ID</th>
+                        <th class="p-6">Customer</th>
+                        <th class="p-6 text-center">Status</th>
+                        <th class="p-6 text-center">Channel</th>
+                        <th class="p-6 text-right">Total</th>
+                        <th class="p-6 text-center">Details</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm font-medium text-gray-700 divide-y divide-gray-50">
+                    {% for sale in sales %}
+                    <tr class="hover:bg-gray-50 transition-colors group cursor-pointer"
+                        onclick="window.location='{% url 'sale_detail' sale.pk %}';">
+                        <td class="p-6">{{ sale.date|date:"M d, Y" }}</td>
+                        <td class="p-6 text-gray-900 font-bold">#{{ sale.order_id }}</td>
+                        <td class="p-6">
+                            {% if sale.customer %}
+                            {{ sale.customer.username }}
+                            {% else %}
+                            <span class="text-gray-400">Unknown</span>
+                            {% endif %}
+                            <div class="text-xs text-gray-400 font-normal">{{ sale.province }}</div>
+                        </td>
+                        <td class="p-6 text-center">
+                            <span class="px-3 py-1 rounded-full text-xs font-bold 
+                                {% if sale.status == 'Entregado' %}bg-green-100 text-green-600
+                                {% elif sale.status == 'Cancelado' %}bg-red-100 text-red-600
+                                {% else %}bg-yellow-100 text-yellow-600{% endif %}">
+                                {{ sale.status }}
+                            </span>
+                        </td>
+                        <td class="p-6 text-center">
+                            {% if sale.channel == 'MERCADOLIBRE' %}
+                                <span class="text-xs font-bold text-[#2D3277] bg-[#FFE600] px-2 py-1 rounded">MeLi</span>
+                            {% elif sale.channel == 'TIENDANUBE' %}
+                                <span class="text-xs font-bold text-white bg-[#2D3277] px-2 py-1 rounded">TN</span>
+                            {% elif sale.channel == 'WHOLESALE' %}
+                                <span class="text-xs font-bold text-white bg-primary px-2 py-1 rounded">Mayorista</span>
+                            {% else %}
+                                <span class="text-xs text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-6 text-right font-bold">${{ sale.total }}</td>
+                        <td class="p-6 text-center">
+                            <a href="{% url 'sale_detail' sale.pk %}"
+                                class="text-primary hover:bg-purple-50 px-3 py-1 rounded-lg text-sm font-bold transition-colors">
+                                View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="p-12 text-center text-gray-400">
+                            <div class="flex flex-col items-center">
+                                <i class="fas fa-box-open text-4xl mb-4 text-gray-200"></i>
+                                <p>No sales found</p>
+                                <a href="{% url 'upload_sales' %}"
+                                    class="mt-2 text-primary font-bold hover:underline">Import your first Excel</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

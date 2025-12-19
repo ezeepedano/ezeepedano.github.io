@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ provider.name }} - Portal.flow{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-8">
+
+    <!-- Header / Info Card -->
+    <div
+        class="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100 p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div class="flex items-center gap-6">
+            <div
+                class="w-20 h-20 rounded-3xl bg-purple-50 flex items-center justify-center text-purple-600 font-bold text-3xl shadow-inner">
+                {{ provider.name|slice:":1" }}
+            </div>
+            <div class="flex flex-col gap-1">
+                <h1 class="text-3xl font-bold text-gray-900">{{ provider.name }}</h1>
+                {% if provider.cuit %}
+                <span class="text-xs font-mono bg-gray-100 text-gray-600 px-2 py-1 rounded w-fit">CUIT: {{ provider.cuit }}</span>
+                {% endif %}
+
+                <div class="flex flex-wrap gap-4 mt-2 text-sm text-gray-600">
+                    {% if provider.website %}
+                    <a href="{{ provider.website }}" target="_blank"
+                        class="hover:text-blue-500 flex items-center gap-2"><i class="fas fa-globe"></i> Website</a>
+                    {% endif %}
+                    {% if provider.email %}
+                    <a href="mailto:{{ provider.email }}" class="hover:text-blue-500 flex items-center gap-2"><i
+                            class="fas fa-envelope"></i> {{ provider.email }}</a>
+                    {% endif %}
+                    {% if provider.phone %}
+                    <span class="flex items-center gap-2"><i class="fas fa-phone"></i> {{ provider.phone }}</span>
+                    {% endif %}
+                </div>
+                {% if provider.address or provider.city %}
+                <div class="text-sm text-gray-500 mt-1 flex items-center gap-2">
+                    <i class="fas fa-map-marker-alt"></i>
+                    {{ provider.address|default:'' }}{% if provider.address and provider.city %}, {% endif %}{{ provider.city|default:'' }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="flex flex-col items-end gap-2">
+            <span class="text-sm font-bold text-gray-500 uppercase">Total Gastado</span>
+            <span class="text-3xl font-bold text-gray-900">${{ total_spent|floatformat:2 }}</span>
+            <a href="{% url 'provider_update' provider.pk %}"
+                class="text-xs font-bold text-blue-500 hover:text-blue-700 mt-2 bg-blue-50 px-3 py-1 rounded-full transition-colors">
+                <i class="fas fa-edit mr-1"></i> Editar Datos
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+        <!-- Recent Purchases (Regular) -->
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="font-bold text-gray-800"><i class="fas fa-shopping-cart mr-2 text-gray-400"></i> Compras
+                    Recientes</h3>
+                <span class="text-xs font-bold bg-white border border-gray-200 px-2 py-1 rounded-lg text-gray-600">${{ total_purchases|floatformat:0 }}</span>
+            </div>
+            <div class="max-h-96 overflow-y-auto">
+                <table class="w-full text-left">
+                    <tbody class="divide-y divide-gray-50">
+                        {% for purchase in purchases %}
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-3">
+                                <span class="block text-sm font-bold text-gray-800">{{ purchase.date|date:"d M Y" }}</span>
+                                <span class="text-xs text-gray-500">{{ purchase.category.name|default:"-" }}</span>
+                            </td>
+                            <td class="px-6 py-3">
+                                <span class="text-sm text-gray-600 block truncate w-32"
+                                    title="{{ purchase.description }}">
+                                    {{ purchase.description|default:"Compra" }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-3 text-right">
+                                <span class="font-bold text-gray-800 text-sm">${{ purchase.amount|floatformat:2 }}</span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="px-6 py-8 text-center text-sm text-gray-400">
+                                Sin compras registradas.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Linked Assets -->
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="font-bold text-gray-800"><i class="fas fa-industry mr-2 text-gray-400"></i> Bienes de Uso
+                </h3>
+                <span class="text-xs font-bold bg-white border border-gray-200 px-2 py-1 rounded-lg text-gray-600">${{ total_assets|floatformat:0 }}</span>
+            </div>
+            <div class="max-h-96 overflow-y-auto">
+                <table class="w-full text-left">
+                    <tbody class="divide-y divide-gray-50">
+                        {% for asset in assets %}
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-3">
+                                <span class="block text-sm font-bold text-gray-800">{{ asset.purchase_date|date:"Y" }}</span>
+                                <span class="text-xs text-blue-500 bg-blue-50 px-1 rounded">{{ asset.category.name }}</span>
+                            </td>
+                            <td class="px-6 py-3">
+                                <span class="text-sm font-medium text-gray-700 block">{{ asset.name }}</span>
+                                <span class="text-xs text-gray-400">{{ asset.location|default:"-" }}</span>
+                            </td>
+                            <td class="px-6 py-3 text-right">
+                                <span class="font-bold text-gray-800 text-sm">${{ asset.cost|floatformat:2 }}</span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="px-6 py-8 text-center text-sm text-gray-400">
+                                Sin bienes de uso registrados.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="flex justify-center">
+        <a href="{% url 'provider_list' %}"
+            class="text-gray-500 hover:text-gray-800 font-bold text-sm transition-colors">
+            <i class="fas fa-arrow-left mr-2"></i> Volver a Lista de Proveedores
+        </a>
+    </div>
+
+</div>
+{% endblock %}

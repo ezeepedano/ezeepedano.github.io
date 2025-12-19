@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ customer.name }} - Portal.flow{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div class="flex items-center gap-4">
+            <div
+                class="w-16 h-16 rounded-full bg-indigo-100 text-indigo-500 flex items-center justify-center text-2xl font-bold">
+                {{ customer.name|first|upper }}
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800 flex flex-wrap items-center gap-3">
+                    {{ customer.name }}
+                    {% if stats and stats.segment %}
+                    <span class="px-3 py-1 rounded-full text-sm font-bold
+                        {% if stats.segment == 'VIP' %}bg-purple-100 text-purple-600
+                        {% elif stats.segment == 'Fiel' %}bg-green-100 text-green-600
+                        {% elif stats.segment == 'En riesgo' %}bg-yellow-100 text-yellow-600
+                        {% else %}bg-blue-100 text-blue-600{% endif %}">
+                        {{ stats.segment }}
+                    </span>
+                    {% endif %}
+                    {% if customer.has_open_claim %}
+                    <span class="px-3 py-1 rounded-full text-sm font-bold bg-red-100 text-red-600">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>Claim
+                    </span>
+                    {% endif %}
+                </h1>
+                <p class="text-secondary text-sm">{{ customer.city }}, {{ customer.state }} · Customer since {{ customer.first_purchase_date|date:"M Y"|default:"--" }}</p>
+            </div>
+        </div>
+        <a href="{% url 'customer_list' %}"
+            class="bg-white text-secondary hover:text-gray-800 border border-gray-200 px-5 py-2 rounded-xl font-bold transition-all flex items-center self-start md:self-auto">
+            <i class="fas fa-arrow-left mr-2"></i> Back
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Profile Card -->
+            <div class="bg-white rounded-3xl shadow-sm p-8">
+                <h2 class="text-lg font-bold text-gray-800 mb-4">Customer Details</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider">Document</p>
+                            <p class="font-medium text-gray-800">
+                                {% if customer.document_type %}{{ customer.document_type }}: {% endif %}{{ customer.document_number|default:"-" }}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider">Billing Name</p>
+                            <p class="font-medium text-gray-800">{{ customer.billing_name|default:"-" }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider">Tax Condition</p>
+                            <p class="font-medium text-gray-800">{{ customer.tax_condition|default:"-" }}</p>
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider">Shipping Address</p>
+                            <p class="font-medium text-gray-800">{{ customer.shipping_address|default:"-" }}</p>
+                            <p class="text-sm text-gray-600">{{ customer.city }}, {{ customer.state }} {{ customer.postal_code }}</p>
+                            <p class="text-sm text-gray-500">{{ customer.country|default:"Argentina" }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider">Billing Address</p>
+                            <p class="font-medium text-gray-800">{{ customer.billing_address|default:"-" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order History -->
+            <div class="bg-white rounded-3xl shadow-sm p-8">
+                <h2 class="text-lg font-bold text-gray-800 mb-4">Order History</h2>
+                {% if sales %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr
+                                class="text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                                <th class="pb-3">Date</th>
+                                <th class="pb-3">Order ID</th>
+                                <th class="pb-3 text-center">Status</th>
+                                <th class="pb-3 text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm divide-y divide-gray-50">
+                            {% for sale in sales %}
+                            <tr class="hover:bg-gray-50 cursor-pointer"
+                                data-url="{% url 'sale_detail' sale.pk %}"
+                                onclick="window.location=this.dataset.url;">
+                                <td class="py-3">{{ sale.date|date:"M d, Y" }}</td>
+                                <td class="py-3 font-mono text-xs text-gray-600">#{{ sale.order_id }}</td>
+                                <td class="py-3 text-center">
+                                    <span class="px-2 py-1 rounded-full text-xs font-bold
+                                        {% if sale.status == 'Entregado' %}bg-green-100 text-green-600
+                                        {% elif sale.status == 'Cancelado' %}bg-red-100 text-red-600
+                                        {% else %}bg-yellow-100 text-yellow-600{% endif %}">
+                                        {{ sale.status|truncatechars:15 }}
+                                    </span>
+                                </td>
+                                <td class="py-3 text-right font-bold">${{ sale.total|floatformat:0 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-gray-400 italic">No orders found.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Sidebar Stats -->
+        <div class="space-y-6">
+            <!-- Key Metrics -->
+            <div class="bg-white rounded-3xl shadow-sm p-8">
+                <h2 class="text-lg font-bold text-gray-800 mb-4">Key Metrics</h2>
+                {% if stats %}
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                        <span class="text-gray-600">Total Spent</span>
+                        <span class="text-xl font-bold text-primary">${{ stats.total_spent|floatformat:0 }}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                        <span class="text-gray-600">Total Orders</span>
+                        <span class="text-xl font-bold text-gray-800">{{ stats.total_orders }}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                        <span class="text-gray-600">Units Purchased</span>
+                        <span class="text-xl font-bold text-gray-800">{{ stats.total_units }}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                        <span class="text-gray-600">Avg Ticket</span>
+                        <span class="text-xl font-bold text-gray-800">${{ stats.avg_ticket|floatformat:0 }}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                        <span class="text-gray-600">Max Ticket</span>
+                        <span class="text-xl font-bold text-gray-800">${{ stats.max_ticket|floatformat:0 }}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                        <span class="text-gray-600">Days Since Last Order</span>
+                        <span
+                            class="text-xl font-bold {% if stats.days_since_last_order > 60 %}text-yellow-600{% else %}text-green-600{% endif %}">
+                            {{ stats.days_since_last_order }}
+                        </span>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-gray-400 italic">No stats available.</p>
+                {% endif %}
+            </div>
+
+            <!-- RFM Score -->
+            {% if stats %}
+            <div class="bg-white rounded-3xl shadow-sm p-8">
+                <h2 class="text-lg font-bold text-gray-800 mb-4">RFM Score</h2>
+                <div class="grid grid-cols-3 gap-4 text-center">
+                    <div class="bg-blue-50 rounded-xl p-4">
+                        <p class="text-2xl font-bold text-blue-600">{{ stats.r_score }}</p>
+                        <p class="text-xs text-gray-500 uppercase">Recency</p>
+                    </div>
+                    <div class="bg-green-50 rounded-xl p-4">
+                        <p class="text-2xl font-bold text-green-600">{{ stats.f_score }}</p>
+                        <p class="text-xs text-gray-500 uppercase">Frequency</p>
+                    </div>
+                    <div class="bg-purple-50 rounded-xl p-4">
+                        <p class="text-2xl font-bold text-purple-600">{{ stats.m_score }}</p>
+                        <p class="text-xs text-gray-500 uppercase">Monetary</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Top Products -->
+            {% if top_products %}
+            <div class="bg-white rounded-3xl shadow-sm p-8">
+                <h2 class="text-lg font-bold text-gray-800 mb-4">Top Products</h2>
+                <div class="space-y-3">
+                    {% for prod in top_products %}
+                    <div class="flex justify-between items-center">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-800 truncate">{{ prod.product_title|truncatechars:35 }}</p>
+                            <p class="text-xs text-gray-400">{{ prod.sku|default:"No SKU" }}</p>
+                        </div>
+                        <span class="ml-2 px-2 py-1 bg-indigo-100 text-indigo-600 rounded-lg text-sm font-bold">
+                            x{{ prod.total_qty }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Claims/Returns -->
+            {% if stats and stats.total_return_units > 0 or stats and stats.open_claims_count > 0 %}
+            <div class="bg-white rounded-3xl shadow-sm p-8">
+                <h2 class="text-lg font-bold text-gray-800 mb-4">Issues</h2>
+                <div class="space-y-3">
+                    {% if stats and stats.total_return_units > 0 %}
+                    <div class="flex justify-between items-center p-3 bg-red-50 rounded-xl">
+                        <span class="text-red-600">Returns</span>
+                        <span class="font-bold text-red-600">{{ stats.total_return_units }} units ({{ stats.return_rate|floatformat:1 }}%)</span>
+                    </div>
+                    {% endif %}
+                    {% if stats and stats.open_claims_count > 0 %}
+                    <div class="flex justify-between items-center p-3 bg-yellow-50 rounded-xl">
+                        <span class="text-yellow-600">Open Claims</span>
+                        <span class="font-bold text-yellow-600">{{ stats.open_claims_count }}</span>
+                    </div>
+                    {% endif %}
+                    {% if stats and stats.closed_claims_count > 0 %}
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                        <span class="text-gray-600">Closed Claims</span>
+                        <span class="font-bold text-gray-600">{{ stats.closed_claims_count }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

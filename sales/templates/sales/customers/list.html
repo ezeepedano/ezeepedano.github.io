@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+
+{% block title %}Customers - Portal.flow{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">{% load sales_extras %}
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Customers</h1>
+            <p class="text-secondary text-sm">Customer analytics and profiles</p>
+        </div>
+
+        <!-- Search -->
+        <form method="get" class="flex gap-2">
+            <input type="text" name="q" value="{{ search_query }}" placeholder="Search customers..."
+                class="px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary focus:outline-none w-64">
+            <button type="submit" class="bg-primary hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-bold">
+                <i class="fas fa-search"></i>
+            </button>
+        </form>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-2xl shadow-sm p-4 mb-6">
+        <form method="get" class="flex flex-wrap gap-4 items-center">
+            <input type="hidden" name="q" value="{{ search_query }}">
+
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase">Segment</label>
+                <select name="segment" class="block mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm">
+                    <option value="">All Segments</option>
+                    {% for seg in segments %}
+                    <option value="{{ seg }}" {% check_match seg current_segment 'selected' %}>{{ seg }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase">Sort By</label>
+                <select name="sort" class="block mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm">
+                    <option value="-stats__total_spent" {% check_match current_sort '-stats__total_spent' 'selected' %}>
+                        Top Spenders</option>
+                    <option value="-stats__total_orders" {% check_match current_sort '-stats__total_orders' 'selected'
+                        %}>Most Orders</option>
+                    <option value="-stats__days_since_last_order" {% check_match
+                        current_sort '-stats__days_since_last_order' 'selected' %}>Least Recent</option>
+                    <option value="stats__days_since_last_order" {% check_match
+                        current_sort 'stats__days_since_last_order' 'selected' %}>Most Recent</option>
+                    <option value="name" {% check_match current_sort 'name' 'selected' %}>Name A-Z</option>
+                </select>
+            </div>
+
+            <div class="flex items-center gap-2 mt-5">
+                <input type="checkbox" name="claims" value="1" id="claimsFilter" {% check_match
+                    request.GET.claims '1' 'checked' %}>
+                <label for="claimsFilter" class="text-sm text-gray-600">Open Claims Only</label>
+            </div>
+
+            <button type="submit"
+                class="mt-5 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold text-sm">
+                Apply Filters
+            </button>
+        </form>
+    </div>
+
+    <!-- Customer Table -->
+    <div class="bg-white rounded-3xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                        <th class="p-5">Customer</th>
+                        <th class="p-5">Location</th>
+                        <th class="p-5 text-right">Total Spent</th>
+                        <th class="p-5 text-center">Orders</th>
+                        <th class="p-5 text-right">Avg Ticket</th>
+                        <th class="p-5 text-center">Last Order</th>
+                        <th class="p-5 text-center">Segment</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm font-medium text-gray-700 divide-y divide-gray-50">
+                    {% for customer in customers %}
+                    <tr class="hover:bg-gray-50 transition-colors cursor-pointer"
+                        data-href="{% url 'customer_detail' customer.pk %}" onclick="window.location=this.dataset.href">
+                        <td class="p-5">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-500 flex items-center justify-center text-lg font-bold">
+                                    {{ customer.name|first|upper }}
+                                </div>
+                                <div>
+                                    <p class="font-bold text-gray-800">{{ customer.name }}</p>
+                                    {% if customer.billing_name and customer.billing_name != customer.name %}
+                                    <p class="text-xs text-gray-400">{{ customer.billing_name|truncatechars:30 }}</p>
+                                    {% endif %}
+                                    {% if customer.has_open_claim %}
+                                    <span class="text-xs text-red-500"><i
+                                            class="fas fa-exclamation-triangle mr-1"></i>Claim</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="p-5">
+                            <p class="text-gray-800">{{ customer.city|default:"-" }}</p>
+                            <p class="text-xs text-gray-400">{{ customer.state|default:"" }}</p>
+                        </td>
+                        <td class="p-5 text-right font-bold text-gray-800">
+                            {% if customer.safe_stats %}
+                            ${{ customer.safe_stats.total_spent|floatformat:0 }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="p-5 text-center">
+                            {% if customer.safe_stats %}
+                            {{ customer.safe_stats.total_orders }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="p-5 text-right">
+                            {% if customer.safe_stats %}
+                            ${{ customer.safe_stats.avg_ticket|floatformat:0 }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="p-5 text-center">
+                            {% if customer.safe_stats and customer.safe_stats.last_order_date %}
+                            <p>{{ customer.safe_stats.last_order_date|date:"M d" }}</p>
+                            <p class="text-xs text-gray-400">{{ customer.safe_stats.days_since_last_order }}d ago</p>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="p-5 text-center">
+                            {% if customer.safe_stats and customer.safe_stats.segment %}
+                            <span class="px-3 py-1 rounded-full text-xs font-bold
+                                {% if customer.safe_stats.segment == 'VIP' %}bg-purple-100 text-purple-600
+                                {% elif customer.safe_stats.segment == 'Fiel' %}bg-green-100 text-green-600
+                                {% elif customer.safe_stats.segment == 'En riesgo' %}bg-yellow-100 text-yellow-600
+                                {% elif customer.safe_stats.segment == 'Dormido' %}bg-gray-100 text-gray-600
+                                {% else %}bg-blue-100 text-blue-600{% endif %}">
+                                {{ customer.safe_stats.segment }}
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="p-12 text-center text-gray-400">
+                            <div class="flex flex-col items-center">
+                                <i class="fas fa-users text-4xl mb-4 text-gray-200"></i>
+                                <p>No customers found</p>
+                                <a href="{% url 'upload_sales' %}"
+                                    class="mt-2 text-primary font-bold hover:underline">Import sales to create
+                                    customers</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

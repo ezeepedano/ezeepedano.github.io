@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Portal.flow{% endblock %}
+
+{% block content %}
+<!-- Overview Header -->
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-800">Overview</h1>
+    <p class="text-secondary text-sm">Welcome back, Giuliana. Here is what's happening today.</p>
+</div>
+
+<!-- Key Metrics Cards -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <!-- Revenue -->
+    <div class="bg-dark text-white p-6 rounded-3xl shadow-lg relative overflow-hidden group">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-primary rounded-full filter blur-3xl opacity-20 -mr-10 -mt-10">
+        </div>
+        <div class="relative z-10">
+            <div class="flex justify-between items-center mb-4">
+                <div class="w-10 h-10 rounded-full bg-white bg-opacity-10 flex items-center justify-center">
+                    <i class="fas fa-dollar-sign text-lg"></i>
+                </div>
+                <span class="text-xs bg-green-500 bg-opacity-20 text-green-300 px-2 py-1 rounded-full">+10.5%</span>
+            </div>
+            <h2 class="text-3xl font-bold mb-1">$45,500</h2>
+            <p class="text-gray-400 text-sm">Total Revenue</p>
+        </div>
+    </div>
+
+    <!-- Orders -->
+    <div class="bg-white p-6 rounded-3xl shadow-sm hover:shadow-md transition-shadow">
+        <div class="flex justify-between items-center mb-4">
+            <div class="w-10 h-10 rounded-full bg-green-50 text-green-500 flex items-center justify-center">
+                <i class="fas fa-shopping-bag"></i>
+            </div>
+            <span class="text-xs bg-green-50 text-green-600 px-2 py-1 rounded-full">+10.9%</span>
+        </div>
+        <h2 class="text-3xl font-bold text-gray-800 mb-1">700</h2>
+        <p class="text-secondary text-sm">Total Orders</p>
+    </div>
+
+    <!-- Customers -->
+    <div class="bg-white p-6 rounded-3xl shadow-sm hover:shadow-md transition-shadow">
+        <div class="flex justify-between items-center mb-4">
+            <div class="w-10 h-10 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center">
+                <i class="fas fa-users"></i>
+            </div>
+            <span class="text-xs bg-green-50 text-green-600 px-2 py-1 rounded-full">+12.5%</span>
+        </div>
+        <h2 class="text-3xl font-bold text-gray-800 mb-1">205</h2>
+        <p class="text-secondary text-sm">Total Customers</p>
+    </div>
+
+    <!-- Products -->
+    <div class="bg-white p-6 rounded-3xl shadow-sm hover:shadow-md transition-shadow">
+        <div class="flex justify-between items-center mb-4">
+            <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center">
+                <i class="fas fa-box"></i>
+            </div>
+            <span class="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-full">-0.5%</span>
+        </div>
+        <h2 class="text-3xl font-bold text-gray-800 mb-1">{{ total_stock }}</h2>
+        <p class="text-secondary text-sm">Total Products in Stock</p>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <!-- Main Chart -->
+    <div class="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="font-bold text-gray-800 text-lg">Orders Overview</h3>
+            <select class="bg-gray-50 border-none text-xs rounded-lg px-3 py-2 font-medium text-gray-500 focus:ring-0">
+                <option>2025</option>
+                <option>2024</option>
+            </select>
+        </div>
+        <div class="h-64">
+            <canvas id="ordersChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Donut Chart -->
+    <div class="bg-white p-6 rounded-3xl shadow-sm">
+        <h3 class="font-bold text-gray-800 text-lg mb-6">Sale Analytics</h3>
+        <div class="h-48 relative flex items-center justify-center">
+            <canvas id="salesChart"></canvas>
+            <div class="absolute text-center">
+                <p class="text-3xl font-bold text-gray-800">90%</p>
+                <p class="text-xs text-secondary">Completed</p>
+            </div>
+        </div>
+        <div class="mt-6 space-y-3">
+            <div class="flex justify-between text-sm">
+                <span class="flex items-center text-secondary"><span
+                        class="w-2 h-2 rounded-full bg-primary mr-2"></span>Completed</span>
+                <span class="font-bold text-gray-800">70%</span>
+            </div>
+            <div class="flex justify-between text-sm">
+                <span class="flex items-center text-secondary"><span
+                        class="w-2 h-2 rounded-full bg-green-400 mr-2"></span>Distributed</span>
+                <span class="font-bold text-gray-800">15%</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Config Charts
+    document.addEventListener('DOMContentLoaded', function () {
+        // Line Chart
+        const ctx1 = document.getElementById('ordersChart').getContext('2d');
+        new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                datasets: [{
+                    label: 'Orders',
+                    data: [20, 45, 30, 80, 55, 90, 70, 65, 50, 40, 30, 50],
+                    borderColor: '#6C5DD3',
+                    backgroundColor: 'rgba(108, 93, 211, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 3,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { display: false, grid: { display: false } },
+                    x: { grid: { display: false }, ticks: { font: { size: 10, family: 'Outfit' }, color: '#A098AE' } }
+                }
+            }
+        });
+
+        // Donut Chart
+        const ctx2 = document.getElementById('salesChart').getContext('2d');
+        new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: ['Completed', 'Distributed', 'Returned'],
+                datasets: [{
+                    data: [70, 15, 15],
+                    backgroundColor: ['#6C5DD3', '#4FD1C5', '#FF8FBA'],
+                    borderWidth: 0,
+                    cutout: '75%'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
+        });
+    });
+</script>
+{% endblock %}

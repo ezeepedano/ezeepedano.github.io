@@ -1,0 +1,316 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Budgetale Login{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Reset básico */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            height: 100vh;
+            width: 100%;
+            /* Fondo simulado de escritorio blanco similar a la imagen */
+            background: url('{% static "img/login_bg.png" %}?v=3') no-repeat center center/cover;
+            /* Capa blanca semitransparente para asegurar legibilidad si la imagen cambia */
+            background-color: #f4f4f4;
+            display: flex;
+            align-items: center;
+            color: #444;
+        }
+
+        /* Contenedor Principal (Alineado a la izquierda como en la foto) */
+        .main-container {
+            width: 100%;
+            padding-left: 10%;
+            /* Empuja el contenido hacia donde está en la foto */
+            padding-right: 5%;
+        }
+
+        .login-wrapper {
+            max-width: 450px;
+        }
+
+        /* Logo */
+        .logo {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #3b82f6;
+            /* Azul Budgetale */
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .logo i {
+            font-size: 1.5rem;
+        }
+
+        /* Títulos y textos */
+        h1 {
+            font-size: 2.5rem;
+            color: #4b5563;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: #7d8592;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+
+        /* Inputs Estilizados */
+        .input-group {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 15px 45px;
+            /* Espacio para los iconos */
+            border-radius: 50px;
+            /* Forma de píldora */
+            border: none;
+            outline: none;
+            font-size: 0.95rem;
+            color: #333;
+            background: #fff;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            /* Sombra suave */
+            transition: all 0.3s ease;
+        }
+
+        .input-group input:focus {
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.2);
+        }
+
+        .input-icon {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #888;
+            font-size: 1rem;
+            z-index: 10;
+            /* Ensure icon is above input background if needed */
+            pointer-events: none;
+            /* Let clicks pass through to input */
+        }
+
+        .input-icon.left {
+            left: 20px;
+        }
+
+        .input-icon.right {
+            right: 20px;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        .input-icon.success {
+            color: #2ecc71;
+            /* Verde check */
+        }
+
+        /* Checkbox y Forgot Password */
+        .options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 30px;
+            padding: 0 10px;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        /* Ocultar checkbox nativo y crear uno personalizado si se desea, 
+        o usar estilos simples. Aquí usaremos uno simple pero limpio. */
+        .checkbox-container input {
+            accent-color: #888;
+            width: auto;
+            /* Override general width 100% */
+            margin: 0;
+            padding: 0;
+        }
+
+        .forgot-pass {
+            text-decoration: none;
+            color: #666;
+            transition: color 0.3s;
+        }
+
+        .forgot-pass:hover {
+            color: #3b82f6;
+        }
+
+        /* Botón Login */
+        .btn-login {
+            width: 100%;
+            padding: 15px;
+            border-radius: 50px;
+            border: none;
+            background: #2b8bf2;
+            /* Azul brillante */
+            color: white;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(43, 139, 242, 0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            /* For links styled as buttons */
+            transition: transform 0.2s, background 0.3s;
+        }
+
+        .btn-login:hover {
+            background: #1a73e8;
+            transform: translateY(-2px);
+        }
+
+        /* Social Login */
+        .social-login {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .social-login p {
+            color: #888;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+
+        .social-icons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .social-btn {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: white;
+            font-size: 1.1rem;
+            transition: transform 0.2s;
+        }
+
+        .social-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .facebook {
+            background: #1877f2;
+        }
+
+        .google {
+            background: #db4437;
+        }
+
+        .twitter {
+            background: #1da1f2;
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 50px;
+            text-align: left;
+            font-size: 0.75rem;
+            color: #555;
+            line-height: 1.4;
+            opacity: 0.8;
+        }
+
+        /* Alerts */
+        .alert {
+            padding: 10px;
+            border-radius: 8px;
+            background-color: #fee2e2;
+            color: #dc2626;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Responsividad para móviles */
+        @media (max-width: 768px) {
+            body {
+                background-position: center;
+                justify-content: center;
+            }
+
+            .main-container {
+                padding: 20px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100%;
+            }
+            
+            .login-wrapper {
+                width: 100%;
+                background: rgba(255, 255, 255, 0.9);
+                padding: 20px;
+                border-radius: 20px;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            }
+
+            footer {
+                text-align: center;
+                margin-top: 30px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="main-container">
+        <div class="login-wrapper">
+
+            <div class="logo">
+                <i class="fas fa-dollar-sign"></i> budgetale
+            </div>
+
+            {% block content %}
+            {% endblock %}
+
+            <footer>
+                <p>&copy; 2019 BudgetBear - Drivester Ltd.</p>
+                <p>67 Albion Street, West Yorkshire, Leeds LS1 5AA, United Kingdom</p>
+            </footer>
+
+        </div>
+    </div>
+
+</body>
+
+</html>

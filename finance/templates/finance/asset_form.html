@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} - Portal.flow{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="flex items-center gap-4 mb-8">
+        <a href="{% if asset %}{% url 'asset_detail' asset.pk %}{% else %}{% url 'asset_list' %}{% endif %}"
+            class="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h1 class="text-2xl font-bold text-gray-900">{{ title }}</h1>
+    </div>
+
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+        <form method="POST" class="space-y-6">
+            {% csrf_token %}
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nombre del Bien</label>
+                {{ form.name.errors }}
+                <input type="text" name="name" value="{{ form.name.value|default:'' }}" required
+                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary font-medium">
+            </div>
+
+            <div class="grid grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Fecha Compra</label>
+                    {{ form.purchase_date.errors }}
+                    <input type="date" name="purchase_date" value="{{ form.purchase_date.value|date:'Y-m-d' }}" required
+                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Costo / Valor ($)</label>
+                    {{ form.cost.errors }}
+                    <input type="number" step="0.01" name="cost" value="{{ form.cost.value|stringformat:'f' }}" required
+                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Categoría</label>
+                {{ form.category.errors }}
+                <select name="category" id="categorySelect"
+                    onchange="if(this.value==='new'){document.getElementById('newCategoryConfig').classList.remove('hidden');}else{document.getElementById('newCategoryConfig').classList.add('hidden');}"
+                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary">
+                    <option value="">-- Seleccionar --</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if form.category.value == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                    <option value="new" class="font-bold text-blue-600">+ Nueva Categoría</option>
+                </select>
+                
+                <!-- Inline New Category -->
+                <div id="newCategoryConfig" class="hidden mt-3 animate-fade-in-down">
+                    <input type="text" name="new_category" placeholder="Nombre de la nueva categoría..."
+                        class="w-full bg-blue-50 border border-blue-200 text-blue-800 rounded-xl px-4 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 placeholder-blue-300">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Ubicación</label>
+                    {{ form.location.errors }}
+                    <input type="text" name="location" value="{{ form.location.value|default:'' }}" placeholder="Ej: Cocina, Depósito..."
+                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Proveedor (Opcional)</label>
+                    {{ form.provider.errors }}
+                    <!-- Using datalist for consistent UX with asset list modal, though AssetForm usually takes ID. 
+                         If we use AssetForm directly without custom clean, we should use a Select or adapt.
+                         Current view uses AssetForm but assumes standard behavior. 
+                         Let's keep it simple: Select for valid providers. -->
+                    <select name="provider" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary">
+                        <option value="">-- Opcional --</option>
+                        {% for p in providers %}
+                        <option value="{{ p.id }}" {% if form.provider.value == p.id %}selected{% endif %}>{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Descripción / Detalles</label>
+                {{ form.description.errors }}
+                <textarea name="description" rows="3"
+                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary">{{ form.description.value|default:'' }}</textarea>
+            </div>
+
+            <div class="pt-6 flex items-center justify-end gap-3 border-t border-gray-100">
+                <a href="{% if asset %}{% url 'asset_detail' asset.pk %}{% else %}{% url 'asset_list' %}{% endif %}" 
+                    class="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">
+                    Cancelar
+                </a>
+                <button type="submit"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                    Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

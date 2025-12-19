@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+
+{% block title %}Bienes de Uso - Portal.flow{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+
+    <!-- LEFT COLUMN: Main List -->
+    <div class="lg:col-span-3 space-y-8">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Bienes de Uso</h1>
+                <p class="text-secondary text-sm">Gestiona tus activos fijos, maquinarias y muebles.</p>
+            </div>
+            <button onclick="document.getElementById('addAssetModal').classList.remove('hidden')"
+                class="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center transform hover:scale-105 active:scale-95 w-full md:w-auto">
+                <i class="fas fa-plus mr-2"></i> Nuevo Bien
+            </button>
+        </div>
+
+        <!-- ASSETS LIST -->
+        <div class="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100">
+            <div class="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <h2 class="text-lg font-bold text-gray-800">Inventario de Activos</h2>
+                <div class="text-sm text-secondary">
+                    Total Valor: <span class="font-bold text-gray-900">${{ total_value|floatformat:2 }}</span>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-secondary text-xs font-bold uppercase border-b border-gray-50 bg-gray-50/30">
+                            <th class="px-8 py-5">Nombre / Descripción</th>
+                            <th class="px-6 py-5">Categoría</th>
+                            <th class="px-6 py-5">Ubicación</th>
+                            <th class="px-6 py-5">Fecha Compra</th>
+                            <th class="px-6 py-5 text-right">Valor Estimado</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        {% for asset in assets %}
+                        <tr class="hover:bg-gray-50 transition-colors group">
+                            <td class="px-8 py-4 align-middle">
+                                <a href="{% url 'asset_detail' asset.pk %}" class="flex items-center gap-4 group/item">
+                                    <div
+                                        class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-lg group-hover/item:scale-110 group-hover/item:bg-blue-100 transition-all">
+                                        {{ asset.name|slice:":1" }}
+                                    </div>
+                                    </div>
+                                    <div>
+                                        <p class="font-bold text-gray-800 text-sm group-hover/item:text-blue-600 transition-colors">{{ asset.name }}</p>
+                                        {% if asset.description %}
+                                        <p class="text-xs text-secondary">{{ asset.description|truncatechars:40 }}</p>
+                                        {% endif %}
+                                    </div>
+                                </a>
+                            </td>
+                            <td class="px-6 py-4 align-middle">
+                                {% if asset.category %}
+                                <span class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg text-xs font-bold">
+                                    {{ asset.category.name }}
+                                </span>
+                                {% else %}
+                                <span class="text-gray-300 text-xs">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 align-middle text-sm text-gray-600">
+                                {{ asset.location|default:"-" }}
+                            </td>
+                            <td class="px-6 py-4 align-middle text-sm text-gray-600">
+                                {{ asset.purchase_date|date:"d M Y" }}
+                            </td>
+                            <td class="px-6 py-4 align-middle text-right text-sm font-bold text-gray-800">
+                                ${{ asset.cost|floatformat:2 }}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-6 py-16 text-center">
+                                <div class="opacity-50 flex flex-col items-center">
+                                    <i class="fas fa-box-open text-4xl mb-4 text-gray-300"></i>
+                                    <p class="font-medium text-gray-500">No tienes bienes registrados.</p>
+                                    <p class="text-sm text-gray-400">Registra máquinas, muebles o equipos.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- RIGHT COLUMN: Stats & Categories -->
+    <div class="space-y-6">
+        <!-- Summary Card -->
+        <div
+            class="bg-gradient-to-br from-blue-900 to-slate-900 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
+            <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white opacity-5 rounded-full blur-2xl"></div>
+
+            <h3 class="text-blue-200 text-xs font-bold uppercase tracking-wider mb-6">Valor Total Activos</h3>
+
+            <div class="mb-2">
+                <span class="text-4xl font-bold block mb-1">${{ total_value|floatformat:0 }}</span>
+                <span class="text-blue-300 text-sm font-medium">Inversión acumulada</span>
+            </div>
+        </div>
+
+        <!-- Categories List -->
+        <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+            <h4 class="font-bold text-gray-800 mb-4 flex justify-between items-center">
+                <span>Categorías</span>
+                <span class="text-xs bg-gray-100 px-2 py-1 rounded text-gray-500">{{ categories.count }}</span>
+            </h4>
+            <div class="space-y-3">
+                {% for cat in categories %}
+                <div class="flex justify-between items-center group">
+                    <span class="text-sm text-gray-600 font-medium">{{ cat.name }}</span>
+                    {% if request.user.is_superuser or True %} <!-- Allow delete if needed -->
+                    <form action="{% url 'asset_category_delete' cat.pk %}" method="POST"
+                        onsubmit="return confirm('¿Borrar categoría?');">
+                        {% csrf_token %}
+                        <button type="submit" class="text-gray-300 hover:text-red-500 transition-colors">
+                            <i class="fas fa-trash-alt text-xs"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% empty %}
+                <p class="text-xs text-secondary">Sin categorías.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ADD ASSET MODAL -->
+<div id="addAssetModal"
+    class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl p-6 transform transition-all scale-100">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-gray-900">Registrar Bien de Uso</h3>
+            <button onclick="document.getElementById('addAssetModal').classList.add('hidden')"
+                class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <form action="{% url 'asset_create' %}" method="POST" class="space-y-4">
+            {% csrf_token %}
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nombre del Bien</label>
+                <input type="text" name="name" required placeholder="Ej: Balanza Digital, Mesada Inox..."
+                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Fecha Compra</label>
+                    <input type="date" name="purchase_date" value="{{ today|date:'Y-m-d' }}" required
+                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Costo / Valor ($)</label>
+                    <input type="number" step="0.01" name="cost" required placeholder="0.00"
+                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Categoría</label>
+                <div class="flex gap-2">
+                    <select name="category" id="categorySelect"
+                        onchange="if(this.value==='new'){document.getElementById('newCategoryConfig').classList.remove('hidden');}else{document.getElementById('newCategoryConfig').classList.add('hidden');}"
+                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary">
+                        <option value="">-- Seleccionar --</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}">{{ cat.name }}</option>
+                        {% endfor %}
+                        <option value="new" class="font-bold text-blue-600">+ Nueva Categoría</option>
+                    </select>
+                </div>
+                <!-- Inline New Category -->
+                <div id="newCategoryConfig" class="hidden mt-2 animate-fade-in-down">
+                    <input type="text" name="new_category" placeholder="Nombre de la nueva categoría..."
+                        class="w-full bg-blue-50 border border-blue-200 text-blue-800 rounded-xl px-4 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 placeholder-blue-300">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Ubicación</label>
+                    <input type="text" name="location" placeholder="Ej: Cocina, Depósito..."
+                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Proveedor (Opcional)</label>
+                    <input type="text" name="provider" list="providersList" placeholder="Escribe para buscar..."
+                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary">
+                    <datalist id="providersList">
+                        {% for p in providers %}
+                        <option value="{{ p.name }}">
+                            {% endfor %}
+                    </datalist>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Descripción / Detalles</label>
+                <textarea name="description" rows="2" placeholder="Marca, Modelo, Serial, etc."
+                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary"></textarea>
+            </div>
+
+            <div class="pt-4 flex gap-3">
+                <button type="button" onclick="document.getElementById('addAssetModal').classList.add('hidden')"
+                    class="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200 transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit"
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg">
+                    Guardar Activo
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+
+{% block title %}Inventario - Portal.flow{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header & Search -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Inventario</h1>
+            <p class="text-secondary text-sm">Gestionar materias primas e insumos.</p>
+        </div>
+        <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+            <!-- Search Bar -->
+            <form method="get" class="relative w-full md:w-auto" id="search-form">
+                <input type="text" name="q" value="{{ search_query }}" id="search-input" placeholder="Buscar insumo..."
+                    class="pl-10 pr-4 py-2.5 rounded-xl bg-white border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all font-medium w-full md:w-64 shadow-sm text-sm"
+                    autocomplete="off">
+                <i class="fas fa-search absolute left-4 top-3.5 text-gray-400 text-xs"></i>
+                <div id="loading-indicator" class="hidden absolute right-4 top-3">
+                    <i class="fas fa-spinner fa-spin text-primary text-xs"></i>
+                </div>
+            </form>
+
+            <a href="{% url 'ingredient_create' %}"
+                class="bg-primary hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-purple-200 flex items-center justify-center whitespace-nowrap">
+                <i class="fas fa-plus mr-2"></i> Nuevo Material
+            </a>
+        </div>
+    </div>
+
+    <!-- RAW MATERIALS SECTION -->
+    <div id="raw-materials-section"
+        class="bg-white rounded-3xl shadow-sm overflow-hidden mb-8 {% if not raw_materials %}hidden{% endif %}">
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-indigo-50/50">
+            <h2 class="text-lg font-bold text-indigo-900 flex items-center">
+                <i class="fas fa-flask mr-2 text-indigo-500"></i> Materias Primas <span
+                    class="text-xs text-indigo-400 ml-2 font-normal">(Fórmula)</span>
+            </h2>
+            <span class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded-full text-xs font-bold">{{ raw_materials|length
+                }} Items</span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="text-secondary text-xs font-semibold uppercase bg-gray-50 border-b border-gray-100">
+                        <th class="px-6 py-4">Nombre</th>
+                        <th class="px-6 py-4 text-center">Unidad</th>
+                        <th class="px-6 py-4 text-center">Stock</th>
+                        <th class="px-6 py-4 text-right">Costo / Unidad</th>
+                        <th class="px-6 py-4 text-right">Acción</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for ingredient in raw_materials %}
+                    <tr class="hover:bg-gray-50 transition-colors group">
+                        <td class="px-6 py-4 align-middle">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500 group-hover:bg-white group-hover:shadow-md transition-all">
+                                    <i class="fas fa-flask"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-gray-800 text-sm">{{ ingredient.name }}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 align-middle text-center text-sm font-medium text-gray-500">
+                            {{ ingredient.get_unit_display }}
+                        </td>
+                        <td class="px-6 py-4 align-middle text-center">
+                            <span class="font-bold text-gray-700">{{ ingredient.stock_quantity }}</span>
+                        </td>
+                        <td class="px-6 py-4 align-middle text-right text-sm font-bold text-gray-800">
+                            ${{ ingredient.cost_per_unit }}
+                        </td>
+                        <td class="px-6 py-4 align-middle text-right">
+                            <div class="flex justify-end gap-2">
+                                <a href="{% url 'ingredient_edit' ingredient.pk %}"
+                                    class="w-8 h-8 rounded-lg flex items-center justify-center text-secondary hover:text-primary hover:bg-purple-50 transition-colors">
+                                    <i class="fas fa-pen text-xs"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-secondary">
+                            <div class="flex flex-col items-center">
+                                <i class="fas fa-flask text-4xl mb-3 text-gray-300"></i>
+                                <p>No se encontraron materias primas.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- SUPPLIES SECTION -->
+    <div id="supplies-section"
+        class="bg-white rounded-3xl shadow-sm overflow-hidden {% if not supplies %}hidden{% endif %}">
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-orange-50/50">
+            <h2 class="text-lg font-bold text-orange-900 flex items-center">
+                <i class="fas fa-box-open mr-2 text-orange-500"></i> Insumos <span
+                    class="text-xs text-orange-400 ml-2 font-normal">(Packaging)</span>
+            </h2>
+            <span class="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-xs font-bold">{{ supplies|length }}
+                Items</span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="text-secondary text-xs font-semibold uppercase bg-gray-50 border-b border-gray-100">
+                        <th class="px-6 py-4">Nombre</th>
+                        <th class="px-6 py-4 text-center">Unidad</th>
+                        <th class="px-6 py-4 text-center">Stock</th>
+                        <th class="px-6 py-4 text-right">Costo / Unidad</th>
+                        <th class="px-6 py-4 text-right">Acción</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for ingredient in supplies %}
+                    <tr class="hover:bg-gray-50 transition-colors group">
+                        <td class="px-6 py-4 align-middle">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-500 group-hover:bg-white group-hover:shadow-md transition-all">
+                                    <i class="fas fa-box-open"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-gray-800 text-sm">{{ ingredient.name }}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 align-middle text-center text-sm font-medium text-gray-500">
+                            {{ ingredient.get_unit_display }}
+                        </td>
+                        <td class="px-6 py-4 align-middle text-center">
+                            <span class="font-bold text-gray-700">{{ ingredient.stock_quantity }}</span>
+                        </td>
+                        <td class="px-6 py-4 align-middle text-right text-sm font-bold text-gray-800">
+                            ${{ ingredient.cost_per_unit }}
+                        </td>
+                        <td class="px-6 py-4 align-middle text-right">
+                            <div class="flex justify-end gap-2">
+                                <a href="{% url 'ingredient_edit' ingredient.pk %}"
+                                    class="w-8 h-8 rounded-lg flex items-center justify-center text-secondary hover:text-primary hover:bg-purple-50 transition-colors">
+                                    <i class="fas fa-pen text-xs"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-secondary">
+                            <div class="flex flex-col items-center">
+                                <i class="fas fa-box-open text-4xl mb-3 text-gray-300"></i>
+                                <p>No se encontraron insumos.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('search-input');
+        const searchForm = document.getElementById('search-form');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const rawMaterialsSection = document.getElementById('raw-materials-section');
+        const suppliesSection = document.getElementById('supplies-section');
+
+        // Prevent default form submission on enter
+        searchForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+        });
+
+        // Debounce function
+        function debounce(func, wait) {
+            let timeout;
+            return function (...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        // Live search logic
+        const performSearch = debounce(function () {
+            const query = searchInput.value;
+            loadingIndicator.classList.remove('hidden');
+
+            const url = new URL(window.location.href);
+            url.searchParams.set('q', query);
+
+            fetch(url)
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+
+                    // Update DOM for Raw Materials
+                    const newRawMaterials = doc.getElementById('raw-materials-section');
+                    if (newRawMaterials) {
+                        if (rawMaterialsSection) { // Ensure element exists
+                            rawMaterialsSection.innerHTML = newRawMaterials.innerHTML;
+                            rawMaterialsSection.className = newRawMaterials.className;
+                        }
+                    }
+
+                    // Update DOM for Supplies
+                    const newSupplies = doc.getElementById('supplies-section');
+                    if (newSupplies) {
+                        if (suppliesSection) { // Ensure element exists
+                            suppliesSection.innerHTML = newSupplies.innerHTML;
+                            suppliesSection.className = newSupplies.className;
+                        }
+                    }
+
+                    // Update URL without reload
+                    window.history.pushState({}, '', url);
+                })
+                .catch(error => {
+                    console.error('Error fetching search results:', error);
+                })
+                .finally(() => {
+                    loadingIndicator.classList.add('hidden');
+                });
+        }, 300); // 300ms delay
+
+        searchInput.addEventListener('input', performSearch);
+    });
+</script>
+{% endblock %}

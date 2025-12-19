@@ -1,0 +1,83 @@
+{% extends 'users/base_auth.html' %}
+
+{% block title %}Login - Budgetale{% endblock %}
+
+{% block content %}
+
+<h1>Login</h1>
+<p class="subtitle">Don't have an account? <a href="{% url 'register' %}"
+        style="color: inherit; font-weight: 600;">Create your account</a>,<br> it takes less than a minute.</p>
+
+<form method="post">
+    {% csrf_token %}
+
+    {% if form.errors %}
+    <div class="alert">
+        <i class="fas fa-exclamation-circle"></i>
+        Usuario o contraseña incorrectos.
+    </div>
+    {% endif %}
+
+    <div class="input-group">
+        <i class="fas fa-user input-icon left"></i>
+        <!-- Username Input -->
+        {{ form.username }}
+        <!-- <i class="fas fa-check-circle input-icon right success"></i> -->
+    </div>
+
+    <div class="input-group">
+        <i class="fas fa-lock input-icon left"></i>
+        <!-- Password Input -->
+        {{ form.password }}
+        <i class="fas fa-eye-slash input-icon right" onclick="togglePassword()"></i>
+    </div>
+
+    <div class="options">
+        <label class="checkbox-container">
+            <input type="checkbox" name="remember">
+            <span class="checkmark"></span>
+            Remember me
+        </label>
+        <a href="{% url 'password_reset' %}" class="forgot-pass">Forgot password?</a>
+    </div>
+
+    <button type="submit" class="btn-login">
+        Login <i class="fas fa-arrow-right"></i>
+    </button>
+</form>
+
+<div class="social-login">
+    <p>Login with</p>
+    <div class="social-icons">
+        <a href="#" class="social-btn facebook"><i class="fab fa-facebook-f"></i></a>
+        <a href="#" class="social-btn google"><i class="fab fa-google-plus-g"></i></a>
+        <a href="#" class="social-btn twitter"><i class="fab fa-twitter"></i></a>
+    </div>
+</div>
+
+<script>
+    function togglePassword() {
+        var passwordInput = document.querySelector('input[type="password"]');
+        var icon = document.querySelector('.fa-eye-slash');
+        if (passwordInput.type === "password") {
+            passwordInput.type = "text";
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        } else {
+            passwordInput.type = "password";
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        }
+    }
+
+    // Add placeholders via JS because we can't easily modify Django form widgets here without widget_tweaks
+    document.addEventListener('DOMContentLoaded', function () {
+        var userField = document.querySelector('input[name="username"]');
+        var passField = document.querySelector('input[name="password"]');
+
+        if (userField) userField.placeholder = "yourmail@company.com";
+        if (passField) passField.placeholder = "Password";
+    });
+</script>
+
+{% endblock %}
