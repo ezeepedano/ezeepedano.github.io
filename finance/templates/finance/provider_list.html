@@ -3,82 +3,87 @@
 {% block title %}Proveedores - Portal.flow{% endblock %}
 
 {% block content %}
-<div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-8 animate__animated animate__fadeIn">
 
     <!-- LEFT COLUMN: List -->
     <div class="lg:col-span-3 space-y-8">
         <!-- Header -->
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100 gap-4">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-8 rounded-[2rem] shadow-soft border border-slate-50 gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">Proveedores</h1>
-                <p class="text-secondary text-sm">Gestiona tu lista de proveedores y contactos.</p>
+                <h1 class="text-3xl font-bold text-slate-800">Proveedores</h1>
+                <p class="text-secondary mt-1">Gestiona tu lista de proveedores y contactos estratégicos.</p>
             </div>
             <a href="{% url 'provider_create' %}"
-                class="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center transform hover:scale-105 active:scale-95 w-full md:w-auto">
+                class="bg-dark hover:bg-slate-800 text-white px-8 py-3 rounded-2xl font-bold transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 flex items-center justify-center w-full md:w-auto">
                 <i class="fas fa-plus mr-2"></i> Nuevo Proveedor
             </a>
         </div>
 
         <!-- LIST -->
-        <div class="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100">
+        <div class="bg-white rounded-[2rem] shadow-soft overflow-hidden border border-slate-50">
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="text-secondary text-xs font-bold uppercase border-b border-gray-50 bg-gray-50/30">
-                            <th class="px-8 py-5">Nombre</th>
-                            <th class="px-6 py-5">Información de Contacto</th>
-                            <th class="px-6 py-5 text-right">Acciones</th>
+                        <tr class="text-secondary text-xs font-bold uppercase border-b border-slate-50 bg-slate-50/50">
+                            <th class="px-8 py-6 tracking-wider">Nombre</th>
+                            <th class="px-6 py-6 tracking-wider">Contacto</th>
+                            <th class="px-6 py-6 text-right tracking-wider">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50">
+                    <tbody class="divide-y divide-slate-50">
                         {% for provider in providers %}
-                        <tr class="hover:bg-gray-50 transition-colors group cursor-pointer"
+                        <tr class="hover:bg-slate-50/80 transition-all duration-200 group cursor-pointer"
                             onclick="window.location='{% url 'provider_detail' provider.pk %}';">
-                            <td class="px-8 py-4 align-middle">
+                            <td class="px-8 py-5 align-middle">
                                 <div class="flex items-center gap-4">
                                     <div
-                                        class="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 font-bold text-lg group-hover:scale-110 transition-transform">
+                                        class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center text-primary font-bold text-xl shadow-sm group-hover:scale-110 group-hover:shadow-md transition-all">
                                         {{ provider.name|slice:":1" }}
                                     </div>
-                                    <span class="font-bold text-gray-800 text-sm">{{ provider.name }}</span>
+                                    <span class="font-bold text-slate-700 text-base">{{ provider.name }}</span>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 align-middle text-sm text-gray-600">
-                                <div class="flex flex-col">
+                            <td class="px-6 py-5 align-middle text-sm text-slate-500">
+                                <div class="flex flex-col gap-1">
                                     {% if provider.email %}
-                                    <span class="flex items-center gap-2">
-                                        <i class="fas fa-envelope text-xs text-gray-400"></i>
+                                    <span class="flex items-center gap-2 hover:text-primary transition-colors">
+                                        <i class="fas fa-envelope text-xs text-slate-400"></i>
                                         {{ provider.email }}
                                     </span>
                                     {% endif %}
                                     {% if provider.phone %}
-                                    <span class="flex items-center gap-2">
-                                        <i class="fas fa-phone text-xs text-gray-400"></i>
+                                    <span class="flex items-center gap-2 hover:text-primary transition-colors">
+                                        <i class="fas fa-phone text-xs text-slate-400"></i>
                                         {{ provider.phone }}
                                     </span>
                                     {% endif %}
                                     {% if not provider.email and not provider.phone %}
-                                    <span class="text-gray-300">-</span>
+                                    <span class="text-slate-300 italic">Sin datos de contacto</span>
                                     {% endif %}
                                 </div>
                             </td>
-                            <td class="px-6 py-4 align-middle text-right">
-                                <a href="{% url 'provider_detail' provider.pk %}"
-                                    class="text-gray-400 hover:text-primary transition-colors px-2" title="Ver Detalle">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{% url 'provider_update' provider.pk %}" onclick="event.stopPropagation();"
-                                    class="text-gray-400 hover:text-blue-500 transition-colors px-2" title="Editar">
-                                    <i class="fas fa-edit"></i>
-                                </a>
+                            <td class="px-6 py-5 align-middle text-right">
+                                <div class="opacity-0 group-hover:opacity-100 transition-opacity flex justify-end gap-2">
+                                    <a href="{% url 'provider_detail' provider.pk %}"
+                                        class="w-8 h-8 rounded-full bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary transition-all shadow-sm" title="Ver Detalle">
+                                        <i class="fas fa-eye text-xs"></i>
+                                    </a>
+                                    <a href="{% url 'provider_update' provider.pk %}" onclick="event.stopPropagation();"
+                                        class="w-8 h-8 rounded-full bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-500 hover:border-blue-500 transition-all shadow-sm" title="Editar">
+                                        <i class="fas fa-pen text-xs"></i>
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="3" class="px-6 py-16 text-center">
-                                <div class="opacity-50 flex flex-col items-center">
-                                    <i class="fas fa-users-slash text-4xl mb-4 text-gray-300"></i>
-                                    <p class="font-medium text-gray-500">No tienes proveedores registrados.</p>
+                            <td colspan="3" class="px-6 py-20 text-center">
+                                <div class="flex flex-col items-center justify-center opacity-40">
+                                    <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
+                                        <i class="fas fa-users-slash text-3xl"></i>
+                                    </div>
+                                    <p class="font-bold text-slate-500 text-lg">Sin proveedores</p>
+                                    <p class="text-sm text-slate-400">Comienza agregando tu primer proveedor.</p>
                                 </div>
                             </td>
                         </tr>
@@ -92,13 +97,32 @@
     <!-- RIGHT COLUMN: Stats or Info -->
     <div class="space-y-6">
         <div
-            class="bg-gradient-to-br from-purple-900 to-indigo-900 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
-            <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white opacity-5 rounded-full blur-2xl"></div>
-            <h3 class="text-purple-200 text-xs font-bold uppercase tracking-wider mb-6">Total Proveedores</h3>
-            <div class="mb-2">
-                <span class="text-4xl font-bold block mb-1">{{ providers.count }}</span>
-                <span class="text-purple-300 text-sm font-medium">Empresas registradas</span>
+            class="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-[2rem] p-8 text-white shadow-2xl relative overflow-hidden group">
+            <div class="absolute top-0 right-0 -mt-6 -mr-6 w-32 h-32 bg-primary rounded-full blur-3xl opacity-20 group-hover:opacity-30 transition-opacity"></div>
+            
+            <div class="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mb-6">
+                <i class="fas fa-network-wired text-xl text-indigo-200"></i>
             </div>
+
+            <h3 class="text-indigo-200 text-xs font-bold uppercase tracking-wider mb-2">Total Proveedores</h3>
+            <div class="flex items-baseline gap-2">
+                <span class="text-5xl font-bold tracking-tight">{{ providers.count }}</span>
+                <span class="text-indigo-300 text-sm font-medium">Empresas</span>
+            </div>
+            
+            <div class="mt-8 pt-6 border-t border-white/10 text-sm text-indigo-200">
+                <p>Mantén tu red de suministro actualizada para evitar quiebres de stock.</p>
+            </div>
+        </div>
+        
+        <!-- Quick Tip Card -->
+        <div class="bg-indigo-50/50 rounded-[2rem] p-6 border border-indigo-100">
+            <h4 class="font-bold text-indigo-900 mb-2 flex items-center gap-2">
+                <i class="fas fa-lightbulb text-indigo-500"></i> Tip
+            </h4>
+            <p class="text-sm text-indigo-800/70 leading-relaxed">
+                Puedes registrar los datos bancarios en el detalle de cada proveedor para agilizar tus pagos.
+            </p>
         </div>
     </div>
 

@@ -1,157 +1,240 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
 {% block title %}Dashboard - Portal.flow{% endblock %}
 
 {% block content %}
 <!-- Overview Header -->
-<div class="mb-8">
-    <h1 class="text-2xl font-bold text-gray-800">Overview</h1>
-    <p class="text-secondary text-sm">Welcome back, Giuliana. Here is what's happening today.</p>
+<div class="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4 animate__animated animate__fadeIn">
+    <div>
+        <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600">Overview</h1>
+        <p class="text-secondary mt-1">Bienvenida de nuevo, {{ request.user.first_name|default:request.user.username|title }}. Aquí está tu resumen de hoy.</p>
+    </div>
+    <div class="flex gap-3">
+        <button class="px-4 py-2 bg-white border border-slate-100 rounded-xl text-sm font-medium text-slate-600 shadow-sm hover:shadow-md transition-all">
+            <i class="fas fa-calendar mr-2 text-primary"></i> Last 30 Days
+        </button>
+        <button class="px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium shadow-lg shadow-indigo-200 hover:shadow-indigo-300 hover:-translate-y-0.5 transition-all">
+            <i class="fas fa-download mr-2"></i> Reporte
+        </button>
+    </div>
 </div>
 
-<!-- Key Metrics Cards -->
-<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+<!-- Key Metrics Cards (Premium Gradients) -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10 staggered-fade-in">
     <!-- Revenue -->
-    <div class="bg-dark text-white p-6 rounded-3xl shadow-lg relative overflow-hidden group">
-        <div class="absolute top-0 right-0 w-32 h-32 bg-primary rounded-full filter blur-3xl opacity-20 -mr-10 -mt-10">
-        </div>
+    <div class="bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-6 rounded-[2rem] shadow-xl shadow-indigo-200 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
         <div class="relative z-10">
-            <div class="flex justify-between items-center mb-4">
-                <div class="w-10 h-10 rounded-full bg-white bg-opacity-10 flex items-center justify-center">
-                    <i class="fas fa-dollar-sign text-lg"></i>
+            <div class="flex justify-between items-start mb-6">
+                <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/10">
+                    <i class="fas fa-dollar-sign text-xl"></i>
                 </div>
-                <span class="text-xs bg-green-500 bg-opacity-20 text-green-300 px-2 py-1 rounded-full">+10.5%</span>
+                <span class="flex items-center text-xs font-bold bg-white/20 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+                    <i class="fas fa-arrow-up mr-1 text-[10px]"></i> 12.5%
+                </span>
             </div>
-            <h2 class="text-3xl font-bold mb-1">$45,500</h2>
-            <p class="text-gray-400 text-sm">Total Revenue</p>
+            <h2 class="text-3xl font-bold mb-1 tracking-tight">$45,5K</h2>
+            <p class="text-indigo-100 text-sm font-medium">Ingresos Totales</p>
         </div>
     </div>
 
     <!-- Orders -->
-    <div class="bg-white p-6 rounded-3xl shadow-sm hover:shadow-md transition-shadow">
-        <div class="flex justify-between items-center mb-4">
-            <div class="w-10 h-10 rounded-full bg-green-50 text-green-500 flex items-center justify-center">
-                <i class="fas fa-shopping-bag"></i>
+    <div class="bg-white p-6 rounded-[2rem] shadow-soft hover:shadow-xl transition-all duration-300 group border border-slate-50 hover:border-indigo-50">
+        <div class="flex justify-between items-start mb-6">
+            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-colors duration-300">
+                <i class="fas fa-shopping-bag text-xl"></i>
             </div>
-            <span class="text-xs bg-green-50 text-green-600 px-2 py-1 rounded-full">+10.9%</span>
+            <span class="flex items-center text-xs font-bold bg-green-50 text-green-600 px-3 py-1 rounded-full">
+                +8.2%
+            </span>
         </div>
-        <h2 class="text-3xl font-bold text-gray-800 mb-1">700</h2>
-        <p class="text-secondary text-sm">Total Orders</p>
+        <h2 class="text-3xl font-bold text-slate-800 mb-1 tracking-tight">724</h2>
+        <p class="text-slate-400 text-sm font-medium">Pedidos Realizados</p>
     </div>
 
     <!-- Customers -->
-    <div class="bg-white p-6 rounded-3xl shadow-sm hover:shadow-md transition-shadow">
-        <div class="flex justify-between items-center mb-4">
-            <div class="w-10 h-10 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center">
-                <i class="fas fa-users"></i>
+    <div class="bg-white p-6 rounded-[2rem] shadow-soft hover:shadow-xl transition-all duration-300 group border border-slate-50 hover:border-indigo-50">
+        <div class="flex justify-between items-start mb-6">
+            <div class="w-12 h-12 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-colors duration-300">
+                <i class="fas fa-users text-xl"></i>
             </div>
-            <span class="text-xs bg-green-50 text-green-600 px-2 py-1 rounded-full">+12.5%</span>
+            <span class="flex items-center text-xs font-bold bg-green-50 text-green-600 px-3 py-1 rounded-full">
+                +5.3%
+            </span>
         </div>
-        <h2 class="text-3xl font-bold text-gray-800 mb-1">205</h2>
-        <p class="text-secondary text-sm">Total Customers</p>
+        <h2 class="text-3xl font-bold text-slate-800 mb-1 tracking-tight">1,205</h2>
+        <p class="text-slate-400 text-sm font-medium">Clientes Activos</p>
     </div>
 
     <!-- Products -->
-    <div class="bg-white p-6 rounded-3xl shadow-sm hover:shadow-md transition-shadow">
-        <div class="flex justify-between items-center mb-4">
-            <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center">
-                <i class="fas fa-box"></i>
+    <div class="bg-white p-6 rounded-[2rem] shadow-soft hover:shadow-xl transition-all duration-300 group border border-slate-50 hover:border-indigo-50">
+        <div class="flex justify-between items-start mb-6">
+            <div class="w-12 h-12 rounded-2xl bg-teal-50 text-teal-500 flex items-center justify-center group-hover:bg-teal-500 group-hover:text-white transition-colors duration-300">
+                <i class="fas fa-box-open text-xl"></i>
             </div>
-            <span class="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-full">-0.5%</span>
+            <span class="flex items-center text-xs font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full">
+                0%
+            </span>
         </div>
-        <h2 class="text-3xl font-bold text-gray-800 mb-1">{{ total_stock }}</h2>
-        <p class="text-secondary text-sm">Total Products in Stock</p>
+        <h2 class="text-3xl font-bold text-slate-800 mb-1 tracking-tight">{{ total_stock|default:0 }}</h2>
+        <p class="text-slate-400 text-sm font-medium">Stock Total</p>
     </div>
 </div>
 
 <!-- Charts Section -->
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-    <!-- Main Chart -->
-    <div class="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm">
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="font-bold text-gray-800 text-lg">Orders Overview</h3>
-            <select class="bg-gray-50 border-none text-xs rounded-lg px-3 py-2 font-medium text-gray-500 focus:ring-0">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+    <!-- Main Line Chart -->
+    <div class="lg:col-span-2 bg-white p-8 rounded-[2rem] shadow-soft border border-slate-50">
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h3 class="font-bold text-slate-800 text-xl">Resumen de Ventas</h3>
+                <p class="text-slate-400 text-sm">Comparativa mensual</p>
+            </div>
+            <select class="bg-slate-50 border-none text-sm rounded-xl px-4 py-2 font-semibold text-slate-600 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer hover:bg-slate-100 transition-colors">
                 <option>2025</option>
                 <option>2024</option>
             </select>
         </div>
-        <div class="h-64">
+        <div class="h-72 relative">
             <canvas id="ordersChart"></canvas>
         </div>
     </div>
 
     <!-- Donut Chart -->
-    <div class="bg-white p-6 rounded-3xl shadow-sm">
-        <h3 class="font-bold text-gray-800 text-lg mb-6">Sale Analytics</h3>
-        <div class="h-48 relative flex items-center justify-center">
+    <div class="bg-white p-8 rounded-[2rem] shadow-soft border border-slate-50 flex flex-col justify-between">
+        <div>
+            <h3 class="font-bold text-slate-800 text-xl mb-2">Estado de Pedidos</h3>
+            <p class="text-slate-400 text-sm mb-6">Desempeño de envíos</p>
+        </div>
+        
+        <div class="h-56 relative flex items-center justify-center mb-6">
             <canvas id="salesChart"></canvas>
             <div class="absolute text-center">
-                <p class="text-3xl font-bold text-gray-800">90%</p>
-                <p class="text-xs text-secondary">Completed</p>
+                <p class="text-4xl font-extrabold text-slate-800">92%</p>
+                <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide">Exitosos</p>
             </div>
         </div>
-        <div class="mt-6 space-y-3">
-            <div class="flex justify-between text-sm">
-                <span class="flex items-center text-secondary"><span
-                        class="w-2 h-2 rounded-full bg-primary mr-2"></span>Completed</span>
-                <span class="font-bold text-gray-800">70%</span>
+
+        <div class="space-y-4">
+            <div class="flex justify-between items-center p-3 rounded-xl bg-slate-50">
+                <div class="flex items-center gap-3">
+                    <span class="w-3 h-3 rounded-full bg-indigo-500"></span>
+                    <span class="text-sm font-medium text-slate-600">Entregados</span>
+                </div>
+                <span class="font-bold text-slate-800">70%</span>
             </div>
-            <div class="flex justify-between text-sm">
-                <span class="flex items-center text-secondary"><span
-                        class="w-2 h-2 rounded-full bg-green-400 mr-2"></span>Distributed</span>
-                <span class="font-bold text-gray-800">15%</span>
+            <div class="flex justify-between items-center p-3 rounded-xl bg-slate-50">
+                <div class="flex items-center gap-3">
+                    <span class="w-3 h-3 rounded-full bg-teal-400"></span>
+                    <span class="text-sm font-medium text-slate-600">En Camino</span>
+                </div>
+                <span class="font-bold text-slate-800">22%</span>
             </div>
         </div>
     </div>
 </div>
 
+<style>
+    .staggered-fade-in > div {
+        animation: fadeInUp 0.6s ease-out forwards;
+        opacity: 0;
+    }
+    .staggered-fade-in > div:nth-child(1) { animation-delay: 0.1s; }
+    .staggered-fade-in > div:nth-child(2) { animation-delay: 0.2s; }
+    .staggered-fade-in > div:nth-child(3) { animation-delay: 0.3s; }
+    .staggered-fade-in > div:nth-child(4) { animation-delay: 0.4s; }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
 <script>
-    // Config Charts
     document.addEventListener('DOMContentLoaded', function () {
-        // Line Chart
+        // Line Chart Config
         const ctx1 = document.getElementById('ordersChart').getContext('2d');
+        
+        // Gradient Fill
+        const gradient = ctx1.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(79, 70, 229, 0.2)'); // Indigo
+        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
         new Chart(ctx1, {
             type: 'line',
             data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
                 datasets: [{
-                    label: 'Orders',
-                    data: [20, 45, 30, 80, 55, 90, 70, 65, 50, 40, 30, 50],
-                    borderColor: '#6C5DD3',
-                    backgroundColor: 'rgba(108, 93, 211, 0.1)',
+                    label: 'Ventas',
+                    data: [25, 45, 35, 85, 60, 95, 75, 65, 55, 45, 35, 60],
+                    borderColor: '#4f46e5', // Primary Indigo
+                    backgroundColor: gradient,
                     tension: 0.4,
                     fill: true,
                     borderWidth: 3,
-                    pointRadius: 0
+                    pointRadius: 4,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: '#4f46e5',
+                    pointBorderWidth: 2,
+                    pointHoverRadius: 6,
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1e1b4b',
+                        padding: 12,
+                        titleFont: { family: 'Outfit', size: 13 },
+                        bodyFont: { family: 'Outfit', size: 13 },
+                        cornerRadius: 10,
+                        displayColors: false,
+                    }
+                },
                 scales: {
-                    y: { display: false, grid: { display: false } },
-                    x: { grid: { display: false }, ticks: { font: { size: 10, family: 'Outfit' }, color: '#A098AE' } }
-                }
+                    y: { 
+                        display: true, 
+                        grid: { color: '#f1f5f9', borderDash: [5, 5] },
+                        ticks: { font: { family: 'Outfit', size: 11 }, color: '#94a3b8' }
+                    },
+                    x: { 
+                        grid: { display: false }, 
+                        ticks: { font: { family: 'Outfit', size: 11 }, color: '#94a3b8' } 
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index',
+                },
             }
         });
 
-        // Donut Chart
+        // Donut Chart Config
         const ctx2 = document.getElementById('salesChart').getContext('2d');
         new Chart(ctx2, {
             type: 'doughnut',
             data: {
-                labels: ['Completed', 'Distributed', 'Returned'],
+                labels: ['Entregados', 'En Camino', 'Cancelados'],
                 datasets: [{
-                    data: [70, 15, 15],
-                    backgroundColor: ['#6C5DD3', '#4FD1C5', '#FF8FBA'],
+                    data: [70, 22, 8],
+                    backgroundColor: ['#4f46e5', '#2dd4bf', '#cbd5e1'], // Indigo, Teal, Slate
                     borderWidth: 0,
-                    cutout: '75%'
+                    hoverOffset: 4,
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                cutout: '80%',
                 plugins: { legend: { display: false } }
             }
         });

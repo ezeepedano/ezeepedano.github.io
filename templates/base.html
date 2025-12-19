@@ -9,7 +9,7 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- TailwindCSS (CDN for Dev) -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -20,19 +20,33 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        primary: '#6C5DD3',       /* Purple from reference */
-                        secondary: '#A098AE',     /* Gray text */
-                        background: '#F0F1F3',    /* Light gray bg */
-                        sidebar: '#FFFFFF',
-                        dark: '#1F1D2B',
+                        primary: {
+                            DEFAULT: '#4f46e5', /* Indigo 600 */
+                            light: '#818cf8',   /* Indigo 400 */
+                            dark: '#3730a3',    /* Indigo 800 */
+                        },
+                        secondary: '#94a3b8',   /* Slate 400 */
+                        background: '#f8fafc',  /* Slate 50 - Cool White */
+                        sidebar: '#1e1b4b',     /* Indigo 950 - Deep Dark Blue */
+                        surface: '#ffffff',
+                        danger: '#ef4444',
+                        success: '#10b981',
+                        warning: '#f59e0b',
                     },
                     fontFamily: {
                         sans: ['Outfit', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                        'glow': '0 0 15px rgba(79, 70, 229, 0.3)',
                     }
                 }
             }
@@ -41,25 +55,48 @@
 
     <style>
         body {
-            background-color: #F0F1F3;
+            background-color: #f8fafc;
         }
 
-        .nav-item.active {
-            color: #6C5DD3;
-            border-right: 3px solid #6C5DD3;
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+        
+        /* Glassmorphism Utilities */
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
-        /* Hide scrollbar for Chrome, Safari and Opera */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
+        .glass-dark {
+            background: rgba(30, 27, 75, 0.9);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        /* Hide scrollbar for IE, Edge and Firefox */
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            /* IE and Edge */
-            scrollbar-width: none;
-            /* Firefox */
+        /* Float Animation */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: float 4s ease-in-out infinite;
         }
     </style>
     
@@ -68,7 +105,6 @@
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebar-overlay');
             
-            // Toggle translate (sidebar)
             if (sidebar.classList.contains('-translate-x-full')) {
                 sidebar.classList.remove('-translate-x-full');
                 sidebar.classList.add('translate-x-0');
@@ -77,10 +113,8 @@
                 sidebar.classList.remove('translate-x-0');
             }
             
-            // Toggle overlay
             if (overlay.classList.contains('hidden')) {
                 overlay.classList.remove('hidden');
-                // timeout to allow display:block to apply before opacity transition
                 setTimeout(() => {
                     overlay.classList.remove('opacity-0');
                 }, 10);
@@ -95,7 +129,7 @@
     {% block extra_css %}{% endblock %}
 </head>
 
-<body class="font-sans text-gray-800 h-screen overflow-hidden flex">
+<body class="font-sans text-slate-800 h-screen overflow-hidden flex selection:bg-primary selection:text-white">
 
     <!-- Sidebar -->
     {% include 'includes/sidebar.html' %}
@@ -103,15 +137,44 @@
     <!-- Main Content -->
     <div class="flex-1 flex flex-col h-screen overflow-hidden relative">
         <!-- Header -->
-        {% include 'includes/header.html' %}
+        <header class="h-16 bg-surface shadow-soft flex items-center justify-between px-6 z-10">
+            <div class="flex items-center gap-4">
+                <button onclick="toggleSidebar()" class="lg:hidden text-slate-400 hover:text-primary transition-colors">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-600 hidden sm:block">
+                    {% block header_title %}Dashboard{% endblock %}
+                </h1>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <!-- Notifications (Mock) -->
+                <button class="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-primary transition-all relative">
+                    <i class="far fa-bell text-lg"></i>
+                    <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                </button>
+                
+                <!-- Profile Dropdown (Simplified) -->
+                <div class="flex items-center gap-3 pl-4 border-l border-slate-100">
+                    <div class="text-right hidden md:block">
+                        <p class="text-sm font-bold text-slate-700 leading-tight">{{ request.user.username|default:'User'|title }}</p>
+                        <p class="text-xs text-slate-400">Admin</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-purple-600 text-white flex items-center justify-center font-bold shadow-lg shadow-indigo-200">
+                        {{ request.user.username|make_list|first|upper }}
+                    </div>
+                </div>
+            </div>
+        </header>
 
         <!-- Content Scrollable Area -->
-        <main class="flex-1 overflow-x-hidden overflow-y-auto bg-background p-6">
+        <main class="flex-1 overflow-x-hidden overflow-y-auto bg-background p-4 md:p-8 animate__animated animate__fadeIn">
             {% if messages %}
-            <div class="mb-4">
+            <div class="mb-6 space-y-2">
                 {% for message in messages %}
-                <div
-                    class="p-4 mb-2 rounded-lg bg-white shadow-sm border-l-4 {% if message.tags == 'error' %}border-red-500 text-red-700{% else %}border-green-500 text-green-700{% endif %}">
+                <div class="p-4 rounded-xl flex items-center gap-3 shadow-sm border-l-4 animate__animated animate__fadeInDown
+                    {% if message.tags == 'error' %}bg-red-50 border-danger text-red-800{% else %}bg-green-50 border-success text-green-800{% endif %}">
+                    <i class="fas {% if message.tags == 'error' %}fa-exclamation-circle{% else %}fa-check-circle{% endif %}"></i>
                     {{ message }}
                 </div>
                 {% endfor %}
@@ -121,6 +184,8 @@
             {% block content %}{% endblock %}
         </main>
     </div>
+
+    <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/50 z-20 hidden lg:hidden glass transition-opacity duration-300 opacity-0"></div>
 
     {% block extra_js %}{% endblock %}
 </body>
