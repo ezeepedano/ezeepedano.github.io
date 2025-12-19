@@ -27,25 +27,49 @@
         <!-- Inventory -->
         <a href="{% url 'product_list' %}"
             class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/inventory/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            {% if '/inventory/products/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
             <i class="fas fa-boxes w-6 transition-transform group-hover:scale-110"></i>
             <span class="font-medium tracking-wide">Inventario</span>
+        </a>
+
+        <!-- Raw Materials -->
+        <a href="{% url 'ingredient_list' %}"
+            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
+            {% if '/inventory/ingredients/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            <i class="fas fa-leaf w-6 transition-transform group-hover:scale-110"></i>
+            <span class="font-medium tracking-wide">Materia Prima</span>
         </a>
 
         <!-- Sales -->
         <a href="{% url 'sales_dashboard' %}"
             class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/sales/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            {% if '/sales/dashboard/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
             <i class="fas fa-shopping-cart w-6 transition-transform group-hover:scale-110"></i>
             <span class="font-medium tracking-wide">Ventas</span>
+        </a>
+
+        <!-- Customers -->
+        <a href="{% url 'customers_list' %}"
+            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
+            {% if '/sales/customers/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            <i class="fas fa-users w-6 transition-transform group-hover:scale-110"></i>
+            <span class="font-medium tracking-wide">Clientes</span>
         </a>
 
         <!-- Finance -->
         <a href="{% url 'fixed_cost_list' %}"
             class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/finance/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            {% if '/finance/fixed-costs/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
             <i class="fas fa-chart-pie w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Finanzas</span>
+            <span class="font-medium tracking-wide">Gastos</span>
+        </a>
+
+        <!-- Assets -->
+        <a href="{% url 'asset_list' %}"
+            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
+            {% if '/finance/assets/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            <i class="fas fa-building w-6 transition-transform group-hover:scale-110"></i>
+            <span class="font-medium tracking-wide">Bienes de Uso</span>
         </a>
 
         <!-- HR -->
