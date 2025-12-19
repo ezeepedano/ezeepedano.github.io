@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-2xl font-bold text-gray-800">Payroll History</h2>
+    <a href="{% url 'payroll_generate' %}" class="bg-green-500 text-white px-4 py-2 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all">
+        <i class="fas fa-file-invoice-dollar mr-2"></i>Generate Payroll
+    </a>
+</div>
+
+<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-50 border-b border-gray-100">
+                <tr>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Period</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Employee</th>
+                    <th class="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase">Basic</th>
+                    <th class="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase">Net Pay</th>
+                    <th class="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    <th class="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for payroll in payrolls %}
+                <tr class="hover:bg-green-50 transition-colors">
+                    <td class="px-6 py-4 font-medium text-gray-900">{{ payroll.period|date:"F Y" }}</td>
+                    <td class="px-6 py-4 text-gray-600">{{ payroll.employee.last_name }}, {{ payroll.employee.first_name }}</td>
+                    <td class="px-6 py-4 text-right text-gray-500">${{ payroll.basic_salary }}</td>
+                    <td class="px-6 py-4 text-right font-bold text-green-600">${{ payroll.net_salary }}</td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Generated</span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button class="text-gray-400 hover:text-gray-600" title="View PDF (Coming Soon)"><i class="fas fa-print"></i></button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        No payrolls generated yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

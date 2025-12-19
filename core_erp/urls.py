@@ -26,5 +26,6 @@ urlpatterns = [
     path('sales/', include('sales.urls')),
     path('inventory/', include('inventory.urls')),
     path('finance/', include('finance.urls')),
+    path('hr/', include('hr.urls')),
     path('', include('users.urls')), # Auth URLs at root (login/register)
 ]
