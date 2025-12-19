@@ -19,27 +19,32 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-utwzo86-du4)77$0pq+8)smt3mh)+h^!%*@#(!n*u^ka-dd58%'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
+# ... existing imports ...
 import os
+import dj_database_url
 from dotenv import load_dotenv
 
-load_dotenv() # Load environment variables from .env file
+load_dotenv()
 
-# ... existing imports ...
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-utwzo86-du4)77$0pq+8)smt3mh)+h^!%*@#(!n*u^ka-dd58%')
+
+# SECURITY WARNING: don't run with debug turned on in production!
+# Render sets 'RENDER' env var to 'true'.
+DEBUG = 'RENDER' not in os.environ
 
 ALLOWED_HOSTS = []
-_raw_hosts = os.environ.get("ALLOWED_HOSTS", "")
-if _raw_hosts:
-    ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(",") if h.strip()]
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
+# Additional ALLOWED_HOSTS from env (split by comma)
+if os.environ.get("ALLOWED_HOSTS"):
+    ALLOWED_HOSTS.extend([h.strip() for h in os.environ.get("ALLOWED_HOSTS").split(",") if h.strip()])
+
+# Localhost fallback just in case
 if DEBUG:
-    ALLOWED_HOSTS.extend(['localhost', '127.0.0.1', '[::1]', 'testserver'])
-
+    ALLOWED_HOSTS.extend(['localhost', '127.0.0.1', '0.0.0.0'])
 
 # Application definition
 
@@ -63,9 +68,10 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # Add WhiteNoise here
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -106,6 +112,10 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Render PostgreSQL connection
+db_from_env = dj_database_url.config(conn_max_age=600)
+DATABASES['default'].update(db_from_env)
 
 
 # Password validation
@@ -162,6 +172,9 @@ STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# WhiteNoise storage
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
