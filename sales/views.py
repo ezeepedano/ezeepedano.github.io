@@ -1,9 +1,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib import messages
 from django.db.models import Q
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
-from .forms import UploadFileForm, WholesaleSaleForm, SaleItemFormSet
+from .forms import UploadFileForm, WholesaleSaleForm, SaleItemFormSet, CustomerForm
 from .services.importer import process_sales_file
 from .models import Sale, Customer, CustomerStats
 
@@ -56,7 +57,11 @@ def wholesale_create(request):
             messages.success(request, f'Venta mayorista #{sale.order_id} registrada.')
             return redirect('sales_dashboard')
     else:
-        form = WholesaleSaleForm(initial={'date': timezone.now()})
+        initial_data = {'date': timezone.now()}
+        if request.GET.get('customer'):
+            initial_data['customer'] = request.GET.get('customer')
+            
+        form = WholesaleSaleForm(initial=initial_data)
         formset = SaleItemFormSet()
         
     return render(request, 'sales/wholesale_form.html', {'form': form, 'formset': formset})
@@ -178,6 +183,34 @@ def customer_list(request):
     }
     
     return render(request, 'sales/customers/list.html', context)
+
+
+@login_required
+def customer_create(request):
+    """
+    Create a new customer manually.
+    """
+    if request.method == 'POST':
+        form = CustomerForm(request.POST)
+        if form.is_valid():
+            customer = form.save(commit=False)
+            customer.user = request.user
+            
+            # Generate unique dedup_key for manual entry
+            import uuid
+            customer.dedup_key = f"manual_{request.user.id}_{uuid.uuid4().hex}"
+            
+            customer.save()
+            
+            messages.success(request, f'Cliente {customer.name} creado exitosamente.')
+            
+            if 'save_and_sale' in request.POST:
+                return redirect(f"{reverse('wholesale_create')}?customer={customer.id}")
+            return redirect('customer_list')
+    else:
+        form = CustomerForm()
+    
+    return render(request, 'sales/customers/form.html', {'form': form})
 
 
 @login_required
