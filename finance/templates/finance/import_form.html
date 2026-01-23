@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-xl mx-auto mt-10">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl p-8 shadow-xl border border-slate-200 dark:border-slate-700">
+        <h2 class="text-2xl font-bold text-slate-800 dark:text-white mb-2">Importar Transacciones</h2>
+        <p class="text-slate-500 mb-6 text-sm">Sube tu archivo de liquidación (Mercado Pago / Banco) para generar movimientos automáticamente.</p>
+
+        <form method="post" enctype="multipart/form-data" class="space-y-6">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+            <div class="bg-red-50 text-red-600 p-4 rounded-xl text-sm">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ form.account.label }}</label>
+                {{ form.account }}
+                {% if form.account.errors %}
+                <p class="text-red-500 text-xs mt-1">{{ form.account.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ form.file.label }}</label>
+                {{ form.file }}
+                {% if form.file.errors %}
+                <p class="text-red-500 text-xs mt-1">{{ form.file.errors.0 }}</p>
+                {% endif %}
+                <p class="text-xs text-slate-400 mt-2">Formatos soportados: CSV, Excel. Se detectarán duplicados automáticamente.</p>
+            </div>
+
+            <div class="pt-4 flex justify-end gap-3">
+                <a href="{% url 'cashflow_dashboard' %}" class="px-4 py-2 text-slate-500 hover:text-slate-700 transition-colors">Cancelar</a>
+                <button type="submit" class="px-6 py-2 bg-primary text-white rounded-xl shadow-lg hover:bg-primary-dark transition-all">
+                    Importar y Procesar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

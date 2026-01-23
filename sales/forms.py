@@ -29,7 +29,7 @@ class CustomerForm(forms.ModelForm):
             'is_wholesaler': 'Es Mayorista'
         }
 
-class WholesaleSaleForm(forms.ModelForm):
+class SaleForm(forms.ModelForm):
     customer = forms.ModelChoiceField(
         queryset=Customer.objects.all().order_by('name'),
         widget=forms.Select(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'}),
@@ -51,13 +51,51 @@ class WholesaleSaleForm(forms.ModelForm):
     )
     channel = forms.ChoiceField(
         choices=SALE_CHANNELS, 
-        initial='WHOLESALE',
+        widget=forms.Select(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'})
+    )
+    # Financial Fields
+    payment_status = forms.ChoiceField(
+        choices=[('PENDING', 'Pendiente'), ('PARTIAL', 'Parcial'), ('PAID', 'Pagado')],
+        initial='PAID',
+        widget=forms.Select(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'}),
+        label="Estado de Cobro"
+    )
+    paid_amount = forms.DecimalField(
+        initial=0,
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'}),
+        label="Monto Cobrado ($)"
+    )
+    payment_method = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary', 'placeholder': 'Ej. Efectivo, Mercado Pago'}),
+        label="Medio de Pago"
+    )
+    due_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'}),
+        label="Fecha de Vencimiento"
+    )
+    payment_account = forms.ModelChoiceField(
+        queryset=None, # Set in init
+        required=False,
+        label="Cuenta de Destino (Para Caja Real)",
         widget=forms.Select(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'})
     )
 
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super(SaleForm, self).__init__(*args, **kwargs)
+        if user:
+            self.fields['customer'].queryset = Customer.objects.filter(user=user).order_by('name')
+            # Import Account here to avoid circular import at top if necessary, or just move import to top if safe.
+            # finance.models imports User, which is fine. sales.models imports User. Mutual dependency unlikely unless models import each other.
+            from finance.models import Account
+            self.fields['payment_account'].queryset = Account.objects.filter(user=user, is_active=True)
+
     class Meta:
         model = Sale
-        fields = ['date', 'customer', 'channel', 'shipping_cost', 'discounts']
+        fields = ['date', 'customer', 'channel', 'shipping_cost', 'discounts', 'payment_status', 'paid_amount', 'payment_method', 'due_date']
 
 class SaleItemForm(forms.ModelForm):
     product = forms.ModelChoiceField(

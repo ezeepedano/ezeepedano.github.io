@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">Inteligencia de Stock</h1>
+        <p class="text-slate-400">Pronóstico de agotamiento de materia prima basado en ventas de los últimos 30 días.</p>
+    </div>
+
+    <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-lg">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-900/50 text-slate-400 text-sm uppercase tracking-wider">
+                        <th class="p-4 font-semibold">Materia Prima</th>
+                        <th class="p-4 font-semibold text-right">Stock Actual</th>
+                        <th class="p-4 font-semibold text-right">Consumo Diario Prom.</th>
+                        <th class="p-4 font-semibold text-center">Estado</th>
+                        <th class="p-4 font-semibold text-right">Días Restantes</th>
+                        <th class="p-4 font-semibold text-right">Fecha Agotamiento</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700">
+                    {% for item in forecasts %}
+                    <tr class="hover:bg-slate-700/30 transition-colors">
+                        <td class="p-4">
+                            <div class="font-medium text-white">{{ item.ingredient.name }}</div>
+                            <div class="text-xs text-slate-500">{{ item.ingredient.get_unit_display }}</div>
+                        </td>
+                        <td class="p-4 text-right text-slate-300 font-mono">
+                            {{ item.ingredient.stock_quantity|floatformat:2 }}
+                        </td>
+                        <td class="p-4 text-right text-slate-300 font-mono">
+                            {{ item.daily_usage|floatformat:2 }}
+                        </td>
+                        <td class="p-4 text-center">
+                            {% if item.status == 'CRITICAL' %}
+                                <span class="px-2 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">
+                                    CRÍTICO
+                                </span>
+                            {% elif item.status == 'WARNING' %}
+                                <span class="px-2 py-1 rounded-full text-xs font-bold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                                    ALERTA
+                                </span>
+                            {% else %}
+                                <span class="px-2 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                    SEGURO
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="p-4 text-right font-bold {% if item.runway_days < 7 %}text-red-400{% elif item.runway_days < 30 %}text-yellow-400{% else %}text-emerald-400{% endif %}">
+                            {% if item.runway_days > 1000 %}
+                                ∞
+                            {% else %}
+                                {{ item.runway_days|floatformat:1 }} días
+                            {% endif %}
+                        </td>
+                        <td class="p-4 text-right text-slate-400 text-sm">
+                            {% if item.depletion_date %}
+                                {{ item.depletion_date|date:"d M Y" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="p-8 text-center text-slate-500">
+                            No hay datos suficientes para calcular pronósticos.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

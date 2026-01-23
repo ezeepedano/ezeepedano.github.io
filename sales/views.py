@@ -4,26 +4,35 @@ from django.contrib import messages
 from django.db.models import Q
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
-from .forms import UploadFileForm, WholesaleSaleForm, SaleItemFormSet, CustomerForm
+from .forms import UploadFileForm, SaleForm, SaleItemFormSet, CustomerForm
 from .services.importer import process_sales_file
 from .models import Sale, Customer, CustomerStats
+from finance.services import FinanceService
 
 
 @login_required
-def wholesale_create(request):
-    """Create a new manual wholesale sale."""
+def sale_create(request):
+    """Create a new manual sale (generic)."""
     if request.method == 'POST':
-        form = WholesaleSaleForm(request.POST)
+        form = SaleForm(request.POST, user=request.user)
         formset = SaleItemFormSet(request.POST)
         
         if form.is_valid() and formset.is_valid():
             sale = form.save(commit=False)
             sale.user = request.user
+            
+            # Capture financial input
+            param_paid_amount = sale.paid_amount or 0
+            param_account = form.cleaned_data.get('payment_account')
+            
+            # Reset paid_amount initially to ensure clean state
+            sale.paid_amount = 0
+            
             # Generate a unique order ID for manual sales if not provided
-            # Format: WH-{YYYYMMDD}-{Random/Sequence}
+            # Format: MAN-{YYYYMMDD}-{Random/Sequence}
             if not sale.order_id:
                 import uuid
-                sale.order_id = f"WH-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+                sale.order_id = f"MAN-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
             
             # Helper to calc total
             sale.total = 0 # Will update after items
@@ -42,8 +51,32 @@ def wholesale_create(request):
                 
             # Update totals
             sale.product_revenue = total_products
-            sale.total = total_products + sale.shipping_cost - sale.discounts
+            sale.total = total_products + (sale.shipping_cost or 0) - (sale.discounts or 0)
             sale.save()
+            
+            # PROCESS PAYMENT (Integration with Finance)
+            if param_paid_amount > 0:
+                if param_account:
+                    # Automatic CashMovement + Status Update
+                    FinanceService.register_payment(
+                        target_object=sale,
+                        account=param_account,
+                        amount=param_paid_amount,
+                        date=sale.date,
+                        description=f"Cobro Venta #{sale.order_id}"
+                    )
+                else:
+                    # Manual Update (No Cash Impact)
+                    sale.paid_amount = param_paid_amount
+                    if sale.paid_amount >= sale.total:
+                        sale.payment_status = 'PAID'
+                    else:
+                        sale.payment_status = 'PARTIAL'
+                    sale.save()
+            else:
+                 # Ensure consistency if 0 paid
+                 sale.payment_status = 'PENDING'
+                 sale.save()
             
             # Initial stats update (simple)
             # ideally we'd use a service or signal, but let's do basic increment
@@ -61,10 +94,44 @@ def wholesale_create(request):
         if request.GET.get('customer'):
             initial_data['customer'] = request.GET.get('customer')
             
-        form = WholesaleSaleForm(initial=initial_data)
+        form = SaleForm(initial=initial_data, user=request.user)
         formset = SaleItemFormSet()
         
-    return render(request, 'sales/wholesale_form.html', {'form': form, 'formset': formset})
+    return render(request, 'sales/wholesale_form.html', {'form': form, 'formset': formset, 'title': 'Agregar Venta'})
+
+def tiendanube_create(request):
+    """Create a new manual Tienda Nube sale."""
+    if request.method == 'POST':
+        form = SaleForm(request.POST, user=request.user)
+        formset = SaleItemFormSet(request.POST)
+        
+        if form.is_valid() and formset.is_valid():
+            with transaction.atomic():
+                sale = form.save(commit=False)
+                sale.user = request.user
+                
+                # Generate Order ID
+                import uuid
+                sale.order_id = f"TN-{int(timezone.now().timestamp())}"
+                sale.save()
+                
+                formset.instance = sale
+                formset.save()
+                
+                # Update stock
+                for item in sale.items.all():
+                    if item.product:
+                        item.product.stock_quantity -= item.quantity
+                        item.product.save()
+                        
+            messages.success(request, 'Venta de Tienda Nube creada exitosamente.')
+            return redirect('sales_dashboard')
+    else:
+        initial_data = {'date': timezone.now(), 'channel': 'TIENDANUBE'}
+        form = SaleForm(initial=initial_data, user=request.user)
+        formset = SaleItemFormSet()
+        
+    return render(request, 'sales/wholesale_form.html', {'form': form, 'formset': formset, 'title': 'Nueva Venta Tienda Nube'})
 
 
 @login_required
@@ -77,7 +144,7 @@ def sales_dashboard(request):
     if channel:
         sales = sales.filter(channel=channel)
         
-    last_updated = Sale.objects.filter(user=request.user).latest('updated_at').updated_at if sales.exists() else None
+    last_updated = sales.latest('updated_at').updated_at if sales.exists() else None
     
     return render(request, 'sales/dashboard.html', {
         'sales': sales, 
@@ -205,10 +272,13 @@ def customer_create(request):
             messages.success(request, f'Cliente {customer.name} creado exitosamente.')
             
             if 'save_and_sale' in request.POST:
-                return redirect(f"{reverse('wholesale_create')}?customer={customer.id}")
+                return redirect(f"{reverse('sale_create')}?customer={customer.id}")
             return redirect('customer_list')
     else:
-        form = CustomerForm()
+        initial = {}
+        if request.GET.get('name'):
+            initial['name'] = request.GET.get('name')
+        form = CustomerForm(initial=initial)
     
     return render(request, 'sales/customers/form.html', {'form': form})
 

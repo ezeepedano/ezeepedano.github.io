@@ -1,0 +1,94 @@
+Delimiter: ';'
+Headers:
+0: Número de orden
+1: Email
+2: Fecha
+3: Estado de la orden
+4: Estado del pago
+5: Estado del envío
+6: Moneda
+7: Subtotal de productos
+8: Descuento
+9: Costo de envío
+10: Total
+11: Nombre del comprador
+12: DNI / CUIT
+13: Teléfono
+14: Nombre para el envío
+15: Teléfono para el envío
+16: Dirección
+17: Número
+18: Piso
+19: Localidad
+20: Ciudad
+21: Código postal
+22: Provincia o estado
+23: País
+24: Medio de envío
+25: Medio de pago
+26: Cupón de descuento
+27: Notas del comprador
+28: Notas del vendedor
+29: Fecha de pago
+30: Fecha de envío
+31: Nombre del producto
+32: Precio del producto
+33: Cantidad del producto
+34: SKU
+35: Canal
+36: Código de tracking del envío
+37: Identificador de la transacción en el medio de pago
+38: Identificador de la orden
+39: Producto Físico
+40: Persona que registró la venta
+41: Sucursal de venta
+42: Vendedor
+43: Fecha y hora de cancelación
+44: Motivo de cancelación
+
+First Row Sample:
+Número de orden: 109
+Email: brianvalls126@hotmail.com
+Fecha: 04/12/2025 00:16:56
+Estado de la orden: Abierta
+Estado del pago: Recibido
+Estado del envío: Enviado
+Moneda: ARS
+Subtotal de productos: 59150
+Descuento: 0.00
+Costo de envío: 10013.74
+Total: 69163.74
+Nombre del comprador: Brian Valls
+DNI / CUIT: 40927630
+Teléfono: +5492994023173
+Nombre para el envío: Brian Valls
+Teléfono para el envío: +5492994023173
+Dirección: Teniente Ibañez
+Número: 1621
+Piso: 
+Localidad: flamingo
+Ciudad: Cipolletti
+Código postal: 8324
+Provincia o estado: Rio Negro
+País: Argentina
+Medio de envío: Andreani Estandar "Envío a domicilio"""
+Medio de pago: Mercado Pago
+Cupón de descuento: 
+Notas del comprador: .
+Notas del vendedor: 
+Fecha de pago: 04/12/2025
+Fecha de envío: 04/12/2025
+Nombre del producto: TREONATO DE MAGNESIO POLVO POTE (200 GR)
+Precio del producto: 59150
+Cantidad del producto: 1
+SKU: treonatopolvopote
+Canal: Web
+Código de tracking del envío: ="360002816877130"""
+Identificador de la transacción en el medio de pago: 136381987014
+Identificador de la orden: 1848156554
+Producto Físico: Sí
+Persona que registró la venta: 
+Sucursal de venta: 
+Vendedor: 
+Fecha y hora de cancelación: 
+Motivo de cancelación: 

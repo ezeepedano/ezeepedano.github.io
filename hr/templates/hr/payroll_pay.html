@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">Process Payment</h2>
+        
+        <div class="bg-gray-50 rounded-xl p-6 mb-6">
+            <h3 class="font-semibold text-gray-700 mb-2">Payroll Details</h3>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <span class="text-gray-500 block">Employee</span>
+                    <span class="font-medium">{{ payroll.employee }}</span>
+                </div>
+                <div>
+                    <span class="text-gray-500 block">Period</span>
+                    <span class="font-medium">{{ payroll.period|date:"F Y" }}</span>
+                </div>
+                <div>
+                    <span class="text-gray-500 block">Net Salary</span>
+                    <span class="font-bold text-green-600 text-lg">${{ payroll.net_salary }}</span>
+                </div>
+            </div>
+        </div>
+
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <div>
+                <label for="account" class="block text-sm font-medium text-gray-700 mb-2">Source Account</label>
+                <select name="account" id="account" required 
+                        class="w-full rounded-xl border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
+                    <option value="" disabled selected>Select an account...</option>
+                    {% for account in accounts %}
+                    <option value="{{ account.id }}">{{ account }} ({{ account.currency }})</option>
+                    {% endfor %}
+                </select>
+                <p class="mt-1 text-sm text-gray-500">The salaries will be deducted from this account.</p>
+            </div>
+
+            <div class="flex items-center justify-end space-x-4 pt-4 border-t border-gray-100">
+                <a href="{% url 'payroll_list' %}" class="text-gray-600 hover:text-gray-800 font-medium">Cancel</a>
+                <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-xl hover:bg-green-700 transition-colors shadow-lg hover:shadow-xl hover:-translate-y-0.5">
+                    Confirm Payment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

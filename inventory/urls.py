@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CategoryViewSet, ProductViewSet, product_list, product_create, product_edit, product_delete, ingredient_list, ingredient_create, ingredient_edit, product_recipe, produce_product, dashboard
+from .views import CategoryViewSet, ProductViewSet, product_list, product_create, product_edit, product_delete, ingredient_list, ingredient_create, ingredient_edit, product_recipe, produce_product, dashboard, import_inventory
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename='category')
@@ -9,6 +9,8 @@ router.register(r'products', ProductViewSet, basename='product')
 urlpatterns = [
     # path('', dashboard, name='dashboard'), # Dashboard moved to core root
     path('', product_list, name='product_list'), # Root inventory shows list
+    # path('intelligence/', StockIntelligenceView.as_view(), name='stock_intelligence'), # Moved to /bi/
+    path('import/', import_inventory, name='import_inventory'),
     path('api/', include(router.urls)),
     # path('products/', product_list, name='product_list'), # Redundant
     path('products/new/', product_create, name='product_create'),

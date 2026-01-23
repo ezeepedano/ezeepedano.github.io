@@ -1,5 +1,5 @@
 from django import forms
-from .models import FixedCost, Purchase, MonthlyExpense, Asset, Provider, AssetCategory
+from .models import FixedCost, Purchase, MonthlyExpense, Asset, Provider, AssetCategory, Account
 
 class FixedCostForm(forms.ModelForm):
     class Meta:
@@ -38,3 +38,9 @@ class ProviderForm(forms.ModelForm):
         model = Provider # Assumes imported
         fields = ['name', 'email', 'phone', 'address', 'city', 'cuit', 'website', 'notes']
 
+
+
+
+class TransactionImportForm(forms.Form):
+    file = forms.FileField(label="Archivo de Liquidación (CSV/Excel)", widget=forms.FileInput(attrs={'class': 'w-full px-4 py-2 rounded-xl bg-gray-50 border-transparent'}))
+    account = forms.ModelChoiceField(queryset=Account.objects.filter(is_active=True), label="Cuenta Destino", widget=forms.Select(attrs={'class': 'w-full px-4 py-2 rounded-xl bg-gray-50 border-transparent'}))

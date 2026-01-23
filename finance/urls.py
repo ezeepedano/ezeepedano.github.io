@@ -29,4 +29,11 @@ urlpatterns = [
     path('providers/create/', views.provider_create, name='provider_create'),
     path('providers/<int:pk>/', views.provider_detail, name='provider_detail'),
     path('providers/<int:pk>/edit/', views.provider_update, name='provider_update'),
+
+
+
+    # Dashboard (Phase 2)
+    path('dashboard/', views.cashflow_dashboard, name='cashflow_dashboard'),
+    path('aging/', views.aging_dashboard, name='aging_dashboard'),
+    path('import/', views.import_transactions, name='import_transactions'),
 ]

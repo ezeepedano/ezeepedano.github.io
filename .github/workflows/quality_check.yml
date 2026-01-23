@@ -1,0 +1,80 @@
+name: Quality & Security Checks
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/dev.txt
+        pip install pytest pytest-django pytest-cov hypothesis pip-audit ruff
+    
+    - name: Run Ruff Linter
+      run: |
+        ruff check . --output-format=github
+    
+    - name: Security Audit
+      run: |
+        pip-audit --requirement requirements/base.txt --format json --output audit_report.json
+        echo "📊 Security Audit Complete"
+    
+    - name: Float Field Check
+      run: |
+        python manage.py shell < scripts/audit_float_fields.py || echo "⚠️ Float fields detected"
+    
+    - name: Run Tests with Coverage
+      env:
+        DJANGO_SETTINGS_MODULE: core_erp.settings
+      run: |
+        pytest --cov=. \
+               --cov-report=html \
+               --cov-report=term \
+               --cov-report=xml \
+               --cov-fail-under=60 \
+               -v
+    
+    - name: Upload Coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+    
+    - name: Check Migrations
+      env:
+        DJANGO_SETTINGS_MODULE: core_erp.settings
+      run: |
+        python manage.py makemigrations --check --dry-run --no-input
+    
+    - name: Django System Check
+      env:
+        DJANGO_SETTINGS_MODULE: core_erp.settings
+      run: |
+        python manage.py check --deploy --fail-level WARNING
+    
+    - name: Comment PR with Results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '✅ Quality checks passed! See details in Actions tab.'
+          })

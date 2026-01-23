@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800 dark:text-white">Cashflow Dashboard</h1>
+            <p class="text-slate-500 dark:text-slate-400">Flujo de Caja y Saldos en Tiempo Real</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'import_transactions' %}" class="px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-colors shadow-lg flex items-center gap-2">
+                <i class="fas fa-file-upload"></i> Importar
+            </a>
+            <a href="{% url 'fixed_cost_list' %}" class="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-500/30 flex items-center gap-2">
+                <i class="fas fa-chart-pie"></i> Ver Gastos
+            </a>
+        </div>
+    </div>
+
+    <!-- Account Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Total Balance -->
+        <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-xl shadow-indigo-500/20">
+            <div class="flex justify-between items-start mb-4">
+                <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                    <i class="fas fa-wallet text-xl"></i>
+                </div>
+                <span class="bg-white/20 px-2 py-1 rounded text-xs font-medium">Total</span>
+            </div>
+            <p class="text-slate-100 text-sm font-medium">Saldo Global</p>
+            <h3 class="text-3xl font-bold mt-1">${{ total_balance|intcomma }}</h3>
+        </div>
+
+        {% for acc in accounts %}
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+            <div class="flex justify-between items-start mb-4">
+                <div class="p-2 {% if acc.type == 'BANK' %}bg-blue-100 text-blue-600{% elif acc.type == 'WALLET' %}bg-cyan-100 text-cyan-600{% else %}bg-green-100 text-green-600{% endif %} rounded-lg">
+                    <i class="fas {% if acc.type == 'BANK' %}fa-university{% elif acc.type == 'WALLET' %}fa-mobile-alt{% else %}fa-coins{% endif %} text-xl"></i>
+                </div>
+                <!-- <span class="text-xs text-slate-400">{{ acc.get_type_display }}</span> -->
+            </div>
+            <p class="text-slate-500 text-sm font-medium">{{ acc.name }}</p>
+            <h3 class="text-2xl font-bold text-slate-800 dark:text-white mt-1">${{ acc.current_balance|intcomma }}</h3>
+            <p class="text-xs text-slate-400 mt-2">Inicio: ${{ acc.opening_balance|intcomma }}</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Recent Movements Table -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
+            <h3 class="font-bold text-slate-800 dark:text-white">Últimos Movimientos</h3>
+            
+            <form method="get" class="flex flex-wrap gap-2 items-end">
+                <div>
+                    <input type="date" name="start_date" value="{{ start_date }}" class="border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-indigo-500">
+                </div>
+                <span class="text-slate-400 self-center">-</span>
+                <div>
+                    <input type="date" name="end_date" value="{{ end_date }}" class="border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-indigo-500">
+                </div>
+                <button type="submit" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors">
+                    Filtrar
+                </button>
+                {% if end_date or start_date != '2026-01-01' %}
+                    <a href="{% url 'cashflow_dashboard' %}" class="text-xs text-red-500 hover:text-red-600 hover:underline self-center ml-2">Limpiar</a>
+                {% endif %}
+            </form>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-slate-50 dark:bg-slate-700/50 text-xs font-semibold text-slate-500 uppercase tracking-wider text-left">
+                    <tr>
+                        <th class="px-6 py-4">Fecha</th>
+                        <th class="px-6 py-4">Cuenta</th>
+                        <th class="px-6 py-4">Categoría</th>
+                        <th class="px-6 py-4">Descripción</th>
+                        <th class="px-6 py-4 text-right">Monto</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 dark:divide-slate-700 text-sm">
+                    {% for mov in movements %}
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                        <td class="px-6 py-4 text-slate-600 dark:text-slate-300">{{ mov.date|date:"d/m/Y H:i" }}</td>
+                        <td class="px-6 py-4">
+                            <span class="px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                {{ mov.account.name }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="px-2 py-1 rounded-full text-xs font-medium 
+                                {% if mov.type == 'IN' %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
+                                {{ mov.get_category_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-slate-600 dark:text-slate-400">{{ mov.description|truncatechars:50 }}</td>
+                        <td class="px-6 py-4 text-right font-bold {% if mov.type == 'IN' %}text-green-600{% else %}text-red-600{% endif %}">
+                            {% if mov.type == 'IN' %}+{% else %}-{% endif %}${{ mov.amount|intcomma }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center text-slate-500">
+                            No hay movimientos registrados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -4,6 +4,7 @@ from django.contrib import messages
 from .models import Employee, Payroll
 from django import forms
 from django.utils import timezone
+from finance.models import Account, CashMovement
 
 # --- Forms ---
 class EmployeeForm(forms.ModelForm):
@@ -82,7 +83,9 @@ def payroll_generate(request):
             
             # Create Payroll
             # Check if exists?
-            # Payroll.objects.filter(employee=employee, period__year=period.year, period__month=period.month).exists()
+            if Payroll.objects.filter(employee=employee, period__year=period.year, period__month=period.month).exists():
+                 messages.error(request, f'Payroll for {employee} in {period.strftime("%m/%Y")} already exists.')
+                 return redirect('payroll_list')
             
             payroll = Payroll(
                 employee=employee,
@@ -97,3 +100,42 @@ def payroll_generate(request):
         form = PayrollGeneratonForm(user=request.user)
         
     return render(request, 'hr/payroll_generate.html', {'form': form})
+
+@login_required
+def payroll_pay(request, pk):
+    payroll = get_object_or_404(Payroll, pk=pk, employee__user=request.user)
+    
+    if request.method == 'POST':
+        if payroll.paid:
+             messages.warning(request, 'This payroll is already paid.')
+             return redirect('payroll_list')
+             
+        if payroll.paid:
+             messages.warning(request, 'This payroll is already paid.')
+             return redirect('payroll_list')
+             
+        account_id = request.POST.get('account')
+        account = get_object_or_404(Account, pk=account_id, user=request.user)
+
+        
+        # 1. Update Payroll
+        payroll.paid = True
+        payroll.payment_date = timezone.now().date()
+        payroll.save()
+        
+        # 2. Create Finance Movement
+        CashMovement.objects.create(
+            user=request.user,
+            amount=payroll.net_salary,
+            type='OUT',
+            category='PAYROLL',
+            account=account,
+            description=f"Sueldo {payroll.employee} - {payroll.period.strftime('%m/%Y')}",
+            date=timezone.now()
+        )
+        
+        messages.success(request, f'Payroll marked as paid and recorded in Finance ({account.name}).')
+        return redirect('payroll_list')
+    
+    accounts = Account.objects.filter(user=request.user, is_active=True)
+    return render(request, 'hr/payroll_pay.html', {'payroll': payroll, 'accounts': accounts})

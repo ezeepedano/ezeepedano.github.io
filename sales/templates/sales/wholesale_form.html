@@ -9,7 +9,7 @@
             class="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors">
             <i class="fas fa-arrow-left"></i>
         </a>
-        <h1 class="text-2xl font-bold text-gray-900">Nueva Venta Mayorista</h1>
+        <h1 class="text-2xl font-bold text-gray-900">{{ title|default:"Nueva Venta Mayorista" }}</h1>
     </div>
 
     <form method="POST" class="space-y-8">
@@ -45,6 +45,41 @@
                         {{ form.discounts.label_tag }}
                         {{ form.discounts }}
                         {{ form.discounts.errors }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Financial Details -->
+            <div class="border-t border-gray-100 mt-6 pt-6 bg-blue-50/50 -mx-8 px-8 pb-4">
+                <h3 class="text-md font-bold text-gray-800 mb-4 mt-4 flex items-center gap-2">
+                    <i class="fas fa-coins text-blue-600"></i> Información Financiera
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        {{ form.payment_status.label_tag }}
+                        {{ form.payment_status }}
+                        {{ form.payment_status.errors }}
+                    </div>
+                    <div>
+                        {{ form.paid_amount.label_tag }}
+                        {{ form.paid_amount }}
+                        {{ form.paid_amount.errors }}
+                    </div>
+                    <div>
+                        {{ form.due_date.label_tag }}
+                        {{ form.due_date }}
+                        {{ form.due_date.errors }}
+                    </div>
+                    <div>
+                        {{ form.payment_method.label_tag }}
+                        {{ form.payment_method }}
+                        {{ form.payment_method.errors }}
+                    </div>
+                    <div class="md:col-span-2">
+                        {{ form.payment_account.label_tag }}
+                        {{ form.payment_account }}
+                        <span class="text-xs text-gray-500 mt-1 block">Seleccionar si se desea impactar fondos automáticamente.</span>
+                        {{ form.payment_account.errors }}
                     </div>
                 </div>
             </div>
@@ -92,4 +127,76 @@
         </div>
     </form>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.default.min.css" rel="stylesheet">
+<style>
+    /* Custom TomSelect Styling to match Tailwind input */
+    .ts-wrapper.single .ts-control {
+        border-radius: 0.75rem; /* rounded-xl */
+        padding: 0.75rem 1rem; /* py-3 px-4 */
+        border: 1px solid #e5e7eb; /* border-gray-200 */
+        background-color: #f9fafb; /* bg-gray-50 */
+        font-size: 0.875rem; /* text-sm */
+        box-shadow: none;
+    }
+    
+    .ts-wrapper.single .ts-control.focus {
+        border-color: #4f46e5; /* focus:border-primary */
+        box-shadow: 0 0 0 1px #4f46e5; /* focus:ring-primary */
+    }
+
+    .ts-dropdown {
+        border-radius: 0.75rem;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        z-index: 50;
+    }
+
+    .ts-dropdown .option {
+        padding: 0.75rem 1rem;
+    }
+
+    .ts-dropdown .active {
+        background-color: #f3f4f6;
+        color: #111827;
+    }
+
+    .ts-dropdown .create {
+        color: #4f46e5;
+        font-weight: 500;
+        padding: 0.75rem 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        new TomSelect("#id_customer", {
+            create: function(input) {
+                // Redirect to customer creation with the name pre-filled
+                window.location.href = "{% url 'customer_create' %}?name=" + encodeURIComponent(input);
+                return false; // Prevent verifying/adding the option locally immediately
+            },
+            sortField: {
+                field: "text",
+                direction: "asc"
+            },
+            placeholder: "Buscar o crear cliente...",
+            plugins: ['dropdown_input'], // improved mobile ux
+            render: {
+                option_create: function(data, escape) {
+                    return '<div class="create"><i class="fas fa-plus-circle mr-2"></i>Crear cliente <strong>' + escape(data.input) + '</strong></div>';
+                },
+                no_results: function(data, escape) {
+                    return '<div class="no-results p-3 text-gray-500">No se encontraron resultados para "' + escape(data.input) + '"</div>';
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}

@@ -21,11 +21,14 @@ from django.views.generic import RedirectView
 from inventory import views as inventory_views
 
 urlpatterns = [
-    path('', inventory_views.dashboard, name='home'), 
+    # path('', inventory_views.dashboard, name='home'), 
+    path('legacy-home/', inventory_views.dashboard, name='legacy_home'),
+    path('', include('dashboard.urls')),
     path('admin/', admin.site.urls),
     path('sales/', include('sales.urls')),
     path('inventory/', include('inventory.urls')),
     path('finance/', include('finance.urls')),
+    path('accounting/', include('accounting.urls')),
     path('hr/', include('hr.urls')),
-    path('', include('users.urls')), # Auth URLs at root (login/register)
+    path('', include('users.urls')), # Auth URLs at root (login/register) - MIGHT CONFLICT IF NOT CAREFUL
 ]

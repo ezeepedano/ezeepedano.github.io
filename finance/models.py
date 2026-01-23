@@ -1,6 +1,85 @@
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
+
+class Account(models.Model):
+    """
+    Financial Account (Bank, Cash, Wallet).
+    """
+    ACCOUNT_TYPES = (
+        ('CASH', 'Efectivo / Caja'),
+        ('BANK', 'Banco'),
+        ('WALLET', 'Billetera Virtual (MP, etc)'),
+        ('OTHER', 'Otro'),
+    )
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    name = models.CharField(max_length=100)
+    type = models.CharField(max_length=20, choices=ACCOUNT_TYPES, default='CASH')
+    currency = models.CharField(max_length=10, default='ARS')
+    
+    opening_balance = models.DecimalField(max_digits=14, decimal_places=2, default=0.00, help_text="Saldo al inicio")
+    opening_date = models.DateField(default=timezone.now, help_text="Fecha del saldo inicial")
+    
+    is_active = models.BooleanField(default=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.get_type_display()})"
+
+class CashMovement(models.Model):
+    """
+    Tracks all real money movements (Cash Flow).
+    """
+    MOVEMENT_TYPES = (
+        ('IN', 'Ingreso'),
+        ('OUT', 'Egreso'),
+    )
+    
+    CATEGORIES = (
+        ('SALE', 'Venta'),
+        ('EXPENSE', 'Gasto'),
+        ('PURCHASE', 'Compra Insumos'),
+        ('PAYROLL', 'Sueldos'),
+        ('TAX', 'Impuestos'),
+        ('LOAN', 'Préstamo/Financiamiento'),
+        ('TRANSFER', 'Transferencia entre cuentas'),
+        ('ADJUSTMENT', 'Ajuste'),
+        ('OTHER', 'Otro'),
+    )
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    date = models.DateTimeField(default=timezone.now)
+    
+    amount = models.DecimalField(max_digits=14, decimal_places=2, help_text="Monto absoluto")
+    type = models.CharField(max_length=10, choices=MOVEMENT_TYPES)
+    category = models.CharField(max_length=20, choices=CATEGORIES, default='OTHER')
+    
+    # Linked Account
+    account = models.ForeignKey(Account, on_delete=models.PROTECT, related_name='movements')
+    
+    # External ID for Deduplication (MP Import)
+    external_id = models.CharField(max_length=100, blank=True, null=True, db_index=True, help_text="ID externo para evitar duplicados (ej. MP)")
+    
+    description = models.TextField(blank=True, null=True)
+    
+    # Generic Link to Sale, Buy, Cost, etc.
+    content_type = models.ForeignKey(ContentType, on_delete=models.SET_NULL, null=True, blank=True)
+    object_id = models.PositiveIntegerField(null=True, blank=True)
+    content_object = GenericForeignKey('content_type', 'object_id')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date', '-created_at']
+
+    def __str__(self):
+        return f"{self.date.date()} - {self.get_type_display()} ${self.amount} ({self.account})"
 
 
 COST_CATEGORIES = (
@@ -96,8 +175,22 @@ class Purchase(models.Model):
     code = models.CharField(max_length=100, blank=True, null=True, help_text="Invoice number or internal code")
     description = models.TextField(blank=True, null=True)
     amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    is_paid = models.BooleanField(default=True)
     
+    # Aging / Payments
+    due_date = models.DateField(null=True, blank=True, help_text="Fecha de vencimiento")
+    is_paid = models.BooleanField(default=False) # Legacy field, kept for compatibility, sync with status
+    payment_status = models.CharField(max_length=20, choices=[('PENDING', 'Pendiente'), ('PARTIAL', 'Parcial'), ('PAID', 'Pagado')], default='PENDING')
+    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
+    @property
+    def balance(self):
+        return self.amount - self.paid_amount
+    
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.payment_status in ['PENDING', 'PARTIAL'] and not self.due_date:
+            raise ValidationError({'due_date': "Debe especificar una Fecha de Vencimiento para compras pendientes o parciales."})
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -139,3 +232,5 @@ class Asset(models.Model):
 
     def __str__(self):
         return f"{self.name} (${self.cost})"
+
+

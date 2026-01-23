@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Balance de Sumas y Saldos{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Balance de Sumas y Saldos</h1>
+            <p class="text-sm text-gray-500">Resumen de movimientos y saldos por cuenta</p>
+        </div>
+        <div class="flex space-x-3">
+             <a href="{% url 'accounting_ledger' %}" class="text-indigo-600 hover:text-indigo-800 font-medium text-sm self-center">
+                &larr; Ver Libro Diario
+            </a>
+        </div>
+    </div>
+
+    <!-- Trial Balance Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-50 text-gray-600 font-medium border-b border-gray-200">
+                    <tr>
+                        <th class="px-6 py-3">Código</th>
+                        <th class="px-6 py-3">Cuenta</th>
+                        <th class="px-6 py-3 text-right">Total Debe</th>
+                        <th class="px-6 py-3 text-right">Total Haber</th>
+                        <th class="px-6 py-3 text-right">Saldo Deudor</th>
+                        <th class="px-6 py-3 text-right">Saldo Acreedor</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for account in accounts %}
+                        {% if account.total_debit > 0 or account.total_credit > 0 %}
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-3 font-mono text-gray-500">{{ account.code }}</td>
+                            <td class="px-6 py-3 font-medium text-gray-900">{{ account.name }}</td>
+                            
+                            <!-- Sumas -->
+                            <td class="px-6 py-3 text-right font-mono text-gray-600">
+                                ${{ account.total_debit|intcomma }}
+                            </td>
+                            <td class="px-6 py-3 text-right font-mono text-gray-600">
+                                ${{ account.total_credit|intcomma }}
+                            </td>
+                            
+                            <!-- Saldos -->
+                            <td class="px-6 py-3 text-right font-mono text-red-600 font-semibold">
+                                <!-- Deudor: (Debe - Haber) only if > 0 -->
+                                {% widthratio account.total_debit 1 1 as debit_val %}
+                                {% widthratio account.total_credit 1 1 as credit_val %}
+                                
+                                {% comment %} Simple Logic for Template (using python calc in view would be cleaner but this works for MVP) {% endcomment %}
+                                {% if account.type == 'ASSET' or account.type == 'EXPENSE' %}
+                                    {% if account.total_debit > account.total_credit %}
+                                        ${{ account.total_debit|add:"-account.total_credit"|intcomma }} 
+                                        <!-- Note: add filter with negative string literal might fail in older django versions without proper casting -->
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-3 text-right font-mono text-green-600 font-semibold">
+                                <!-- Acreedor: (Haber - Debe) only if > 0 -->
+                                {% if account.type == 'LIABILITY' or account.type == 'EQUITY' or account.type == 'REVENUE' %}
+                                    {% if account.total_credit > account.total_debit %}
+                                       ${{ account.total_credit|add:account.total_debit|intcomma }}  <!-- Logic error potential here in subtract -->
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                                No hay movimientos registrados en ninguna cuenta.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -5,7 +5,8 @@ urlpatterns = [
     # Sales
     path('', views.sales_dashboard, name='sales_dashboard'),
     path('sale/<int:pk>/', views.sale_detail, name='sale_detail'),
-    path('wholesale/add/', views.wholesale_create, name='wholesale_create'),
+    path('add/', views.sale_create, name='sale_create'),
+    path('tiendanube/add/', views.tiendanube_create, name='tiendanube_create'),
     path('upload/', views.upload_sales, name='upload_sales'),
     
     # Customers

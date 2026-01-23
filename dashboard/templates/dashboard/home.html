@@ -1,0 +1,563 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Tablero Ejecutivo{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-slate-800">Tablero Ejecutivo</h1>
+        
+        <!-- Controls -->
+        <div class="flex items-center space-x-3 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
+            <div class="flex space-x-1">
+                <button onclick="setDateRange('today')" class="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-gray-50 text-gray-600 transition-colors">Hoy</button>
+                <button onclick="setDateRange('7d')" class="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-gray-50 text-gray-600 transition-colors">7D</button>
+                <button onclick="setDateRange('30d')" class="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-gray-50 text-gray-600 transition-colors">30D</button>
+                <button onclick="setDateRange('ytd')" class="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-gray-50 text-gray-600 transition-colors">2026</button>
+                <button onclick="setDateRange('all')" class="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-gray-50 text-gray-600 transition-colors">Histórico</button>
+            </div>
+            
+            <div class="h-6 w-px bg-gray-200"></div>
+            
+            <select id="channel-filter" class="text-sm border-none focus:ring-0 text-gray-600 font-medium bg-transparent cursor-pointer">
+                <option value="ALL">Todos los Canales</option>
+                <option value="MercadoLibre">MercadoLibre</option>
+                <option value="TiendaNube">TiendaNube</option>
+                <option value="Local">Local / Mostrador</option>
+            </select>
+            
+            <button onclick="refreshDashboard()" class="p-1.5 text-gray-400 hover:text-indigo-600 transition-colors">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- KPI Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <!-- Revenue -->
+        <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">INGRESOS</div>
+            <div class="text-2xl font-bold text-slate-800" id="kpi-revenue">Loading...</div>
+            <div id="kpi-revenue-trend" class="text-xs mt-2 font-medium flex items-center text-gray-400">
+                --
+            </div>
+        </div>
+        
+        <!-- Orders -->
+        <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">PEDIDOS</div>
+            <div class="text-2xl font-bold text-slate-800" id="kpi-orders">--</div>
+            <div id="kpi-orders-trend-container">
+                <span id="kpi-orders-trend">--</span>
+            </div>
+        </div>
+        
+        <!-- Units -->
+        <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">UNIDADES</div>
+            <div class="text-2xl font-bold text-slate-800" id="kpi-units">--</div>
+            <div id="kpi-units-trend-container">
+                 <span id="kpi-units-trend">--</span>
+            </div>
+        </div>
+        
+        <!-- Ticket -->
+        <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">TICKET PROM.</div>
+            <div class="text-2xl font-bold text-slate-800" id="kpi-ticket">--</div>
+            <div id="kpi-ticket-trend-container">
+                 <span id="kpi-ticket-trend">--</span>
+            </div>
+        </div>
+        
+        <!-- Margin -->
+        <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">MARGEN BRUTO</div>
+            <div class="text-2xl font-bold text-slate-800" id="kpi-margin-pct">--%</div>
+            <div class="text-xs text-gray-400 mt-0.5" id="kpi-margin-abs">(--)</div>
+             <div id="kpi-margin-trend-container">
+                 <span id="kpi-margin-trend">--</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Chart Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Sales Trend -->
+        <div class="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h3 class="font-bold text-slate-800">Tendencia de Ventas</h3>
+                    <div id="trend-summary" class="text-sm text-gray-500 mt-1">Cargando...</div>
+                </div>
+                <div class="flex space-x-2">
+                    <select id="trend-bucket" onchange="updateTrendSettings()" class="text-xs border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="day">Diario</option>
+                        <option value="week" selected>Semanal</option>
+                        <option value="month">Mensual</option>
+                    </select>
+                    <select id="trend-window" onchange="updateTrendSettings()" class="text-xs border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="12" selected>Últimos 12</option>
+                        <option value="30">Últimos 30</option>
+                        <option value="9999">Todos</option>
+                    </select>
+                </div>
+            </div>
+            <div class="h-64 relative">
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Channel Mix -->
+        <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col">
+            <h3 class="font-bold text-slate-800 mb-4">Mix de Canales</h3>
+            <div id="channel-list" class="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar" style="max-height: 250px;">
+                <!-- Filled via JS -->
+                <div class="animate-pulse space-y-3">
+                    <div class="h-12 bg-gray-100 rounded-lg"></div>
+                    <div class="h-12 bg-gray-100 rounded-lg"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bottom Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Finance Snapshot -->
+        <div class="bg-slate-900 text-white p-6 rounded-xl shadow-lg flex flex-col">
+            <div class="flex justify-between items-center mb-6">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center">
+                        <i class="fas fa-wallet text-white text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold">Finanzas</h3>
+                        <p class="text-xs text-slate-400">Saldos en vivo</p>
+                    </div>
+                </div>
+                <a href="{% url 'cashflow_dashboard' %}" class="text-xs text-indigo-300 hover:text-white">Ver Todo →</a>
+            </div>
+            
+            <div id="finance-balances" class="space-y-4 mb-6">
+                <!-- JS populated -->
+            </div>
+            
+            <div class="mt-auto pt-4 border-t border-white/10">
+                <h4 class="text-xs font-bold text-slate-400 uppercase mb-3">Movimientos Recientes</h4>
+                <div id="recent-moves" class="space-y-3 text-sm">
+                    <!-- JS populated -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Aging / Debts -->
+        <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+            <h3 class="font-bold text-slate-800 mb-4">Cuentas Corrientes</h3>
+            
+            <div class="mb-4">
+                <h4 class="text-xs font-bold text-gray-400 uppercase mb-2">A cobrar (Receivables)</h4>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <tbody id="receivables-list">
+                             <!-- JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div>
+                <h4 class="text-xs font-bold text-gray-400 uppercase mb-2">A pagar (Payables)</h4>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <tbody id="payables-list">
+                             <!-- JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Stock Alerts & Top Products -->
+        <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+             <div class="flex space-x-4 border-b border-gray-100 mb-4">
+                 <button class="pb-2 border-b-2 border-indigo-600 font-bold text-indigo-600 text-sm">Alertas Stock</button>
+                 <button class="pb-2 border-b-2 border-transparent font-medium text-gray-500 text-sm hover:text-gray-700">Top Productos</button>
+             </div>
+             
+             <div class="overflow-y-auto custom-scrollbar" style="max-height: 300px;">
+                 <table class="w-full text-sm">
+                     <thead>
+                         <tr class="text-xs text-gray-400 text-left">
+                             <th class="font-medium py-2">Producto</th>
+                             <th class="font-medium py-2 text-right">Stock</th>
+                             <th class="font-medium py-2 text-right">Cobertura</th>
+                         </tr>
+                     </thead>
+                     <tbody id="stock-alerts-list">
+                         <!-- JS -->
+                     </tbody>
+                 </table>
+                 
+                  <table class="w-full text-sm hidden" id="top-products-table">
+                     <thead>
+                         <tr class="text-xs text-gray-400 text-left">
+                             <th class="font-medium py-2">Producto</th>
+                             <th class="font-medium py-2 text-right">Cant.</th>
+                             <th class="font-medium py-2 text-right">Ingresos</th>
+                         </tr>
+                     </thead>
+                     <tbody id="top-products-list">
+                         <!-- JS -->
+                     </tbody>
+                 </table>
+             </div>
+        </div>
+    </div>
+</div>
+
+<!-- ChartJS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    let salesChartInstance = null;
+    let currentFilters = {
+        date_from: '2024-01-01', // Default 2024
+        date_to: '',
+        channel: 'ALL'
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        refreshDashboard();
+        
+        document.getElementById('channel-filter').addEventListener('change', (e) => {
+            currentFilters.channel = e.target.value;
+            refreshDashboard();
+        });
+    });
+
+    function setDateRange(range) {
+        const now = new Date();
+        let from = new Date();
+        
+        // Reset styles
+        document.querySelectorAll('button[onclick^="setDateRange"]').forEach(btn => {
+            btn.className = "px-3 py-1.5 text-sm font-medium rounded-md hover:bg-gray-50 text-gray-600 transition-colors";
+        });
+        
+        // Style active button
+        let targetBtn = document.querySelector(`button[onclick="setDateRange('${range}')"]`);
+        if (targetBtn) targetBtn.className = "px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow-sm text-indigo-600 ring-1 ring-indigo-100";
+        
+        if (range === 'today') {
+            from = now;
+        } else if (range === '7d') {
+            from.setDate(now.getDate() - 7);
+        } else if (range === '30d') {
+            from.setDate(now.getDate() - 30);
+        } else if (range === 'ytd') {
+            from = new Date(2026, 0, 1);
+        } else if (range === 'all') {
+             currentFilters.date_from = '';
+             currentFilters.date_to = '';
+             refreshDashboard();
+             return; 
+        }
+        
+        currentFilters.date_from = from.toISOString().split('T')[0];
+        // Ensure date_to is Today to define the range clearly, unless it's strictly "Since X"
+        // But for "Last 7 days", we usually mean "Until Now".
+        currentFilters.date_to = now.toISOString().split('T')[0];
+        
+        refreshDashboard();
+    }
+
+    async function refreshDashboard() {
+        const params = new URLSearchParams(currentFilters);
+        params.append('_t', Date.now()); // Anti-cache
+        
+        // 1. KPIs
+        fetch(`{% url 'api_kpis' %}?${params.toString()}`)
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('kpi-revenue').innerText = formatCurrency(data.revenue);
+                renderTrend('kpi-revenue-trend', data.growth ? data.growth.revenue : null);
+                
+                document.getElementById('kpi-orders').innerText = data.orders;
+                renderTrend('kpi-orders-trend-container', data.growth ? data.growth.orders : null, true);
+                
+                document.getElementById('kpi-units').innerText = data.units;
+                renderTrend('kpi-units-trend-container', data.growth ? data.growth.units : null, true);
+                
+                document.getElementById('kpi-ticket').innerText = formatCurrency(data.ticket_avg);
+                renderTrend('kpi-ticket-trend-container', data.growth ? data.growth.ticket_avg : null, true);
+                
+                document.getElementById('kpi-margin-pct').innerText = `${parseFloat(data.gross_margin_pct).toFixed(1)}%`;
+                document.getElementById('kpi-margin-abs').innerText = `(${formatCurrency(data.gross_margin)})`;
+                renderTrend('kpi-margin-trend-container', data.growth ? data.growth.gross_margin : null, true);
+            })
+            .catch(e => console.error("KPI Error:", e));
+
+        // 2. Trends
+        updateTrendChart();
+
+        // 3. Channels
+        fetch(`{% url 'api_channels' %}?${params.toString()}`)
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById('channel-list');
+                container.innerHTML = '';
+                data.forEach(ch => {
+                    const html = `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span class="font-medium text-gray-700">${ch.channel || 'Desconocido'}</span>
+                        <div class="text-right">
+                            <div class="font-bold text-gray-900">${formatCurrency(ch.revenue)}</div>
+                            <div class="text-xs text-gray-500">${ch.orders} pedidos</div>
+                        </div>
+                    </div>`;
+                    container.innerHTML += html;
+                });
+            });
+
+        // 4. Finance
+        fetch(`{% url 'api_finance' %}`)
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById('finance-balances');
+                container.innerHTML = '';
+                data.forEach(acc => {
+                    const html = `
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <span class="text-slate-300 text-sm block">${acc.name}</span>
+                            <span class="text-xs text-slate-500">${acc.currency}</span>
+                        </div>
+                        <span class="font-mono text-xl font-bold tracking-tight">${formatCurrency(acc.balance)}</span>
+                    </div>`;
+                    container.innerHTML += html;
+                });
+            });
+
+         fetch(`{% url 'api_recent_moves' %}`)
+            .then(r => r.json())
+            .then(data => {
+                 const container = document.getElementById('recent-moves');
+                 container.innerHTML = '';
+                 data.forEach(m => {
+                     const color = m.type === 'IN' ? 'text-green-400' : 'text-red-400';
+                     const sign = m.type === 'IN' ? '+' : '-';
+                     container.innerHTML += `
+                     <div class="flex justify-between border-b border-white/5 pb-2 last:border-0">
+                        <div>
+                            <span class="block font-medium dark:text-gray-200">${m.description || m.category}</span>
+                            <span class="text-xs text-gray-500 dark:text-gray-500">${m.date} | ${m.account}</span>
+                        </div>
+                        <span class="font-medium ${color}">${sign}${formatCurrency(m.amount)}</span>
+                     </div>`;
+                 });
+            });
+
+        // 5. Aging
+        fetch(`{% url 'api_aging' %}`)
+            .then(r => r.json())
+            .then(data => {
+                 const rec = document.getElementById('receivables-list');
+                 rec.innerHTML = '';
+                 data.receivables.forEach(item => {
+                     rec.innerHTML += `
+                     <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50">
+                        <td class="px-3 py-2 font-medium">${item.entity}</td>
+                        <td class="px-3 py-2 text-right font-bold text-gray-700">${formatCurrency(item.amount)}</td>
+                        <td class="px-3 py-2 text-right ${item.overdue ? 'text-red-600 font-bold' : 'text-gray-500'}">${item.due_date}</td>
+                     </tr>`;
+                 });
+                 
+                 const pay = document.getElementById('payables-list');
+                 pay.innerHTML = '';
+                 data.payables.forEach(item => {
+                     pay.innerHTML += `
+                     <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50">
+                        <td class="px-3 py-2 font-medium">${item.entity}</td>
+                        <td class="px-3 py-2 text-right font-bold text-gray-700">${formatCurrency(item.amount)}</td>
+                        <td class="px-3 py-2 text-right ${item.overdue ? 'text-red-600 font-bold' : 'text-gray-500'}">${item.due_date}</td>
+                     </tr>`;
+                 });
+            });
+            
+        // 6. Stock
+        fetch(`{% url 'api_stock_alerts' %}`)
+            .then(r => r.json())
+            .then(data => {
+                const list = document.getElementById('stock-alerts-list');
+                list.innerHTML = '';
+                data.forEach(item => {
+                    let badgeColor = item.status === 'red' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700';
+                    list.innerHTML += `
+                    <tr class="border-b border-gray-50 last:border-0">
+                        <td class="py-2 text-gray-700 font-medium">${item.product_name}</td>
+                        <td class="py-2 text-right text-gray-500">${item.stock}</td>
+                        <td class="py-2 text-right">
+                            <span class="px-2 py-0.5 rounded text-xs font-bold ${badgeColor}">${item.cover}d</span>
+                        </td>
+                    </tr>`;
+                });
+            });
+            
+        fetch(`{% url 'api_top_products' %}?${params}`)
+            .then(r => r.json())
+            .then(data => {
+                const list = document.getElementById('top-products-list');
+                list.innerHTML = '';
+                data.forEach(item => {
+                    list.innerHTML += `
+                    <tr class="border-b border-gray-50 last:border-0">
+                        <td class="py-2 text-gray-700 font-medium">${item.product__name}</td>
+                        <td class="py-2 text-right text-gray-500">${item.qty}</td>
+                        <td class="py-2 text-right font-bold text-gray-900">${formatCurrency(item.revenue)}</td>
+                    </tr>`;
+                });
+            });
+    }
+
+    function updateTrendSettings() {
+        updateTrendChart();
+    }
+
+    function updateTrendChart() {
+        const bucket = document.getElementById('trend-bucket').value;
+        const windowVal = document.getElementById('trend-window').value;
+        
+        const params = new URLSearchParams();
+        if (currentFilters.date_from) params.append('date_from', currentFilters.date_from);
+        if (currentFilters.date_to) params.append('date_to', currentFilters.date_to);
+        
+        if (currentFilters.channel && currentFilters.channel !== 'ALL') {
+            params.append('channel', currentFilters.channel);
+        }
+        
+        params.append('bucket', bucket);
+        params.append('window', windowVal);
+        params.append('_t', Date.now());
+        
+        const summaryEl = document.getElementById('trend-summary');
+        if (summaryEl) summaryEl.innerHTML = '<span class="text-gray-400">Calculando...</span>';
+        
+        fetch(`{% url 'api_trends' %}?${params.toString()}`)
+            .then(r => r.json())
+            .then(data => {
+                renderSalesChart(data);
+            })
+            .catch(err => {
+                console.error("Trend Error:", err);
+                if (summaryEl) summaryEl.innerHTML = `<span class="text-red-500">Error</span>`;
+            });
+    }
+
+    function renderSalesChart(data) {
+        const ctx = document.getElementById('salesChart').getContext('2d');
+        if (salesChartInstance) salesChartInstance.destroy();
+        
+        // Summary
+        const summaryEl = document.getElementById('trend-summary');
+        const formattedTotal = formatCurrency(data.summary.current_total);
+        const change = parseFloat(data.summary.change_pct);
+        const icon = change >= 0 ? '▲' : '▼';
+        const colorClass = change >= 0 ? 'text-green-600' : 'text-red-600';
+        let changeText = `${Math.abs(change)}%`;
+        if (change > 999) changeText = '>999%';
+        
+        summaryEl.innerHTML = `Total ${formattedTotal} <span class="ml-2 ${colorClass} font-medium text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200">${icon} ${changeText} vs anterior</span>`;
+
+        // Labels ES
+        const labels = data.points.map(p => {
+            if (data.bucket === 'month') {
+               if (!p.start) return '';
+               const parts = p.start.split('-');
+               return `${parts[2]}/${parts[1]}`;
+            } else if (data.bucket === 'day') {
+               if (!p.start) return '';
+               const parts = p.start.split('-');
+               return `${parts[2]}/${parts[1]}`;
+            } else {
+               if (!p.start) return '';
+               const parts = p.start.split('-');
+               return `${parts[2]}/${parts[1]}`; // Simplified for chart
+            }
+        });
+        
+        const values = data.points.map(p => parseFloat(p.value));
+        const chartType = data.bucket === 'month' ? 'line' : 'bar';
+        
+        salesChartInstance = new Chart(ctx, {
+            type: chartType,
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Ingresos',
+                    data: values,
+                    borderColor: '#4f46e5',
+                    backgroundColor: '#6366f1',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                if (value >= 1000000) return '$' + (value/1000000).toFixed(1) + 'M';
+                                if (value >= 1000) return '$' + (value/1000).toFixed(0) + 'K';
+                                return '$' + value;
+                            }
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { autoSkip: true, maxTicksLimit: 10 }
+                    }
+                }
+            }
+        });
+    }
+
+    function formatCurrency(value) {
+        if (value === null || value === undefined) return '--';
+        return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value);
+    }
+    
+    function renderTrend(elementId, growth, isContainer=false) {
+        if (growth === null || growth === undefined) {
+             if (isContainer) document.getElementById(elementId).innerHTML = '';
+             else document.getElementById(elementId).innerText = '--';
+             return;
+        }
+        
+        const isPositive = growth >= 0;
+        const color = isPositive ? 'text-green-500' : 'text-red-500';
+        const icon = isPositive ? 'fa-arrow-up' : 'fa-arrow-down';
+        const text = `${Math.abs(growth).toFixed(1)}% vs anterior`;
+        
+        const html = `<i class="fas ${icon} mr-1"></i> ${text}`;
+        
+        const el = document.getElementById(elementId);
+        if (isContainer) {
+            el.className = `text-xs mt-2 font-medium flex items-center ${color}`;
+            el.innerHTML = html;
+        } else {
+             el.innerText = `${Math.abs(growth).toFixed(1)}%`;
+             if (el.parentElement) {
+                 el.parentElement.className = `text-xs mt-2 font-medium flex items-center ${color}`;
+                 el.parentElement.innerHTML = html;
+             }
+        }
+    }
+</script>
+{% endblock %}

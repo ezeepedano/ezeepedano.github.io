@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Libro Diario{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Libro Diario</h1>
+            <p class="text-sm text-gray-500">Registro cronológico de movimientos contables</p>
+        </div>
+        <div class="flex space-x-3">
+            <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                Nuevo Asiento Manual
+            </button>
+        </div>
+    </div>
+
+    <!-- Ledger Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-50 text-gray-600 font-medium border-b border-gray-200">
+                    <tr>
+                        <th class="px-6 py-3">Fecha</th>
+                        <th class="px-6 py-3">Asiento</th>
+                        <th class="px-6 py-3">Cuenta (Debe / Haber)</th>
+                        <th class="px-6 py-3 text-right">Debe</th>
+                        <th class="px-6 py-3 text-right">Haber</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for entry in entries %}
+                        <!-- Entry Header Row -->
+                        <tr class="bg-gray-50/50">
+                            <td class="px-6 py-3 font-medium text-gray-900 align-top" rowspan="{{ entry.items.all|length|add:'1' }}">
+                                {{ entry.date|date:"d/m/Y" }}
+                            </td>
+                            <td class="px-6 py-3 font-medium text-gray-900 align-top" rowspan="{{ entry.items.all|length|add:'1' }}">
+                                <div class="flex flex-col">
+                                    <span>#{{ entry.id }} {{ entry.description }}</span>
+                                    {% if entry.reference %}
+                                        <span class="text-xs text-gray-500">Ref: {{ entry.reference }}</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        
+                        <!-- Items Rows -->
+                        {% for item in entry.items.all %}
+                        <tr class="hover:bg-gray-50 transition-colors">
+                             <!-- Cells hidden due to rowspan defined above -->
+                            <td class="px-6 py-2 border-l border-gray-100">
+                                <span class="font-mono text-xs text-gray-500 mr-2">{{ item.account.code }}</span>
+                                <span class="text-gray-700">{{ item.account.name }}</span>
+                            </td>
+                            <td class="px-6 py-2 text-right font-mono text-gray-600">
+                                {% if item.debit > 0 %}
+                                    ${{ item.debit|intcomma }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-2 text-right font-mono text-gray-600">
+                                {% if item.credit > 0 %}
+                                    ${{ item.credit|intcomma }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                                No hay asientos contables registrados aún.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <div class="bg-gray-50 px-6 py-3 border-t border-gray-200 flex justify-between items-center">
+            {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}" class="text-indigo-600 hover:text-indigo-900 font-medium">Anterior</a>
+            {% else %}
+                <span class="text-gray-400">Anterior</span>
+            {% endif %}
+
+            <span class="text-gray-600">
+                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+            </span>
+
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="text-indigo-600 hover:text-indigo-900 font-medium">Siguiente</a>
+            {% else %}
+                <span class="text-gray-400">Siguiente</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -10,6 +10,8 @@ class Customer(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     # Identity
     name = models.CharField(max_length=255, help_text="Comprador")
+    email = models.EmailField(blank=True, null=True, help_text="Email")
+    phone = models.CharField(max_length=100, blank=True, null=True, help_text="Teléfono")
     
     # Document: prioritized from DNI column, fallback to parsed "Tipo y número de documento"
     document_raw = models.CharField(max_length=255, blank=True, null=True)
@@ -97,10 +99,52 @@ class Sale(models.Model):
     province = models.CharField(max_length=100, blank=True, null=True, help_text="Estado/Provincia")
     city = models.CharField(max_length=100, blank=True, null=True, help_text="Ciudad")
     zip_code = models.CharField(max_length=20, blank=True, null=True, help_text="Código postal")
+    # Detailed Statuses
+    payment_status = models.CharField(max_length=100, blank=True, null=True, help_text="Estado del pago")
+    shipping_status = models.CharField(max_length=100, blank=True, null=True, help_text="Estado del envío")
+    
+    # Financial Details
+    currency = models.CharField(max_length=10, default='ARS', help_text="Moneda")
+    payment_method = models.CharField(max_length=100, blank=True, null=True, help_text="Medio de pago")
+    transaction_id = models.CharField(max_length=100, blank=True, null=True, help_text="ID Transacción Pago")
+    payment_date = models.DateTimeField(blank=True, null=True, help_text="Fecha de pago")
+
+    # Aging / Accounts Receivable
+    due_date = models.DateField(null=True, blank=True, help_text="Fecha de vencimiento / cobro esperado")
+    payment_status = models.CharField(max_length=20, choices=[('PENDING', 'Pendiente'), ('PARTIAL', 'Parcial'), ('PAID', 'Pagado')], default='PAID', help_text="Estado de Cobranza") 
+    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, help_text="Monto Cobrado")
+    
+    @property
+    def balance(self):
+        return self.total - self.paid_amount
+
+    # Notes
+    buyer_notes = models.TextField(blank=True, null=True, help_text="Notas del comprador")
+    seller_notes = models.TextField(blank=True, null=True, help_text="Notas del vendedor")
+    
+    # Shipping Extended
+    shipping_date = models.DateTimeField(blank=True, null=True, help_text="Fecha de envío")
+    recipient_name = models.CharField(max_length=255, blank=True, null=True, help_text="Nombre para el envío")
+    recipient_phone = models.CharField(max_length=100, blank=True, null=True, help_text="Teléfono para el envío")
+    
     invoice_data = models.TextField(blank=True, null=True, help_text="Datos para facturación")
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        # Enforce due_date for receivables logic
+        if self.payment_status in ['PENDING', 'PARTIAL'] and not self.due_date:
+            raise ValidationError({'due_date': "Debe especificar una Fecha de Vencimiento para ventas pendientes o parciales."})
+
+    def save(self, *args, **kwargs):
+        # Ensure we run logic even if clean not called? No, clean is for forms usually.
+        # But we can force it if needed. For now standard Django practice is clean() uses validation.
+        # But let's set a default due_date = today if missing and pending? Better to error as requested "obligatorio".
+        super().save(*args, **kwargs)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    stock_deducted = models.BooleanField(default=False, help_text="Si el stock ya fue descontado")
 
     class Meta:
         ordering = ['-date']
@@ -146,7 +190,7 @@ class CustomerStats(models.Model):
     days_since_last_order = models.IntegerField(default=0)
     
     total_return_units = models.PositiveIntegerField(default=0)
-    return_rate = models.FloatField(default=0.0)
+    return_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, help_text="Tasa de devolución (%)")
     
     open_claims_count = models.PositiveIntegerField(default=0)
     closed_claims_count = models.PositiveIntegerField(default=0)

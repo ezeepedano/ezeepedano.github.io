@@ -39,5 +39,5 @@ class CustomerCreateViewTest(TestCase):
         response = self.client.post(self.url, data)
         self.assertEqual(response.status_code, 302)
         customer = Customer.objects.get(name='Sale Customer')
-        expected_url = f"{reverse('wholesale_create')}?customer={customer.id}"
+        expected_url = f"{reverse('sale_create')}?customer={customer.id}"
         self.assertRedirects(response, expected_url)

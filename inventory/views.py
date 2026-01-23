@@ -3,11 +3,42 @@ from django.forms import inlineformset_factory
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import View
 from rest_framework import viewsets, permissions
 from .models import Category, Product, Ingredient, Recipe, ProductionOrder
 from .serializers import CategorySerializer, ProductSerializer
 from .forms import ProductForm, IngredientForm, ProductionForm
 from .services import CostService, ProductionService
+from .services_intelligence import StockIntelligenceService
+
+from .services import CostService, ProductionService
+from .services_intelligence import StockIntelligenceService
+from .services_import import InventoryImportService
+
+# StockIntelligenceView removed (Logic moved to Dashboard BI)
+
+@login_required
+def import_inventory(request):
+    if request.method == 'POST' and request.FILES.get('excel_file'):
+        excel_file = request.FILES['excel_file']
+        
+        # Simple validation
+        if not excel_file.name.endswith('.xlsx'):
+            messages.error(request, 'El archivo debe ser un Excel (.xlsx)')
+            return redirect('product_list')
+
+        result = InventoryImportService.process_import(excel_file, request.user)
+        
+        if result['success']:
+            msg = f"Importación exitosa: {result['updated']} actualizados, {result['created']} creados."
+            if result.get('errors'):
+                msg += f" Hubo {len(result['errors'])} errores no fatales."
+            messages.success(request, msg)
+        else:
+            messages.error(request, f"Error: {result['message']}")
+            
+    return redirect('product_list')
 
 class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer

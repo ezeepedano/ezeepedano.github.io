@@ -13,3 +13,11 @@ def check_match(value, expected, output_string='selected'):
     if str(value) == str(expected):
         return output_string
     return ''
+
+@register.filter
+def abs_value(value):
+    """Returns the absolute value."""
+    try:
+        return abs(float(value))
+    except (ValueError, TypeError):
+        return 0

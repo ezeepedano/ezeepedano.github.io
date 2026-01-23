@@ -29,9 +29,18 @@
                     <td class="px-6 py-4 text-right text-gray-500">${{ payroll.basic_salary }}</td>
                     <td class="px-6 py-4 text-right font-bold text-green-600">${{ payroll.net_salary }}</td>
                     <td class="px-6 py-4 text-center">
-                        <span class="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Generated</span>
+                        {% if payroll.paid %}
+                        <span class="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Paid</span>
+                        {% else %}
+                        <span class="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Pending</span>
+                        {% endif %}
                     </td>
                     <td class="px-6 py-4 text-right">
+                        {% if not payroll.paid %}
+                        <a href="{% url 'payroll_pay' payroll.id %}" class="text-green-600 hover:text-green-800 font-medium mr-3" title="Pay Now">
+                            <i class="fas fa-money-bill-wave"></i> Pay
+                        </a>
+                        {% endif %}
                         <button class="text-gray-400 hover:text-gray-600" title="View PDF (Coming Soon)"><i class="fas fa-print"></i></button>
                     </td>
                 </tr>

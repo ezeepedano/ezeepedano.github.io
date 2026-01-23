@@ -50,12 +50,13 @@ class Payroll(models.Model):
     def calculate_net(self):
         # Auto-calculate standard argentinian deductions if basic_salary is set
         if self.basic_salary:
-            self.retirement = self.basic_salary * 0.11
-            self.social_security = self.basic_salary * 0.03
-            self.pami = self.basic_salary * 0.03
+            from decimal import Decimal
+            self.retirement = self.basic_salary * Decimal('0.11')
+            self.social_security = self.basic_salary * Decimal('0.03')
+            self.pami = self.basic_salary * Decimal('0.03')
             
-        total_deductions = float(self.retirement) + float(self.social_security) + float(self.pami) + float(self.other_deductions)
-        self.net_salary = float(self.basic_salary) - total_deductions
+        total_deductions = self.retirement + self.social_security + self.pami + self.other_deductions
+        self.net_salary = self.basic_salary - total_deductions
 
     def save(self, *args, **kwargs):
         if not self.id: # On create

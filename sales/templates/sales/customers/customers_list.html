@@ -11,14 +11,20 @@
             <p class="text-secondary text-sm">Customer analytics and profiles</p>
         </div>
 
-        <!-- Search -->
-        <form method="get" class="flex gap-2">
-            <input type="text" name="q" value="{{ search_query }}" placeholder="Search customers..."
-                class="px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary focus:outline-none w-64">
-            <button type="submit" class="bg-primary hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-bold">
-                <i class="fas fa-search"></i>
-            </button>
-        </form>
+        <!-- Actions -->
+        <div class="flex gap-2">
+            <a href="{% url 'export_customers' %}" class="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-xl font-bold flex items-center shadow-sm">
+                <i class="fas fa-file-excel mr-2 text-green-600"></i> Exportar
+            </a>
+            
+            <form method="get" class="flex gap-2">
+                <input type="text" name="q" value="{{ search_query }}" placeholder="Search customers..."
+                    class="px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary focus:outline-none w-64">
+                <button type="submit" class="bg-primary hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-bold">
+                    <i class="fas fa-search"></i>
+                </button>
+            </form>
+        </div>
     </div>
 
     <!-- Filters -->

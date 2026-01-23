@@ -1,13 +1,16 @@
 
 from django.shortcuts import render, redirect, get_object_or_404
+from decimal import Decimal
 from datetime import date
 from django.contrib import messages
 from django.db.models import Sum
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
-from .models import FixedCost, MonthlyExpense, Purchase, Provider, PurchaseCategory, Asset, AssetCategory
-from .forms import FixedCostForm, PurchaseForm, VariableExpenseForm, AssetForm, ProviderForm
-from .services import FinanceReportService, ExpenseService
+from .models import FixedCost, MonthlyExpense, Purchase, Provider, PurchaseCategory, Asset, AssetCategory, Account, CashMovement
+from .forms import FixedCostForm, PurchaseForm, VariableExpenseForm, AssetForm, ProviderForm, TransactionImportForm
+from .services import FinanceReportService, ExpenseService, FinanceService
+from .importers.mercadopago_cash import MercadoPagoCashImporter
+from sales.models import Sale
 
 @login_required
 def fixed_cost_list(request):
@@ -384,3 +387,119 @@ def provider_detail(request, pk):
         'total_spent': total_spent,
     }
     return render(request, 'finance/provider_detail.html', context)
+
+# -----------------------------------------------------------------------------
+# Financial Dashboard Views (Phase 2)
+# -----------------------------------------------------------------------------
+
+@login_required
+def cashflow_dashboard(request):
+    """
+    Shows Cash Flow (Money In/Out) per Account.
+    """
+    accounts = Account.objects.filter(user=request.user, is_active=True)
+    
+    # Calculate Live Balance for each account
+    # Formula: Opening Balance + Sum(IN) - Sum(OUT) (where date >= opening_date)
+    # Ideally this should be cached or optimized, but for <5000 rows it's fast.
+    total_balance = Decimal('0.00')
+    
+    for acc in accounts:
+        # Get movements after opening date
+        m_qs = CashMovement.objects.filter(user=request.user, account=acc, date__gte=acc.opening_date)
+        total_in = m_qs.filter(type='IN').aggregate(Sum('amount'))['amount__sum'] or 0
+        total_out = m_qs.filter(type='OUT').aggregate(Sum('amount'))['amount__sum'] or 0
+        
+        acc.current_balance = acc.opening_balance + total_in - total_out
+        total_balance += acc.current_balance
+        
+    # Date Filter for Movements List
+    default_start = date(2026, 1, 1)
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    
+    start_date = default_start
+    if start_date_str:
+        try:
+            start_date = date.fromisoformat(start_date_str)
+        except ValueError:
+            pass
+            
+    # Recent Movements Query
+    movements_qs = CashMovement.objects.filter(user=request.user, date__date__gte=start_date)
+    
+    if end_date_str:
+        try:
+            end_date = date.fromisoformat(end_date_str)
+            movements_qs = movements_qs.filter(date__date__lte=end_date)
+        except ValueError:
+            pass
+            
+    movements = movements_qs.select_related('account').order_by('-date')
+    
+    context = {
+        'accounts': accounts,
+        'total_balance': total_balance,
+        'movements': movements,
+        'start_date': start_date.isoformat(),
+        'end_date': end_date_str or '',
+    }
+    return render(request, 'finance/dashboard_cashflow.html', context)
+
+@login_required
+def aging_dashboard(request):
+    """
+    Shows Accounts Receivable (Sales) and Accounts Payable (Purchases).
+    """
+    # Receivables (Me deben)
+    receivables = Sale.objects.filter(
+        user=request.user, 
+        payment_status__in=['PENDING', 'PARTIAL']
+    ).exclude(status='CANCELLED').order_by('due_date')
+    
+    total_receivables = sum(r.balance for r in receivables)
+    
+    # Payables (Debo)
+    payables = Purchase.objects.filter(
+        user=request.user, 
+        payment_status__in=['PENDING', 'PARTIAL']
+    ).order_by('due_date')
+    
+    total_payables = sum(p.balance for p in payables)
+    
+    context = {
+        'receivables': receivables,
+        'payables': payables,
+        'total_receivables': total_receivables,
+        'total_payables': total_payables,
+        'today': timezone.now().date(),
+    }
+    return render(request, 'finance/dashboard_aging.html', context)
+
+@login_required
+def import_transactions(request):
+    """
+    Upload CSV (Mercado Pago / Bank) to import CashMovements.
+    """
+    if request.method == 'POST':
+        form = TransactionImportForm(request.POST, request.FILES)
+        if form.is_valid():
+            f = request.FILES['file']
+            # We currently hardcode MP Importer for this version, 
+            # later we can select importer strategy based on Account Type.
+            importer = MercadoPagoCashImporter(request.user)
+            
+            # Importer processes the file
+            stats = importer.process_file(f)
+            
+            if 'error' in stats:
+                messages.error(request, stats['error'])
+            else:
+                messages.success(request, f"Importación completa: {stats['created']} creados, {stats['duplicates']} duplicados, {stats['errors']} errores.")
+                return redirect('cashflow_dashboard')
+    else:
+        form = TransactionImportForm()
+        
+    return render(request, 'finance/import_form.html', {'form': form})
+
+
