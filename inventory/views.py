@@ -62,7 +62,11 @@ def dashboard(request):
 @login_required
 def product_list(request):
     products = Product.objects.filter(user=request.user).select_related('category')
-    return render(request, 'inventory/product_list.html', {'products': products})
+    low_stock_count = products.filter(stock_quantity__lte=10).count()
+    return render(request, 'inventory/product_list.html', {
+        'products': products,
+        'low_stock_count': low_stock_count
+    })
 
 @login_required
 def product_create(request):
