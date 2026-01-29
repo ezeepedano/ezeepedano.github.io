@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Alertas de Stock{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-9">
+            <h2><i class="fas fa-bell"></i> Alertas de Stock</h2>
+        </div>
+        <div class="col-md-3 text-end">
+            <a href="{% url 'traceability:stock_list' %}" class="btn btn-outline-primary">
+                <i class="fas fa-boxes"></i> Ver Stock
+            </a>
+        </div>
+    </div>
+
+    <!-- Resumen de Alertas -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-exclamation-triangle"></i> Stock Bajo</h5>
+                    <h2 class="text-warning">{{ low_stock_count }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-info">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-clock"></i> Próximo a Vencer</h5>
+                    <h2 class="text-info">{{ near_expiry_count }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-danger">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-times-circle"></i> Vencidos</h5>
+                    <h2 class="text-danger">{{ expired_count }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Alertas -->
+    <div class="card">
+        <div class="card-header">
+            <h5>Todas las Alertas</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Mensaje</th>
+                        <th>Ingrediente</th>
+                        <th>Lote</th>
+                        <th>Fecha</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for alert in alerts %}
+                    <tr class="{% if alert.alert_type == 'EXPIRED' %}table-danger{% elif alert.alert_type == 'LOW_STOCK' %}table-warning{% else %}table-info{% endif %}">
+                        <td>
+                            <span class="badge {% if alert.alert_type == 'EXPIRED' %}bg-danger{% elif alert.alert_type == 'LOW_STOCK' %}bg-warning text-dark{% else %}bg-info{% endif %}">
+                                {{ alert.get_alert_type_display }}
+                            </span>
+                        </td>
+                        <td>{{ alert.message }}</td>
+                        <td>{{ alert.ingredient.name|default:"-" }}</td>
+                        <td>
+                            {% if alert.ingredient_lot %}
+                            <code>{{ alert.ingredient_lot.internal_id }}</code>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>{{ alert.created_at|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            {% if alert.is_resolved %}
+                            <span class="badge bg-success">Resuelta</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Activa</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-success">
+                            <i class="fas fa-check-circle"></i> No hay alertas activas. ¡Todo en orden!
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- Paginación -->
+            {% if is_paginated %}
+            <nav>
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                    </li>
+                    {% endif %}
+                    
+                    <li class="page-item active">
+                        <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+                    
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

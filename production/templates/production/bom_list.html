@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800">Fórmulas Maestras</h2>
+            <p class="text-slate-500 text-sm">Gestiona las recetas de tus productos.</p>
+        </div>
+        <a href="{% url 'bom_create' %}" class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-lg shadow-primary/30 flex items-center gap-2">
+            <i class="fas fa-flask"></i> Nueva Fórmula
+        </a>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-100">
+                    <tr>
+                        <th class="px-6 py-4">Nombre</th>
+                        <th class="px-6 py-4">Productos Asociados</th>
+                        <th class="px-6 py-4">Ingredientes</th>
+                        <th class="px-6 py-4">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for bom in boms %}
+                    <tr class="hover:bg-slate-50/50 transition-colors group">
+                        <td class="px-6 py-4 font-medium text-slate-700">
+                            <a href="{% url 'bom_update' bom.pk %}" class="hover:text-primary">{{ bom.name }}</a>
+                        </td>
+                        <td class="px-6 py-4 text-slate-600">
+                            <div class="flex flex-wrap gap-1">
+                                {% for prod in bom.products.all|slice:":3" %}
+                                    <span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs border border-indigo-100">{{ prod.name }}</span>
+                                {% endfor %}
+                                {% if bom.products.count > 3 %}
+                                    <span class="text-xs text-slate-400 self-center">+{{ bom.products.count|add:"-3" }} más</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-slate-500">
+                            {{ bom.lines.count }} items
+                        </td>
+                        <td class="px-6 py-4">
+                            <a href="{% url 'bom_update' bom.pk %}" class="text-slate-400 hover:text-primary transition-colors">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-12 text-center text-slate-400">
+                            <i class="fas fa-flask text-4xl mb-3 opacity-50"></i>
+                            <p>No hay fórmulas maestras registradas.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

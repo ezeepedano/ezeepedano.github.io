@@ -73,10 +73,10 @@ class FinanceReportService:
         expenses = MonthlyExpense.objects.filter(user=user, month__year=year, month__month=month)
         purchases = Purchase.objects.filter(user=user, date__year=year, date__month=month)
         
-        total_expenses = expenses.aggregate(Sum('real_amount'))['real_amount__sum'] or Decimal('0.00')
+        total_expenses = expenses.aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
         total_purchases = purchases.aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
         
-        paid_expenses = expenses.filter(is_paid=True).aggregate(Sum('real_amount'))['real_amount__sum'] or 0
+        paid_expenses = expenses.filter(is_paid=True).aggregate(Sum('amount'))['amount__sum'] or 0
         pending_expenses = total_expenses - paid_expenses
         
         return {
@@ -105,7 +105,7 @@ class ExpenseService:
                 month=date(year, month, 1),
                 defaults={
                     'name': defi.name,
-                    'real_amount': defi.amount,
+                    'amount': defi.amount,
                     'due_date': date(year, month, min(defi.due_day, 28)), # Simple logic
                     'category': defi.category
                 }

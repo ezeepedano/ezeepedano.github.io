@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800">Fórmulas para {{ product.name }}</h2>
+            <p class="text-slate-500 text-sm">SKU: {{ product.sku }}</p>
+        </div>
+        <a href="{% url 'product_list' %}" class="text-slate-500 hover:text-slate-700 font-medium transition-colors">
+            <i class="fas fa-arrow-left mr-2"></i>Volver a Productos
+        </a>
+    </div>
+
+    <!-- Active Formulas -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+            <h3 class="font-bold text-slate-700">Fórmulas Asignadas</h3>
+            <!-- Link to create NEW BOM logic could go here, but for now we rely on optimized list -->
+        </div>
+        
+        {% if boms %}
+            <div class="divide-y divide-slate-100">
+                {% for bom in boms %}
+                <div class="p-6 hover:bg-slate-50 transition-colors">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h4 class="font-bold text-lg text-primary">{{ bom.name }}</h4>
+                            <p class="text-xs text-slate-400">Código: {{ bom.code|default:"-" }}</p>
+                        </div>
+                        <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold">Activa</span>
+                    </div>
+
+                    <!-- Ingredients List -->
+                    <div class="bg-slate-50 rounded-xl p-4 border border-slate-200/60">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-xs uppercase text-slate-500 border-b border-slate-200">
+                                    <th class="pb-2">Ingrediente</th>
+                                    <th class="pb-2 text-right">Cantidad</th>
+                                    <th class="pb-2 text-right">Desperdicio</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200/50">
+                                {% for line in bom.lines.all %}
+                                <tr>
+                                    <td class="py-2 font-medium text-slate-700">
+                                        {{ line.ingredient.name }}
+                                        {% if line.ingredient.limit_formula %}
+                                            <span class="text-xs text-orange-500 ml-1">(Limitante)</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-2 text-right text-slate-600">{{ line.quantity }}%</td>
+                                    <td class="py-2 text-right text-slate-400">{{ line.scrap_factor }}%</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="border-t border-slate-200">
+                                <tr>
+                                    <td class="pt-2 font-bold text-right text-slate-700">Total:</td>
+                                    <td class="pt-2 text-right font-bold text-primary">
+                                        {# Simple total calc in template or view needed if we want to show it #}
+                    100.00%
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="p-12 text-center text-slate-400">
+                <i class="fas fa-flask text-4xl mb-3 opacity-50"></i>
+                <p>Este producto no tiene fórmulas asignadas automáticamente.</p>
+                <p class="text-sm mt-2">Las fórmulas se consolidaron. Contacte soporte si necesita crear una nueva.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

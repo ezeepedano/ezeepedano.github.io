@@ -7,7 +7,7 @@
         <div class="absolute inset-0 bg-gradient-to-r from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
         <i class="fas fa-cube text-3xl text-primary mr-3 drop-shadow-lg"></i>
         <h1 class="text-2xl font-bold text-white tracking-wide">
-            Portal<span class="text-primary">.flow</span>
+            Propel
         </h1>
     </div>
 
@@ -110,6 +110,30 @@
             {% if '/finance/providers/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
             <i class="fas fa-truck w-6 transition-transform group-hover:scale-110"></i>
             <span class="font-medium tracking-wide">Proveedores</span>
+        </a>
+
+        <!-- Operations Group -->
+        <div class="px-4 pt-6 pb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Operaciones</div>
+
+        <a href="{% url 'production_order_list' %}"
+            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
+            {% if '/production/orders/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            <i class="fas fa-industry w-6 transition-transform group-hover:scale-110"></i>
+            <span class="font-medium tracking-wide">Producción</span>
+        </a>
+
+        <a href="{% url 'bom_list' %}"
+            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
+            {% if '/production/formulas/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            <i class="fas fa-flask w-6 transition-transform group-hover:scale-110"></i>
+            <span class="font-medium tracking-wide">Fórmulas</span>
+        </a>
+
+        <a href="{% url 'delivery_route_list' %}"
+            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
+            {% if '/logistics/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            <i class="fas fa-truck-loading w-6 transition-transform group-hover:scale-110"></i>
+            <span class="font-medium tracking-wide">Logística</span>
         </a>
 
     </nav>

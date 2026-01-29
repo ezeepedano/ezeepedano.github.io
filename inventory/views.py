@@ -148,63 +148,13 @@ def ingredient_edit(request, pk):
 def product_recipe(request, pk):
     product = get_object_or_404(Product, pk=pk, user=request.user)
     
-    # Base attributes for widgets
-    widget_attrs = {'class': 'w-full px-4 py-2 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all font-medium'}
+    # Use the new relation 'boms' (M2M) or 'old_boms' (FK). 
+    # We migrated to M2M 'boms'.
+    boms = product.boms.all().prefetch_related('lines__ingredient')
     
-    # Define FormSet Class
-    RecipeFormSet = inlineformset_factory(Product, Recipe, fields=('ingredient', 'quantity'), extra=1, can_delete=True,
-                                        widgets={
-                                            'ingredient': forms.Select(attrs=widget_attrs),
-                                            'quantity': forms.NumberInput(attrs=widget_attrs),
-                                        })
-
-    if request.method == 'POST':
-        # Initialize both formsets with POST data
-        formula_formset = RecipeFormSet(request.POST, instance=product, prefix='formula')
-        supply_formset = RecipeFormSet(request.POST, instance=product, prefix='supplies')
-        
-        if formula_formset.is_valid() and supply_formset.is_valid():
-            # Create instances but don't commit yet to assign user
-            formula_instances = formula_formset.save(commit=False)
-            for instance in formula_instances:
-                instance.user = request.user
-                instance.save()
-            # Handle deletions
-            for obj in formula_formset.deleted_objects:
-                obj.delete()
-
-            supply_instances = supply_formset.save(commit=False)
-            for instance in supply_instances:
-                instance.user = request.user
-                instance.save()
-            for obj in supply_formset.deleted_objects:
-                obj.delete()
-            
-            # --- Automatic Cost Calculation via Service ---
-            total_product_cost, final_formula_cost, total_supply_cost = CostService.update_product_cost(product)
-            
-            messages.success(request, f"Receta guardada. Costo actualizado: ${total_product_cost:,.2f} (Formula: ${final_formula_cost:,.2f}, Insumos: ${total_supply_cost:,.2f})")
-            return redirect('product_list')
-    else:
-        # Initialize formsets with specific querysets FILTERED BY USER
-        formula_formset = RecipeFormSet(instance=product, prefix='formula', queryset=Recipe.objects.filter(ingredient__type='raw_material', user=request.user))
-        supply_formset = RecipeFormSet(instance=product, prefix='supplies', queryset=Recipe.objects.filter(ingredient__type='supply', user=request.user))
-
-    # Restrict dropdowns for each formset
-    user_ingredients = Ingredient.objects.filter(user=request.user)
-    
-    for form in formula_formset.forms:
-        form.fields['ingredient'].queryset = user_ingredients.filter(type='raw_material')
-    formula_formset.empty_form.fields['ingredient'].queryset = user_ingredients.filter(type='raw_material')
-
-    for form in supply_formset.forms:
-        form.fields['ingredient'].queryset = user_ingredients.filter(type='supply')
-    supply_formset.empty_form.fields['ingredient'].queryset = user_ingredients.filter(type='supply')
-    
-    return render(request, 'inventory/product_recipe.html', {
-        'formula_formset': formula_formset, 
-        'supply_formset': supply_formset, 
-        'product': product
+    return render(request, 'inventory/product_boms.html', {
+        'product': product,
+        'boms': boms
     })
 
 @login_required

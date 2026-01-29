@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800">Órdenes de Producción</h2>
+            <p class="text-slate-500 text-sm">Gestiona la fabricación de productos.</p>
+        </div>
+        <a href="{% url 'production_order_create' %}" class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-lg shadow-primary/30 flex items-center gap-2">
+            <i class="fas fa-plus"></i> Nueva Orden
+        </a>
+    </div>
+
+    <!-- Metrics Grid (Placeholder) -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+            <div class="text-slate-500 text-xs uppercase font-semibold">En Proceso</div>
+            <div class="text-2xl font-bold text-amber-500 mt-1">
+                {{ orders.count }} <span class="text-sm font-normal text-slate-400">Total</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-100">
+                    <tr>
+                        <th class="px-6 py-4">Código</th>
+                        <th class="px-6 py-4">Producto</th>
+                        <th class="px-6 py-4">Cantidad</th>
+                        <th class="px-6 py-4">Estado</th>
+                        <th class="px-6 py-4">Fecha</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for order in orders %}
+                    <tr class="hover:bg-slate-50/50 transition-colors group">
+                        <td class="px-6 py-4 font-medium text-slate-700">
+                            <a href="{% url 'production_order_update' order.pk %}" class="hover:text-primary transition-colors">
+                                {{ order.code }}
+                            </a>
+                        </td>
+                        <td class="px-6 py-4 text-slate-600">{{ order.product.name }}</td>
+                        <td class="px-6 py-4 text-slate-600 font-medium">{{ order.quantity_to_produce }}</td>
+                        <td class="px-6 py-4">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                {% if order.status == 'DONE' %}bg-green-100 text-green-800
+                                {% elif order.status == 'IN_PROGRESS' %}bg-blue-100 text-blue-800
+                                {% elif order.status == 'DRAFT' %}bg-slate-100 text-slate-800
+                                {% else %}bg-orange-100 text-orange-800{% endif %}">
+                                {{ order.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-slate-500">{{ order.start_date|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-slate-400">
+                            <i class="fas fa-industry text-4xl mb-3 opacity-50"></i>
+                            <p>No hay órdenes de producción registradas.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

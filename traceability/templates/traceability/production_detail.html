@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Trazabilidad - {{ batch.internal_lot_code }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <a href="{% url 'traceability:production_history' %}" class="btn btn-outline-secondary mb-3">
+                <i class="fas fa-arrow-left"></i> Volver al Historial
+            </a>
+            <h2><i class="fas fa-barcode"></i> Trazabilidad Completa</h2>
+        </div>
+    </div>
+
+    <!-- Información del Lote -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4>Lote: <code>{{ batch.internal_lot_code }}</code></h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Producto:</strong> {{ batch.product.name }} ({{ batch.product.sku }})</p>
+                    <p><strong>Cantidad Producida:</strong> {{ batch.quantity_produced|floatformat:3 }} kg</p>
+                    <p><strong>Fecha de Producción:</strong> {{ batch.production_date|date:"d/m/Y" }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Receta (BOM):</strong> {{ batch.bom|default:"N/A" }}</p>
+                    <p><strong>Estado:</strong> <span class="badge bg-success">{{ batch.get_status_display }}</span></p>
+                    <p><strong>Usuario:</strong> {{ batch.user|default:"Sistema" }}</p>
+                </div>
+            </div>
+            {% if batch.notes %}
+            <div class="alert alert-info mt-3">
+                <strong>Notas:</strong> {{ batch.notes }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Detalle de Ingredientes Consumidos -->
+    <div class="card">
+        <div class="card-header bg-dark text-white">
+            <h5><i class="fas fa-list-ul"></i> Ingredientes Consumidos (Trazabilidad)</h5>
+        </div>
+        <div class="card-body">
+            {% for consumption in traceability.consumptions %}
+            <div class="mb-4">
+                <h6 class="border-bottom pb-2">
+                    <i class="fas fa-cube"></i> {{ consumption.ingredient.name }}
+                    <span class="badge bg-secondary">Total: {{ consumption.total_consumed|floatformat:3 }} kg</span>
+                </h6>
+                
+                <table class="table table-sm table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID Lote</th>
+                            <th>Lote Proveedor</th>
+                            <th>Cantidad Usada (kg)</th>
+                            <th>Tipo</th>
+                            <th>Vencimiento</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lot_usage in consumption.lots_used %}
+                        <tr class="{% if lot_usage.is_waste %}table-warning{% endif %}">
+                            <td><code>{{ lot_usage.lot.internal_id }}</code></td>
+                            <td>{{ lot_usage.lot.supplier_lot }}</td>
+                            <td>{{ lot_usage.quantity|floatformat:3 }} kg</td>
+                            <td>
+                                {% if lot_usage.is_waste %}
+                                <span class="badge bg-warning text-dark">
+                                    <i class="fas fa-trash"></i> MERMA
+                                </span>
+                                {% else %}
+                                <span class="badge bg-success">USADO</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ lot_usage.lot.expiration_date|date:"d/m/Y"|default:"N/A" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% empty %}
+            <p class="text-muted">No hay información de trazabilidad disponible.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="{% url 'traceability:production_history' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Volver al Historial
+        </a>
+    </div>
+</div>
+{% endblock %}

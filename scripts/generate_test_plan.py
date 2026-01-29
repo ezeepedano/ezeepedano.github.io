@@ -6,7 +6,7 @@ Ejecutar: python scripts/generate_test_plan.py
 import os
 from datetime import datetime
 
-TEST_PLAN_TEMPLATE = """# Plan de Testing - Portal.flow ERP
+TEST_PLAN_TEMPLATE = """# Plan de Testing - Propel ERP
 ## Generado: {date}
 
 ---

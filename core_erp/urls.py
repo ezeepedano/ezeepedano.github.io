@@ -30,5 +30,8 @@ urlpatterns = [
     path('finance/', include('finance.urls')),
     path('accounting/', include('accounting.urls')),
     path('hr/', include('hr.urls')),
+    path('production/', include('production.urls')),
+    path('logistics/', include('logistics.urls')),
+    path('traceability/', include('traceability.urls')),
     path('', include('users.urls')), # Auth URLs at root (login/register) - MIGHT CONFLICT IF NOT CAREFUL
 ]

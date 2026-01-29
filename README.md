@@ -1,4 +1,4 @@
-# Portal.flow ERP
+# Propel ERP
 
 A modern, responsive ERP system built with Django and TailwindCSS, designed for small business management.
 

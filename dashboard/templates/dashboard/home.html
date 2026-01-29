@@ -39,7 +39,7 @@
         <!-- Revenue -->
         <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
             <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">INGRESOS</div>
-            <div class="text-2xl font-bold text-slate-800" id="kpi-revenue">Loading...</div>
+            <div class="text-xl font-bold text-slate-800 tracking-tight" id="kpi-revenue">Loading...</div>
             <div id="kpi-revenue-trend" class="text-xs mt-2 font-medium flex items-center text-gray-400">
                 --
             </div>
@@ -48,7 +48,7 @@
         <!-- Orders -->
         <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
             <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">PEDIDOS</div>
-            <div class="text-2xl font-bold text-slate-800" id="kpi-orders">--</div>
+            <div class="text-xl font-bold text-slate-800 tracking-tight" id="kpi-orders">--</div>
             <div id="kpi-orders-trend-container">
                 <span id="kpi-orders-trend">--</span>
             </div>
@@ -57,7 +57,7 @@
         <!-- Units -->
         <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
             <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">UNIDADES</div>
-            <div class="text-2xl font-bold text-slate-800" id="kpi-units">--</div>
+            <div class="text-xl font-bold text-slate-800 tracking-tight" id="kpi-units">--</div>
             <div id="kpi-units-trend-container">
                  <span id="kpi-units-trend">--</span>
             </div>
@@ -66,7 +66,7 @@
         <!-- Ticket -->
         <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
             <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">TICKET PROM.</div>
-            <div class="text-2xl font-bold text-slate-800" id="kpi-ticket">--</div>
+            <div class="text-xl font-bold text-slate-800 tracking-tight" id="kpi-ticket">--</div>
             <div id="kpi-ticket-trend-container">
                  <span id="kpi-ticket-trend">--</span>
             </div>
@@ -75,7 +75,7 @@
         <!-- Margin -->
         <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
             <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">MARGEN BRUTO</div>
-            <div class="text-2xl font-bold text-slate-800" id="kpi-margin-pct">--%</div>
+            <div class="text-xl font-bold text-slate-800 tracking-tight" id="kpi-margin-pct">--%</div>
             <div class="text-xs text-gray-400 mt-0.5" id="kpi-margin-abs">(--)</div>
              <div id="kpi-margin-trend-container">
                  <span id="kpi-margin-trend">--</span>
@@ -281,20 +281,33 @@
         fetch(`{% url 'api_kpis' %}?${params.toString()}`)
             .then(r => r.json())
             .then(data => {
-                document.getElementById('kpi-revenue').innerText = formatCurrency(data.revenue);
+                // Revenue
+                const kpiRevenue = document.getElementById('kpi-revenue');
+                kpiRevenue.innerText = formatCurrency(data.revenue, true); // Compact
+                kpiRevenue.title = formatCurrency(data.revenue); // Tooltip full
                 renderTrend('kpi-revenue-trend', data.growth ? data.growth.revenue : null);
                 
-                document.getElementById('kpi-orders').innerText = data.orders;
+                // Orders
+                const kpiOrders = document.getElementById('kpi-orders');
+                kpiOrders.innerText = data.orders; // Usually fits, but could be compacted if needed
                 renderTrend('kpi-orders-trend-container', data.growth ? data.growth.orders : null, true);
                 
-                document.getElementById('kpi-units').innerText = data.units;
+                // Units
+                const kpiUnits = document.getElementById('kpi-units');
+                kpiUnits.innerText = data.units.toLocaleString('es-AR');
                 renderTrend('kpi-units-trend-container', data.growth ? data.growth.units : null, true);
                 
-                document.getElementById('kpi-ticket').innerText = formatCurrency(data.ticket_avg);
+                // Ticket Average
+                const kpiTicket = document.getElementById('kpi-ticket');
+                kpiTicket.innerText = formatCurrency(data.ticket_avg, true); // Compact
+                kpiTicket.title = formatCurrency(data.ticket_avg); // Tooltip full
                 renderTrend('kpi-ticket-trend-container', data.growth ? data.growth.ticket_avg : null, true);
                 
                 document.getElementById('kpi-margin-pct').innerText = `${parseFloat(data.gross_margin_pct).toFixed(1)}%`;
-                document.getElementById('kpi-margin-abs').innerText = `(${formatCurrency(data.gross_margin)})`;
+                
+                const kpiMarginAbs = document.getElementById('kpi-margin-abs');
+                kpiMarginAbs.innerText = `(${formatCurrency(data.gross_margin, true)})`;
+                kpiMarginAbs.title = formatCurrency(data.gross_margin);
                 renderTrend('kpi-margin-trend-container', data.growth ? data.growth.gross_margin : null, true);
             })
             .catch(e => console.error("KPI Error:", e));
@@ -528,9 +541,17 @@
         });
     }
 
-    function formatCurrency(value) {
+    function formatCurrency(value, compact = false) {
         if (value === null || value === undefined) return '--';
-        return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value);
+        
+        let options = { style: 'currency', currency: 'ARS' };
+        if (compact) {
+            options.notation = 'compact';
+            options.compactDisplay = 'short';
+            options.maximumFractionDigits = 1;
+        }
+        
+        return new Intl.NumberFormat('es-AR', options).format(value);
     }
     
     function renderTrend(elementId, growth, isContainer=false) {
