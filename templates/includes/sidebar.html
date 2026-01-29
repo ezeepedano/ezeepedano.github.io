@@ -136,6 +136,13 @@
             <span class="font-medium tracking-wide">Logística</span>
         </a>
 
+        <a href="{% url 'traceability:stock_list' %}"
+            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
+            {% if '/traceability/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            <i class="fas fa-barcode w-6 transition-transform group-hover:scale-110"></i>
+            <span class="font-medium tracking-wide">Trazabilidad</span>
+        </a>
+
     </nav>
 
     <!-- Footer / User -->
