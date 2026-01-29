@@ -1,0 +1,40 @@
+{% comment %}
+    Props:
+    - label: Text to display
+    - icon: FontAwesome icon class (e.g., 'save')
+    - size: 'large' (icon above text) or 'small' (icon left of text, list style)
+    - command: Command ID to execute
+    - active: Boolean (optional)
+{% endcomment %}
+
+{% if size == 'large' %}
+<button 
+    class="flex flex-col items-center justify-center h-[68px] min-w-[44px] px-1 rounded hover:bg-ribbon-hover active:bg-neutral-50 transition-colors gap-1 group text-neutral-90"
+    {% if command %}data-command="{{ command }}"{% endif %}
+    {% if url %}data-command-args='{"url": "{{ url }}"}'{% endif %}
+    {% if screen_tip %}data-screen-tip="{{ screen_tip }}"{% endif %}
+    title="{{ label }}"
+>
+    <!-- Icon Container -->
+    <div class="w-8 h-8 flex items-center justify-center text-xl text-neutral-80 group-hover:text-neutral-100 {{ icon_class }}">
+        <i class="fas fa-{{ icon }}"></i>
+    </div>
+    <!-- Label -->
+    <span class="text-caption text-center leading-3 break-words max-w-[60px]">{{ label }}</span>
+</button>
+
+{% else %}
+<!-- Small Button (Row) -->
+<button 
+    class="flex items-center h-6 px-1 rounded hover:bg-ribbon-hover active:bg-neutral-50 transition-colors gap-2 w-full text-left text-neutral-90"
+    {% if command %}data-command="{{ command }}"{% endif %}
+    {% if url %}data-command-args='{"url": "{{ url }}"}'{% endif %}
+    {% if screen_tip %}data-screen-tip="{{ screen_tip }}"{% endif %}
+    title="{{ label }}"
+>
+    <div class="w-4 flex justify-center text-sm text-neutral-80">
+        <i class="fas fa-{{ icon }}"></i>
+    </div>
+    <span class="text-body leading-none whitespace-nowrap">{{ label }}</span>
+</button>
+{% endif %}

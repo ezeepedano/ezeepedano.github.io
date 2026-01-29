@@ -1,0 +1,21 @@
+<div id="office-context-menu" class="fixed bg-white shadow-flyout border border-neutral-40 rounded py-1 z-50 hidden min-w-[200px] animate__animated animate__fadeIn animate__faster">
+    <!-- Common Clipboard Actions -->
+    <button class="w-full text-left px-4 py-1.5 text-sm web-button text-neutral-90 hover:bg-neutral-20 flex items-center gap-3" data-command="edit:cut">
+        <i class="fas fa-cut w-4 text-center text-neutral-60"></i> Cortar
+    </button>
+    <button class="w-full text-left px-4 py-1.5 text-sm web-button text-neutral-90 hover:bg-neutral-20 flex items-center gap-3" data-command="edit:copy">
+        <i class="fas fa-copy w-4 text-center text-neutral-60"></i> Copiar
+    </button>
+    <button class="w-full text-left px-4 py-1.5 text-sm web-button text-neutral-90 hover:bg-neutral-20 flex items-center gap-3" data-command="edit:paste">
+        <i class="fas fa-paste w-4 text-center text-neutral-60"></i> Pegar
+    </button>
+    
+    <div class="h-[1px] bg-neutral-30 my-1"></div>
+    
+    <!-- Font Actions (Mini-toolbar ish) -->
+    <div class="px-4 py-1 flex justify-between">
+         <button class="w-7 h-7 hover:bg-neutral-20 rounded flex items-center justify-center font-bold text-neutral-80" disabled><i class="fas fa-bold"></i></button>
+         <button class="w-7 h-7 hover:bg-neutral-20 rounded flex items-center justify-center italic text-neutral-80" disabled><i class="fas fa-italic"></i></button>
+         <button class="w-7 h-7 hover:bg-neutral-20 rounded flex items-center justify-center text-brand-600" disabled><i class="fas fa-font"></i></button>
+    </div>
+</div>

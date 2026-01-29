@@ -34,7 +34,9 @@ class BillOfMaterial(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.product.name} ({self.name})"
+        if self.product:
+            return f"{self.product.name} ({self.name})"
+        return self.name
 
 class BomLine(models.Model):
     """

@@ -1,0 +1,10 @@
+{% include "components/ribbon/group.html" with title="Estilos de Tabla" %}
+    <div class="flex items-center gap-1 h-[68px]">
+        {% include "components/ribbon/button.html" with label="Opciones de estilo" icon="table" size="large" command="table:style_options" %}
+        
+        <div class="flex flex-col gap-1 justify-center h-full">
+            {% include "components/ribbon/button.html" with label="Sombreado" icon="fill-drip" size="small" command="table:shading" %}
+            {% include "components/ribbon/button.html" with label="Bordes" icon="border-all" size="small" command="table:borders" %}
+        </div>
+    </div>
+</div>

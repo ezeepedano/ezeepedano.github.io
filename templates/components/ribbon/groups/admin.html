@@ -1,0 +1,24 @@
+{% load static %}
+{% include "components/ribbon/group.html" with title="Organización" %}
+    <div class="flex items-center gap-1 h-[68px]">
+        <!-- HR -->
+        {% url 'employee_list' as url_hr %}
+        {% include "components/ribbon/button.html" with label="RR.HH." icon="users-cog" size="large" command="nav:goto" url=url_hr %}
+        
+        <!-- Proveedores -->
+        {% url 'provider_list' as url_prov %}
+        {% include "components/ribbon/button.html" with label="Proveedores" icon="truck" size="large" command="nav:goto" url=url_prov %}
+        
+        <!-- Users -->
+        <div class="flex flex-col gap-1 justify-center h-full">
+            <button class="flex items-center h-6 px-1 rounded hover:bg-ribbon-hover transition-colors gap-2 w-full text-left text-neutral-90" title="Gestión de Usuarios">
+                <div class="w-4 flex justify-center text-sm text-neutral-80"><i class="fas fa-user-shield"></i></div>
+                <span class="text-body leading-none">Usuarios</span>
+            </button>
+             <button class="flex items-center h-6 px-1 rounded hover:bg-ribbon-hover transition-colors gap-2 w-full text-left text-neutral-90" title="Configuración">
+                <div class="w-4 flex justify-center text-sm text-neutral-80"><i class="fas fa-cog"></i></div>
+                <span class="text-body leading-none">Config</span>
+            </button>
+        </div>
+    </div>
+</div>

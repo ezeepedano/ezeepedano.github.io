@@ -1,0 +1,16 @@
+{% comment %}
+    Props:
+    - id: Unique ID for the tab element
+    - label: Tab Label (e.g. "Diseño de Tabla")
+    - color: Brand color class stub (e.g. "green", "orange")
+    - context_type: The selection type that triggers this tab (e.g. "table")
+{% endcomment %}
+
+<button 
+    id="{{ id }}" 
+    class="ribbon-tab contextual hidden px-4 py-1.5 text-sm font-semibold rounded-t border-x border-t border-transparent transition-colors animate__animated animate__fadeIn animate__faster data-[context={{ context_type }}]"
+    data-context-type="{{ context_type }}"
+    style="background-color: var(--token-contextual-bg, #ecfdf5); color: var(--token-contextual-text, #047857); border-color: var(--token-contextual-border, #10b981);"
+>
+    {{ label }}
+</button>

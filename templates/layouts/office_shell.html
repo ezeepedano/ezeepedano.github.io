@@ -1,0 +1,290 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Propel ERP{% endblock %}</title>
+
+    <!-- Fonts: Segoe UI / Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <!-- TailwindCSS + Fluent Configuration -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Segoe UI"', 'Inter', 'system-ui', 'sans-serif'],
+                        display: ['"Segoe UI Display"', 'Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        // Fluent 2 Brand Colors (Communication/Blue theme default)
+                        brand: {
+                            50: '#f0f4ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb', // Brand Primary
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a', 
+                        },
+                        // Fluent Neutrals (Grays/Slate)
+                        neutral: {
+                            0: '#ffffff',
+                            10: '#fafafa', // Background
+                            20: '#f5f5f5',
+                            30: '#f0f0f0', // Canvas
+                            40: '#e0e0e0', // Borders
+                            50: '#d1d1d1',
+                            60: '#bdbdbd',
+                            70: '#9e9e9e', // Secondary Text
+                            80: '#616161',
+                            90: '#424242', // Primary Text
+                            100: '#212121',
+                        },
+                        // Office Specifics
+                        ribbon: {
+                            bg: '#f3f2f1',
+                            tab: '#ffffff',
+                            hover: '#e1dfdd',
+                        }
+                    },
+                    boxShadow: {
+                        'depth-4': '0 1.6px 3.6px 0 rgba(0,0,0,0.13), 0 0.3px 0.9px 0 rgba(0,0,0,0.11)',
+                        'depth-8': '0 3.2px 7.2px 0 rgba(0,0,0,0.13), 0 0.6px 1.8px 0 rgba(0,0,0,0.11)',
+                        'depth-16': '0 6.4px 14.4px 0 rgba(0,0,0,0.13), 0 1.2px 3.6px 0 rgba(0,0,0,0.11)',
+                        'flyout': '0 25.6px 57.6px 0 rgba(0,0,0,0.22), 0 4.8px 14.4px 0 rgba(0,0,0,0.18)',
+                    },
+                    fontSize: {
+                        'caption': ['10px', '14px'],
+                        'body': ['14px', '20px'],
+                        'subheading': ['16px', '22px'],
+                        'title': ['20px', '28px'],
+                        'display': ['28px', '36px'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Fluent Icons (Using a persistent CDN or similar if available, else falling back to FontAwesome or similar for now until local setup) -->
+    <!-- For MVP Sprint 1, we will use FontAwesome mapped to Fluent styles temporarily or assume user has assets -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+
+    <!-- Command Registry -->
+    <script src="{% static 'js/office/commands/registry.js' %}"></script>
+    <script src="{% static 'js/office/commands/definitions.js' %}"></script>
+    <script src="{% static 'js/office/commands/bindings.js' %}"></script>
+    <script src="{% static 'js/office/search.js' %}"></script>
+    <script src="{% static 'js/office/keytips.js' %}"></script>
+    
+    <style>
+        /* Office Reset */
+        body {
+            background-color: #f0f0f0; /* Canvas gray */
+            overflow: hidden; /* App-like feel */
+        }
+        
+        .ribbon-tab.active {
+            background-color: white;
+            border-bottom: 2px solid #2563eb;
+            color: #2563eb;
+        }
+        
+        .office-canvas {
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="h-screen flex flex-col font-sans text-neutral-90">
+
+    <!-- TOP CHROME (Title Bar) -->
+    <div id="title-bar" class="bg-brand-600 text-white h-10 flex items-center px-4 justify-between shrink-0 select-none">
+        <div class="flex items-center gap-4">
+            <div class="grid place-items-center w-6 h-6">
+                <!-- App Icon -->
+                <i class="fas fa-cube"></i>
+            </div>
+            <span class="text-sm font-semibold tracking-wide">{% block header_title %}Propel ERP{% endblock %}</span>
+            
+            <!-- Quick Access Toolbar (QAT) Placeholder -->
+            <div class="flex items-center gap-2 ml-4 text-brand-200 text-xs">
+                <button class="hover:text-white" data-command="file:save" title="Guardar (Ctrl+S)"><i class="fas fa-save"></i></button>
+                <button class="hover:text-white" data-command="edit:undo" title="Deshacer (Ctrl+Z)"><i class="fas fa-undo"></i></button>
+                <button class="hover:text-white" data-command="edit:redo" title="Rehacer (Ctrl+Y)"><i class="fas fa-redo"></i></button>
+            </div>
+        </div>
+        
+        <!-- Search / Tell Me -->
+        <div class="flex-1 max-w-lg mx-4 relative">
+            <div class="bg-brand-500/50 hover:bg-white text-white hover:text-neutral-100 h-7 rounded px-2 flex items-center transition-colors group cursor-text">
+                <i class="fas fa-search text-xs mr-2 opacity-70 group-hover:text-neutral-600"></i>
+                <input id="tell-me-input" type="text" placeholder="Buscar..." class="bg-transparent border-none outline-none text-sm w-full placeholder-brand-200 group-hover:text-neutral-900 group-hover:placeholder-neutral-500">
+            </div>
+            <!-- Results Container Injected by JS -->
+        </div>
+
+        <div class="flex items-center gap-3 text-sm">
+            <span>{{ request.user.username }}</span>
+            <div class="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center">
+                {{ request.user.username|make_list|first|upper }}
+            </div>
+            <!-- Window Controls (Mock) -->
+            <div class="flex items-center gap-4 ml-2">
+                <i class="fas fa-minus hover:bg-white/10 p-1 rounded"></i>
+                <i class="far fa-square hover:bg-white/10 p-1 rounded"></i>
+                <i class="fas fa-times hover:bg-red-500 p-1 rounded"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIBBON CONTAINER -->
+    <div id="ribbon" class="bg-ribbon-bg border-b border-neutral-40 flex flex-col shrink-0 relative z-20">
+        <!-- Backstage Include -->
+        {% include "components/backstage.html" %}
+
+        <!-- Tab Strip -->
+        <div class="flex items-end px-2 gap-1 h-9 select-none pt-1">
+            <!-- Backstage Launcher (Distinct) -->
+            <button class="px-5 py-1.5 text-sm font-semibold text-white bg-brand-700 hover:bg-brand-800 rounded-t mr-2 transition-colors relative top-[1px]" data-command="file:toggle_backstage">Archivo</button>
+            
+            <!-- Standard Tabs -->
+            <button class="ribbon-tab active px-4 py-1.5 text-sm hover:bg-ribbon-hover rounded-t font-medium transition-colors border-x border-t border-transparent">Inicio</button>
+            <button class="ribbon-tab px-4 py-1.5 text-sm hover:bg-ribbon-hover rounded-t font-medium transition-colors border-x border-t border-transparent">Insertar</button>
+            <button class="ribbon-tab px-4 py-1.5 text-sm hover:bg-ribbon-hover rounded-t font-medium transition-colors border-x border-t border-transparent">Diseño de Página</button>
+            <button class="ribbon-tab px-4 py-1.5 text-sm hover:bg-ribbon-hover rounded-t font-medium transition-colors border-x border-t border-transparent">Fórmulas</button>
+            <button class="ribbon-tab px-4 py-1.5 text-sm hover:bg-ribbon-hover rounded-t font-medium transition-colors border-x border-t border-transparent">Datos</button>
+            <button class="ribbon-tab px-4 py-1.5 text-sm hover:bg-ribbon-hover rounded-t font-medium transition-colors border-x border-t border-transparent">Revisar</button>
+            <button class="ribbon-tab px-4 py-1.5 text-sm hover:bg-ribbon-hover rounded-t font-medium transition-colors border-x border-t border-transparent">Vista</button>
+            
+            <!-- Separator -->
+            <div class="w-[1px] h-6 bg-neutral-40 mx-1 mb-1"></div>
+
+            <!-- Contextual Tabs Container -->
+            <div id="contextual-tabs" class="flex items-end gap-1">
+                {% include "components/ribbon/contextual_tab.html" with id="tab-table-design" label="Herramientas de Tabla" context_type="table" %}
+            </div>
+        </div>
+        
+        <!-- Ribbon Content Area -->
+        <div id="ribbon-content" class="h-28 bg-white px-2 py-1 flex items-stretch gap-1 overflow-x-auto transition-all duration-300">
+            {% block ribbon_content %}
+                <!-- Home Tab Content -->
+                <div id="tab-content-home" class="flex gap-1 h-full shrink-0">
+                    {% include "components/ribbon/groups/clipboard.html" %}
+                    {% include "components/ribbon/groups/font.html" %}
+                </div>
+                
+                <!-- Mock Contextual Content (Hidden by default, toggled by JS) -->
+                <div id="tab-content-table" class="hidden gap-1 h-full shrink-0 bg-green-50/30">
+                     {% include "components/ribbon/groups/table_tools.html" %}
+                </div>
+            {% endblock %}
+        </div>
+    </div>
+
+    <!-- Collapse Logic Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabs = document.querySelectorAll('.ribbon-tab');
+            const ribbonContent = document.getElementById('ribbon-content');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('dblclick', () => {
+                    // Toggle collapse
+                    if (ribbonContent.classList.contains('h-28')) {
+                        ribbonContent.classList.replace('h-28', 'h-0');
+                        ribbonContent.classList.add('opacity-0');
+                    } else {
+                        ribbonContent.classList.replace('h-0', 'h-28');
+                        ribbonContent.classList.remove('opacity-0');
+                    }
+                    // Dispatch resize event for canvas
+                    window.dispatchEvent(new Event('resize'));
+                });
+                
+                tab.addEventListener('click', (e) => {
+                    // Activate tab visual
+                    tabs.forEach(t => t.classList.remove('active', 'bg-white', 'text-brand-600', 'border-b-2', 'border-brand-600'));
+                    e.target.classList.add('active'); // active class in CSS does the rest but Tailwind overrides might need explicit classes here if using standard classes
+                    // Use command manager to switch content if dynamic
+                });
+            });
+        });
+    </script>
+    
+    <!-- MAIN WORKSPACE -->
+    <div class="flex-1 flex overflow-hidden relative bg-neutral-30">
+        <!-- Sidebar / Navigation Pane (Optional, mostly hidden in document view) -->
+        <div class="w-60 bg-neutral-10 border-r border-neutral-40 flex flex-col hidden md:flex">
+             <div class="p-2 text-xs font-semibold uppercase text-neutral-60">Navegación</div>
+             <!-- Sidebar Links Mock -->
+             <a href="#" class="px-4 py-2 text-sm hover:bg-neutral-30 text-neutral-90 flex items-center gap-2">
+                 <i class="fas fa-home text-neutral-60 w-4"></i> Dashboard
+             </a>
+             <a href="#" class="px-4 py-2 text-sm hover:bg-neutral-30 text-neutral-90 flex items-center gap-2">
+                 <i class="fas fa-boxes text-neutral-60 w-4"></i> Inventario
+             </a>
+             <a href="#" class="px-4 py-2 text-sm hover:bg-neutral-30 text-neutral-90 flex items-center gap-2">
+                 <i class="fas fa-industry text-neutral-60 w-4"></i> Producción
+             </a>
+        </div>
+
+        <!-- Canvas -->
+        <main class="flex-1 overflow-auto p-4 flex justify-center">
+            <!-- Paper / Content Sheet -->
+            <div class="office-canvas bg-white w-full max-w-6xl min-h-full p-8 rounded-sm shadow-depth-4 relative animate__animated animate__fadeIn">
+                {% if messages %}
+                    <div class="mb-4 space-y-2">
+                        {% for message in messages %}
+                        <div class="p-3 text-sm rounded bg-blue-50 text-blue-800 border-l-4 border-blue-600">
+                            {{ message }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- STATUS BAR -->
+    <div id="status-bar" class="h-6 bg-brand-600 text-white flex items-center justify-between px-2 text-xs select-none shrink-0">
+        <div class="flex gap-4">
+            <span>Listo</span>
+            <span>Página 1 de 1</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <span>Español (Argentina)</span>
+            <div class="flex items-center gap-2">
+                <i class="fas fa-search-minus cursor-pointer"></i>
+                <div class="w-24 h-1 bg-white/30 rounded-full relative">
+                    <div class="absolute left-1/2 w-2 h-2 bg-white rounded-full -top-0.5 -ml-1 cursor-pointer"></div>
+                </div>
+                <i class="fas fa-search-plus cursor-pointer"></i>
+                <span class="ml-1">100%</span>
+            </div>
+        </div>
+    </div>
+
+    {% block extra_js %}{% endblock %}
+
+    <!-- OVERLAYS -->
+    {% include "components/context_menu.html" %}
+
+    <!-- Rich Tooltip (ScreenTip) -->
+    <div id="office-tooltip" class="fixed z-[60] bg-white border border-neutral-40 shadow-depth-8 p-3 rounded-sm hidden max-w-[280px]">
+        <div class="tooltip-title font-bold text-sm text-neutral-90 mb-1">Nombre Comando</div>
+        <div class="tooltip-desc text-xs text-neutral-70 leading-snug">Descripción detallada de lo que hace este comando.</div>
+    </div>
+</body>
+</html>

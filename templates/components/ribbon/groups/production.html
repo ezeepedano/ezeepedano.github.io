@@ -1,0 +1,16 @@
+{% load static %}
+{% include "components/ribbon/group.html" with title="Manufactura" %}
+    <div class="flex items-center gap-1 h-[68px]">
+        <!-- Ordenes -->
+        {% url 'production_order_list' as url_orders %}
+        {% include "components/ribbon/button.html" with label="Órdenes" icon="industry" size="large" command="nav:goto" url=url_orders screen_tip="Gestionar Órdenes de Producción" %}
+        
+        <!-- Formulas -->
+        {% url 'bom_list' as url_bom %}
+        {% include "components/ribbon/button.html" with label="Fórmulas" icon="flask" size="large" command="nav:goto" url=url_bom screen_tip="Ver Recetas y Fórmulas (BOM)" %}
+
+        <!-- Logistics -->
+        {% url 'delivery_route_list' as url_logs %}
+        {% include "components/ribbon/button.html" with label="Logística" icon="truck-loading" size="large" command="nav:goto" url=url_logs %}
+    </div>
+</div>

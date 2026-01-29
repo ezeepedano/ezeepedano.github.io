@@ -1,0 +1,20 @@
+{% load static %}
+{% include "components/ribbon/group.html" with title="Gestión" %}
+    <div class="flex items-center gap-1 h-[68px]">
+        <!-- Productos -->
+        {% url 'product_list' as url_prod %}
+        {% include "components/ribbon/button.html" with label="Productos" icon="box" size="large" command="nav:goto" url=url_prod screen_tip="Ver lista de Productos terminados" %}
+        
+        <!-- Materia Prima -->
+        {% url 'ingredient_list' as url_mat %}
+        {% include "components/ribbon/button.html" with label="Materia Prima" icon="leaf" size="large" command="nav:goto" url=url_mat screen_tip="Gestionar ingredientes y materias primas" %}
+        
+        <!-- Small Buttons Column -->
+        <div class="flex flex-col gap-1 justify-center h-full">
+            {% url 'traceability:stock_list' as url_trace %}
+            {% include "components/ribbon/button.html" with label="Trazabilidad" icon="barcode" size="small" command="nav:goto" url=url_trace %}
+            
+            {% include "components/ribbon/button.html" with label="Ajustes de Stock" icon="sliders-h" size="small" command="nav:goto" url="#" %}
+        </div>
+    </div>
+</div>

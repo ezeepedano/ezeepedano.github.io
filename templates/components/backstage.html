@@ -1,0 +1,83 @@
+<div id="office-backstage" class="fixed inset-0 z-50 bg-brand-600 flex text-white hidden animate__animated animate__fadeIn animate__faster">
+    <!-- Back Button -->
+    <button class="absolute top-0 left-0 w-12 h-12 flex items-center justify-center hover:bg-brand-700 transition-colors z-50" data-command="file:toggle_backstage" title="Cerrar (Esc)">
+        <i class="fas fa-arrow-left text-xl"></i>
+    </button>
+
+    <!-- Sidebar (Navigation) -->
+    <div class="w-64 bg-brand-600 flex flex-col pt-16 pb-4 shadow-xl z-40 relative">
+        <div class="px-6 mb-8">
+            <h2 class="text-2xl font-light">Archivo</h2>
+        </div>
+
+        <nav class="flex flex-col gap-1">
+            <button class="px-6 py-3 text-left hover:bg-brand-700 transition-colors border-l-4 border-transparent hover:border-white text-sm">Inicio</button>
+            <button class="px-6 py-3 text-left hover:bg-brand-700 transition-colors border-l-4 border-transparent hover:border-white text-sm">Nuevo</button>
+            <button class="px-6 py-3 text-left hover:bg-brand-700 transition-colors border-l-4 border-transparent hover:border-white text-sm font-semibold bg-brand-700 border-white">Información</button>
+            <button class="px-6 py-3 text-left hover:bg-brand-700 transition-colors border-l-4 border-transparent hover:border-white text-sm">Abrir</button>
+            <div class="h-[1px] bg-brand-500 mx-6 my-2"></div>
+            <button class="px-6 py-3 text-left hover:bg-brand-700 transition-colors border-l-4 border-transparent hover:border-white text-sm">Guardar</button>
+            <button class="px-6 py-3 text-left hover:bg-brand-700 transition-colors border-l-4 border-transparent hover:border-white text-sm">Guardar como</button>
+            <button class="px-6 py-3 text-left hover:bg-brand-700 transition-colors border-l-4 border-transparent hover:border-white text-sm">Imprimir</button>
+            <div class="mt-auto"></div>
+            <button class="px-6 py-3 text-left hover:bg-brand-700 transition-colors border-l-4 border-transparent hover:border-white text-sm">Opciones</button>
+            <button class="px-6 py-3 text-left hover:bg-brand-700 transition-colors border-l-4 border-transparent hover:border-white text-sm">Cerrar sesión</button>
+        </nav>
+    </div>
+
+    <!-- Content Area -->
+    <div class="flex-1 bg-neutral-10 text-neutral-90 pt-12 p-12 overflow-y-auto">
+        <div class="max-w-4xl animate__animated animate__fadeInRight animate__fast">
+            <h1 class="text-3xl font-light text-neutral-80 mb-2">Información</h1>
+            <p class="text-neutral-60 mb-8">Propiedades del sistema y estado actual.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Properties Column -->
+                <div class="bg-white p-6 shadow-depth-4 rounded-sm border border-neutral-30">
+                    <h3 class="text-lg font-semibold mb-4 text-brand-600">Propiedades</h3>
+                    <div class="space-y-4 text-sm">
+                        <div class="flex justify-between border-b border-neutral-20 pb-2">
+                            <span class="text-neutral-60">Tamaño</span>
+                            <span class="font-medium">--</span>
+                        </div>
+                        <div class="flex justify-between border-b border-neutral-20 pb-2">
+                            <span class="text-neutral-60">Páginas</span>
+                            <span class="font-medium">1</span>
+                        </div>
+                        <div class="flex justify-between border-b border-neutral-20 pb-2">
+                            <span class="text-neutral-60">Creado</span>
+                            <span class="font-medium">Hoy</span>
+                        </div>
+                        <div class="flex justify-between border-b border-neutral-20 pb-2">
+                            <span class="text-neutral-60">Autor</span>
+                            <span class="font-medium">{{ request.user.username }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions Column -->
+                <div class="space-y-4">
+                    <button class="w-full bg-white p-4 hover:bg-brand-50 border border-neutral-30 hover:border-brand-200 shadow-sm flex items-start gap-4 transition-all">
+                        <div class="w-10 h-10 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center text-xl">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div class="text-left">
+                            <h4 class="font-semibold text-neutral-80">Proteger sistema</h4>
+                            <p class="text-xs text-neutral-60 mt-1">Controlar qué tipos de cambios pueden hacer los usuarios.</p>
+                        </div>
+                    </button>
+                    
+                    <button class="w-full bg-white p-4 hover:bg-brand-50 border border-neutral-30 hover:border-brand-200 shadow-sm flex items-start gap-4 transition-all">
+                        <div class="w-10 h-10 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center text-xl">
+                            <i class="fas fa-history"></i>
+                        </div>
+                        <div class="text-left">
+                            <h4 class="font-semibold text-neutral-80">Historial de versiones</h4>
+                            <p class="text-xs text-neutral-60 mt-1">Ver y restaurar versiones anteriores.</p>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

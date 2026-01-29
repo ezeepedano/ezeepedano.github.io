@@ -1,0 +1,22 @@
+<div class="flex flex-col border-r border-neutral-40 px-1 pb-1 relative group h-full justify-between">
+    <!-- Content -->
+    <div class="flex items-start gap-1 flex-1 px-1 pt-1">
+        <!-- Paste (Large) -->
+        {% include "components/ribbon/button.html" with label="Pegar" icon="paste" size="large" command="edit:paste" %}
+        
+        <!-- Cut/Copy (Small column) -->
+        <div class="flex flex-col gap-1 justify-center h-full">
+            {% include "components/ribbon/button.html" with label="Cortar" icon="cut" size="small" command="edit:cut" %}
+            {% include "components/ribbon/button.html" with label="Copiar" icon="copy" size="small" command="edit:copy" %}
+            {% include "components/ribbon/button.html" with label="Copiar formato" icon="paint-brush" size="small" command="edit:format_painter" %}
+        </div>
+    </div>
+    
+    <!-- Label -->
+    <div class="text-center text-neutral-80 select-none pb-0.5 mt-auto flex justify-center items-center gap-1 cursor-default">
+        <span class="text-caption leading-tight group-hover:text-brand-700 transition-colors">Portapapeles</span>
+        <button class="w-3 h-3 text-neutral-60 hover:text-neutral-90 hover:bg-neutral-40 rounded-sm flex items-center justify-center transition-colors" title="Ver portapapeles">
+            <i class="fas fa-external-link-alt text-[8px]"></i>
+        </button>
+    </div>
+</div>

@@ -3,158 +3,186 @@
 
 {% block title %}Stock y Trazabilidad{% endblock %}
 
+{% block header_title %}Stock y Trazabilidad{% endblock %}
+
 {% block content %}
-<div class="container-fluid mt-4">
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <h2><i class="fas fa-boxes"></i> Inventario y Trazabilidad</h2>
-            <p class="text-muted">Control de stock con trazabilidad completa por lotes</p>
+<div class="space-y-6">
+    <!-- Header Section -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800"><i class="fas fa-boxes text-primary mr-2"></i> Inventario y Trazabilidad</h2>
+            <p class="text-slate-500 mt-1">Control de stock con trazabilidad completa por lotes</p>
+        </div>
+        <div class="flex gap-3">
+             <a href="{% url 'traceability:production_history' %}" class="px-4 py-2 bg-white border border-slate-200 text-slate-600 hover:text-primary hover:border-primary rounded-lg shadow-sm transition-all flex items-center gap-2">
+                <i class="fas fa-history"></i> <span class="hidden sm:inline">Historial</span>
+            </a>
+            <a href="{% url 'traceability:alert_list' %}" class="px-4 py-2 bg-white border border-slate-200 text-slate-600 hover:text-warning hover:border-warning rounded-lg shadow-sm transition-all flex items-center gap-2">
+                <i class="fas fa-bell"></i> <span class="hidden sm:inline">Alertas</span>
+            </a>
         </div>
     </div>
 
     <!-- Alertas Activas -->
     {% if alerts %}
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card border-warning">
-                <div class="card-header bg-warning text-dark">
-                    <h5><i class="fas fa-exclamation-triangle"></i> Alertas Activas ({{ alerts.count }})</h5>
-                </div>
-                <div class="card-body">
-                    {% for alert in alerts %}
-                    <div class="alert alert-{% if alert.alert_type == 'EXPIRED' %}danger{% elif alert.alert_type == 'LOW_STOCK' %}warning{% else %}info{% endif %} mb-2">
-                        <strong>[{{ alert.get_alert_type_display }}]</strong> {{ alert.message }}
-                        <small class="text-muted float-end">{{ alert.created_at|date:"d/m/Y H:i" }}</small>
-                    </div>
-                    {% endfor %}
-                    <a href="{% url 'traceability:alert_list' %}" class="btn btn-sm btn-outline-primary">Ver todas las alertas</a>
+    <div class="bg-orange-50 border-l-4 border-orange-400 p-4 rounded-r shadow-sm">
+        <div class="flex items-center justify-between mb-2">
+            <h5 class="font-bold text-orange-800 flex items-center gap-2">
+                <i class="fas fa-exclamation-triangle"></i> Alertas Activas ({{ alerts.count }})
+            </h5>
+            <a href="{% url 'traceability:alert_list' %}" class="text-xs font-semibold text-orange-700 hover:text-orange-900 underline">Ver todas</a>
+        </div>
+        <div class="space-y-2">
+            {% for alert in alerts|slice:":3" %}
+            <div class="flex items-start gap-2 text-sm text-orange-800">
+                <i class="fas fa-circle text-[6px] mt-2 opacity-50"></i>
+                <div class="flex-1">
+                    <span class="font-bold">[{{ alert.get_alert_type_display }}]</span> {{ alert.message }}
+                    <span class="text-xs text-orange-600/70 ml-2">- {{ alert.created_at|date:"d/m H:i" }}</span>
                 </div>
             </div>
+            {% endfor %}
         </div>
     </div>
     {% endif %}
 
     <!-- Acciones Rápidas -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <a href="{% url 'traceability:production_create' %}" class="btn btn-primary btn-lg w-100">
-                <i class="fas fa-industry"></i> Registrar Producción
-            </a>
-        </div>
-        <div class="col-md-6">
-            <a href="{% url 'traceability:purchase_create' %}" class="btn btn-success btn-lg w-100">
-                <i class="fas fa-truck-loading"></i> Ingresar Compra
-            </a>
-        </div>
-    </div>
-
-    <!-- Resumen de Stock por Ingrediente -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5><i class="fas fa-list"></i> Resumen de Stock por Ingrediente</h5>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <a href="{% url 'traceability:production_create' %}" class="group relative overflow-hidden bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-all">
+            <div class="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div class="flex items-center gap-4 relative z-10">
+                <div class="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+                    <i class="fas fa-industry"></i>
                 </div>
-                <div class="card-body">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Ingrediente</th>
-                                <th>Tipo</th>
-                                <th>Stock Total</th>
-                                <th>Lotes Activos</th>
-                                <th>Estado</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in ingredients_data %}
-                            <tr class="{% if item.is_low %}table-warning{% endif %}">
-                                <td><strong>{{ item.ingredient.name }}</strong></td>
-                                <td>{{ item.ingredient.get_type_display }}</td>
-                                <td>
-                                    <strong>{{ item.total_stock|floatformat:3 }} kg</strong>
-                                    {% if item.is_low %}
-                                    <span class="badge bg-warning text-dark">
-                                        <i class="fas fa-exclamation-triangle"></i> Bajo
-                                    </span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ item.active_lots_count }}</td>
-                                <td>
-                                    {% if item.total_stock >= config.low_stock_threshold_kg %}
-                                    <span class="badge bg-success">OK</span>
-                                    {% else %}
-                                    <span class="badge bg-warning text-dark">Crítico</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-info" data-bs-toggle="collapse" data-bs-target="#lots-{{ item.ingredient.id }}">
-                                        <i class="fas fa-eye"></i> Ver Lotes
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr class="collapse" id="lots-{{ item.ingredient.id }}">
-                                <td colspan="6">
-                                    <div class="p-3 bg-light">
-                                        <h6>Lotes Activos de {{ item.ingredient.name }}:</h6>
-                                        {% if item.lots %}
-                                        <table class="table table-sm table-bordered">
-                                            <thead>
-                                                <tr>
-                                                    <th>ID Interno</th>
-                                                    <th>Stock Actual</th>
-                                                    <th>Stock Inicial</th>
-                                                    <th>Lote Proveedor</th>
-                                                    <th>Vencimiento</th>
-                                                    <th>Fecha Recepción</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for lot in item.lots %}
-                                                <tr>
-                                                    <td><code>{{ lot.internal_id }}</code></td>
-                                                    <td>{{ lot.quantity_current|floatformat:3 }} kg</td>
-                                                    <td>{{ lot.quantity_initial|floatformat:3 }} kg</td>
-                                                    <td>{{ lot.supplier_lot }}</td>
-                                                    <td>
-                                                        {{ lot.expiration_date|date:"d/m/Y"|default:"N/A" }}
-                                                        {% if lot.is_near_expiry %}
-                                                        <span class="badge bg-warning text-dark">Próximo</span>
-                                                        {% endif %}
-                                                    </td>
-                                                    <td>{{ lot.received_date|date:"d/m/Y" }}</td>
-                                                </tr>
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
-                                        {% else %}
-                                        <p class="text-muted">No hay lotes activos.</p>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="6" class="text-center text-muted">No hay ingredientes registrados.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div>
+                    <h3 class="font-bold text-slate-800">Registrar Producción</h3>
+                    <p class="text-sm text-slate-500">Crear nuevo lote de producto terminado</p>
                 </div>
+                <i class="fas fa-arrow-right ml-auto text-slate-300 group-hover:text-primary transition-colors"></i>
             </div>
-        </div>
+        </a>
+
+        <a href="{% url 'traceability:purchase_create' %}" class="group relative overflow-hidden bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-all">
+            <div class="absolute inset-0 bg-gradient-to-r from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div class="flex items-center gap-4 relative z-10">
+                <div class="w-12 h-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+                    <i class="fas fa-truck-loading"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-800">Ingresar Compra</h3>
+                    <p class="text-sm text-slate-500">Registrar entrada de materia prima</p>
+                </div>
+                <i class="fas fa-arrow-right ml-auto text-slate-300 group-hover:text-green-600 transition-colors"></i>
+            </div>
+        </a>
     </div>
 
-    <!-- Enlaces Rápidos -->
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <a href="{% url 'traceability:production_history' %}" class="btn btn-outline-primary me-2">
-                <i class="fas fa-history"></i> Ver Historial de Producción
-            </a>
-            <a href="{% url 'traceability:alert_list' %}" class="btn btn-outline-warning">
-                <i class="fas fa-bell"></i> Ver Todas las Alertas
-            </a>
+    <!-- Resumen de Stock -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <h5 class="font-bold text-slate-700 flex items-center gap-2">
+                <i class="fas fa-list text-slate-400"></i> Resumen de Stock por Ingrediente
+            </h5>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-slate-50 border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        <th class="px-6 py-3">Ingrediente</th>
+                        <th class="px-6 py-3">Tipo</th>
+                        <th class="px-6 py-3">Stock Total</th>
+                        <th class="px-6 py-3">Lotes Activos</th>
+                        <th class="px-6 py-3">Estado</th>
+                        <th class="px-6 py-3 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for item in ingredients_data %}
+                    <tr class="hover:bg-slate-50 transition-colors {% if item.is_low %}bg-orange-50/30{% endif %}">
+                        <td class="px-6 py-4 font-medium text-slate-800">
+                            {{ item.ingredient.name }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-slate-500">
+                            {{ item.ingredient.get_type_display }}
+                        </td>
+                        <td class="px-6 py-4 text-sm font-semibold text-slate-700">
+                            {{ item.total_stock|floatformat:3 }} kg
+                            {% if item.is_low %}
+                                <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">Bajo</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-slate-500">
+                            {{ item.active_lots_count }}
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if item.total_stock >= config.low_stock_threshold_kg %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">OK</span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Crítico</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                             <button onclick="document.getElementById('lots-row-{{ item.ingredient.id }}').classList.toggle('hidden')" class="text-primary hover:text-primary-dark font-medium text-sm transition-colors">
+                                <i class="fas fa-eye mr-1"></i> Ver Lotes
+                            </button>
+                        </td>
+                    </tr>
+                    
+                    <!-- Expanded Row (Lots) -->
+                    <tr id="lots-row-{{ item.ingredient.id }}" class="hidden bg-slate-50/50 shadow-inner">
+                        <td colspan="6" class="px-6 py-4">
+                            <div class="bg-white rounded border border-slate-200 p-4">
+                                <h6 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Lotes Activos de {{ item.ingredient.name }}:</h6>
+                                {% if item.lots %}
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-sm">
+                                        <thead>
+                                            <tr class="text-xs text-slate-400 border-b border-slate-100">
+                                                <th class="pb-2 text-left">ID Interno</th>
+                                                <th class="pb-2 text-right">Stock Actual</th>
+                                                <th class="pb-2 text-right">Stock Inicial</th>
+                                                <th class="pb-2 text-left pl-4">Lote Prov.</th>
+                                                <th class="pb-2 text-left">Vencimiento</th>
+                                                <th class="pb-2 text-left">Recepción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-50">
+                                            {% for lot in item.lots %}
+                                            <tr>
+                                                <td class="py-2 text-slate-600 font-mono">{{ lot.internal_id }}</td>
+                                                <td class="py-2 text-right font-medium text-slate-700">{{ lot.quantity_current|floatformat:3 }} kg</td>
+                                                <td class="py-2 text-right text-slate-400">{{ lot.quantity_initial|floatformat:3 }} kg</td>
+                                                <td class="py-2 pl-4 text-slate-600">{{ lot.supplier_lot }}</td>
+                                                <td class="py-2 text-slate-600">
+                                                    {{ lot.expiration_date|date:"d/m/Y"|default:"N/A" }}
+                                                    {% if lot.is_near_expiry %}
+                                                    <span class="ml-1 text-xs text-orange-600 font-bold">!</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="py-2 text-slate-500">{{ lot.received_date|date:"d/m/Y" }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <p class="text-sm text-slate-400 italic">No hay lotes activos para este ingrediente.</p>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-slate-400">
+                            <div class="flex flex-col items-center">
+                                <i class="fas fa-box-open text-4xl mb-2 opacity-50"></i>
+                                <p>No hay ingredientes registrados en el sistema.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

@@ -1,0 +1,19 @@
+<div class="flex flex-col border-r border-neutral-40 px-1 pb-1 relative group h-full justify-between shrink-0">
+    <!-- Content Container -->
+    <div class="flex items-start gap-1 flex-1 px-1 pt-1">
+        {{ content }} <!-- For use with 'with' block or simplified content -->
+        {% if children %}
+            {{ children }}
+        {% endif %}
+    </div>
+    
+    <!-- Group Label -->
+    <div class="text-center text-neutral-80 select-none pb-0.5 mt-auto flex justify-center items-center gap-1 cursor-default">
+        <span class="text-caption leading-tight group-hover:text-brand-700 transition-colors">{{ title|default:"Group" }}</span>
+        {% if dialog_launcher %}
+        <button class="w-3 h-3 text-neutral-60 hover:text-neutral-90 hover:bg-neutral-40 rounded-sm flex items-center justify-center transition-colors" title="Ver más opciones">
+            <i class="fas fa-external-link-alt text-[8px]"></i>
+        </button>
+        {% endif %}
+    </div>
+</div>

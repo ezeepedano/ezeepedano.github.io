@@ -1,0 +1,23 @@
+{% load static %}
+{% include "components/ribbon/group.html" with title="Contabilidad" %}
+    <div class="flex items-center gap-1 h-[68px]">
+        <!-- Ledger -->
+        {% url 'accounting_ledger' as url_ledger %}
+        {% include "components/ribbon/button.html" with label="Libro Diario" icon="book" size="large" command="nav:goto" url=url_ledger %}
+        
+        <!-- Cashflow -->
+        {% url 'cashflow_dashboard' as url_cash %}
+        {% include "components/ribbon/button.html" with label="Caja (Cashflow)" icon="wallet" size="large" command="nav:goto" url=url_cash %}
+        
+        <div class="flex flex-col gap-1 justify-center h-full">
+            {% url 'aging_dashboard' as url_debt %}
+            {% include "components/ribbon/button.html" with label="Deudas" icon="hand-holding-usd" size="small" command="nav:goto" url=url_debt %}
+            
+            {% url 'fixed_cost_list' as url_cost %}
+            {% include "components/ribbon/button.html" with label="Gastos Fijos" icon="chart-pie" size="small" command="nav:goto" url=url_cost %}
+            
+             {% url 'asset_list' as url_asset %}
+            {% include "components/ribbon/button.html" with label="Activos" icon="building" size="small" command="nav:goto" url=url_asset %}
+        </div>
+    </div>
+</div>
