@@ -1,16 +1,21 @@
+import logging
+
 import pandas as pd
-import warnings
 import gc
 from django.db import transaction
 from django.utils import timezone
 from sales.models import Sale, SaleItem, Product
 from sales.services.cleanup import clean_sales_dataframe
 from sales.services.customer import upsert_customers, build_customer_dedup_key
+from sales.services.stock import StockService
 from .base import BaseImporter
+
+logger = logging.getLogger(__name__)
 
 class MercadoLibreImporter(BaseImporter):
     def process_file(self, file_obj):
         try:
+            import warnings
             warnings.simplefilter("ignore")
             
             # Read full file (pandas read_excel chunksize is flaky across versions)
@@ -33,7 +38,7 @@ class MercadoLibreImporter(BaseImporter):
                     customer_dedup_map = upsert_customers(df_chunk, self.user)
                     self.stats['customers_created'] += len(customer_dedup_map)
                 except Exception as e:
-                    print(f"Customer Error in chunk: {e}")
+                    logger.error(f"Customer Error in chunk: {e}")
                     customer_dedup_map = {}
 
                 # 3. Process Sales
@@ -43,7 +48,7 @@ class MercadoLibreImporter(BaseImporter):
                             self._process_row(row, customer_dedup_map, active_packet_sale)
                         except Exception as e:
                             self.stats['errors'] += 1
-                            print(f"Row error: {e}")
+                            logger.error(f"Row error: {e}")
 
                 # Memory cleanup
                 del df_chunk
@@ -122,6 +127,7 @@ class MercadoLibreImporter(BaseImporter):
                     'province': row.get('Estado', ''),
                     'zip_code': row.get('Código postal', ''),
                     'invoice_data': row.get('Datos para su factura', '') or row.get('Datos personales o de empresa', ''),
+                    'stock_deducted': status.lower() != 'cancelado',
                 }
             )
 
@@ -153,7 +159,7 @@ class MercadoLibreImporter(BaseImporter):
         quantity = int(row.get('Unidades', 1))
         try:
             unit_price = float(row.get('Precio unitario de venta de la publicación (ARS)', 0))
-        except:
+        except (ValueError, TypeError):
             unit_price = 0
 
         product = None
@@ -181,5 +187,5 @@ class MercadoLibreImporter(BaseImporter):
             )
 
             if product and row.get('Estado del pedido') != 'Cancelado':
-                product.stock_quantity -= quantity
-                product.save()
+                StockService.deduct_item_stock(product, quantity)
+

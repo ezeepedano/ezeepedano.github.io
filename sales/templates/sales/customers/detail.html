@@ -1,93 +1,100 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
-{% block title %}{{ customer.name }} - Propel{% endblock %}
+{% block title %}{{ customer.name }} - Cliente{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto">
+<div class="max-w-7xl mx-auto">
     <!-- Header -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div class="flex items-center gap-4">
-            <div
-                class="w-16 h-16 rounded-full bg-indigo-100 text-indigo-500 flex items-center justify-center text-2xl font-bold">
-                {{ customer.name|first|upper }}
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/80 to-indigo-500 text-white flex items-center justify-center text-xl font-bold shadow-lg shadow-purple-200">
+                {{ customer.name|truncatechars:2 }}
             </div>
             <div>
-                <h1 class="text-2xl font-bold text-gray-800 flex flex-wrap items-center gap-3">
+                <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
                     {{ customer.name }}
-                    {% if stats and stats.segment %}
-                    <span class="px-3 py-1 rounded-full text-sm font-bold
-                        {% if stats.segment == 'VIP' %}bg-purple-100 text-purple-600
-                        {% elif stats.segment == 'Fiel' %}bg-green-100 text-green-600
-                        {% elif stats.segment == 'En riesgo' %}bg-yellow-100 text-yellow-600
-                        {% else %}bg-blue-100 text-blue-600{% endif %}">
-                        {{ stats.segment }}
-                    </span>
-                    {% endif %}
-                    {% if customer.has_open_claim %}
-                    <span class="px-3 py-1 rounded-full text-sm font-bold bg-red-100 text-red-600">
-                        <i class="fas fa-exclamation-triangle mr-1"></i>Claim
+                    {% if customer.vip %}
+                    <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">
+                        <i class="fas fa-star"></i> VIP
                     </span>
                     {% endif %}
                 </h1>
-                <p class="text-secondary text-sm">{{ customer.city }}, {{ customer.state }} · Customer since {{ customer.first_purchase_date|date:"M Y"|default:"--" }}</p>
+                <p class="text-secondary text-sm">{{ customer.city }}, {{ customer.state }} · Cliente desde {{ customer.first_purchase_date|date:"M Y"|default:"--" }}</p>
             </div>
         </div>
-        <a href="{% url 'customer_list' %}"
-            class="bg-white text-secondary hover:text-gray-800 border border-gray-200 px-5 py-2 rounded-xl font-bold transition-all flex items-center self-start md:self-auto">
-            <i class="fas fa-arrow-left mr-2"></i> Back
-        </a>
+        <div class="flex items-center gap-3 self-start md:self-auto">
+            <a href="{% url 'customer_edit' customer.pk %}"
+                class="bg-white text-secondary hover:text-primary border border-gray-200 px-4 py-2 rounded-xl font-bold transition-all flex items-center shadow-sm">
+                <i class="fas fa-pen mr-2"></i> Editar
+            </a>
+            <a href="{% url 'customer_delete' customer.pk %}"
+                onclick="return confirm('¿Estás seguro de que deseas eliminar a este cliente?\n\nEsta acción no se puede deshacer y se perderán todos los datos asociados.')"
+                class="bg-white text-red-400 hover:text-red-600 border border-gray-200 px-4 py-2 rounded-xl font-bold transition-all flex items-center shadow-sm">
+                <i class="fas fa-trash mr-2"></i> Eliminar
+            </a>
+            <a href="{% url 'customer_list' %}"
+                class="bg-slate-100 text-secondary hover:text-gray-800 px-5 py-2 rounded-xl font-bold transition-all flex items-center">
+                <i class="fas fa-arrow-left mr-2"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Contact Info -->
+    <div class="bg-white rounded-3xl shadow-sm p-6 mb-6 flex flex-wrap gap-6">
+        {% if customer.email %}
+        <div class="flex items-center gap-2 text-sm">
+            <i class="fas fa-envelope text-gray-400"></i>
+            <a href="mailto:{{ customer.email }}" class="text-primary hover:underline">{{ customer.email }}</a>
+        </div>
+        {% endif %}
+        {% if customer.phone %}
+        <div class="flex items-center gap-2 text-sm">
+            <i class="fas fa-phone text-gray-400"></i>
+            <span class="text-gray-700">{{ customer.phone }}</span>
+        </div>
+        {% endif %}
+        {% if customer.address %}
+        <div class="flex items-center gap-2 text-sm">
+            <i class="fas fa-map-marker-alt text-gray-400"></i>
+            <span class="text-gray-700">{{ customer.address }}</span>
+        </div>
+        {% endif %}
+        {% if customer.doc_number %}
+        <div class="flex items-center gap-2 text-sm">
+            <i class="fas fa-id-card text-gray-400"></i>
+            <span class="text-gray-700">{{ customer.doc_type }}: {{ customer.doc_number }}</span>
+        </div>
+        {% endif %}
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Main Content -->
         <div class="lg:col-span-2 space-y-6">
-            <!-- Profile Card -->
-            <div class="bg-white rounded-3xl shadow-sm p-8">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Customer Details</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-4">
-                        <div>
-                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider">Document</p>
-                            <p class="font-medium text-gray-800">
-                                {% if customer.document_type %}{{ customer.document_type }}: {% endif %}{{ customer.document_number|default:"-" }}
-                            </p>
-                        </div>
-                        <div>
-                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider">Billing Name</p>
-                            <p class="font-medium text-gray-800">{{ customer.billing_name|default:"-" }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider">Tax Condition</p>
-                            <p class="font-medium text-gray-800">{{ customer.tax_condition|default:"-" }}</p>
-                        </div>
-                    </div>
-                    <div class="space-y-4">
-                        <div>
-                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider">Shipping Address</p>
-                            <p class="font-medium text-gray-800">{{ customer.shipping_address|default:"-" }}</p>
-                            <p class="text-sm text-gray-600">{{ customer.city }}, {{ customer.state }} {{ customer.postal_code }}</p>
-                            <p class="text-sm text-gray-500">{{ customer.country|default:"Argentina" }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider">Billing Address</p>
-                            <p class="font-medium text-gray-800">{{ customer.billing_address|default:"-" }}</p>
-                        </div>
-                    </div>
+            <!-- Monthly Purchases Chart -->
+            {% if monthly_chart_data and monthly_chart_data != '[]' %}
+            <div class="bg-white rounded-3xl shadow-sm p-6">
+                <h2 class="text-lg font-bold text-gray-800 mb-4">Compras por Mes</h2>
+                <div class="h-48">
+                    <canvas id="monthlyChart"></canvas>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Order History -->
-            <div class="bg-white rounded-3xl shadow-sm p-8">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Order History</h2>
+            <div class="bg-white rounded-3xl shadow-sm p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-gray-800">Historial de Pedidos</h2>
+                    <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{{ sales.paginator.count }} pedidos</span>
+                </div>
                 {% if sales %}
                 <div class="overflow-x-auto">
                     <table class="w-full text-left">
-                        <thead>
-                            <tr
-                                class="text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
-                                <th class="pb-3">Date</th>
-                                <th class="pb-3">Order ID</th>
-                                <th class="pb-3 text-center">Status</th>
+                        <thead class="text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                            <tr>
+                                <th class="pb-3">Fecha</th>
+                                <th class="pb-3">N° Orden</th>
+                                <th class="pb-3 text-center">Estado</th>
                                 <th class="pb-3 text-right">Total</th>
                             </tr>
                         </thead>
@@ -96,7 +103,7 @@
                             <tr class="hover:bg-gray-50 cursor-pointer"
                                 data-url="{% url 'sale_detail' sale.pk %}"
                                 onclick="window.location=this.dataset.url;">
-                                <td class="py-3">{{ sale.date|date:"M d, Y" }}</td>
+                                <td class="py-3">{{ sale.date|date:"d/m/Y" }}</td>
                                 <td class="py-3 font-mono text-xs text-gray-600">#{{ sale.order_id }}</td>
                                 <td class="py-3 text-center">
                                     <span class="px-2 py-1 rounded-full text-xs font-bold
@@ -112,8 +119,33 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Pagination -->
+                {% if sales.has_other_pages %}
+                <div class="flex items-center justify-between pt-4 mt-4 border-t border-gray-100">
+                    <div class="text-sm text-gray-500">
+                        Página {{ sales.number }} de {{ sales.paginator.num_pages }}
+                    </div>
+                    <div class="flex items-center gap-1">
+                        {% if sales.has_previous %}
+                        <a href="?page={{ sales.previous_page_number }}"
+                           class="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors">
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                        {% endif %}
+                        <span class="px-4 py-1.5 rounded-lg text-sm font-bold bg-primary text-white">{{ sales.number }}</span>
+                        {% if sales.has_next %}
+                        <a href="?page={{ sales.next_page_number }}"
+                           class="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors">
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
                 {% else %}
-                <p class="text-gray-400 italic">No orders found.</p>
+                <p class="text-gray-400 italic">No se encontraron pedidos.</p>
                 {% endif %}
             </div>
         </div>
@@ -122,31 +154,31 @@
         <div class="space-y-6">
             <!-- Key Metrics -->
             <div class="bg-white rounded-3xl shadow-sm p-8">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Key Metrics</h2>
+                <h2 class="text-lg font-bold text-gray-800 mb-4">Métricas Clave</h2>
                 {% if stats %}
                 <div class="space-y-4">
                     <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                        <span class="text-gray-600">Total Spent</span>
+                        <span class="text-gray-600">Total Gastado</span>
                         <span class="text-xl font-bold text-primary">${{ stats.total_spent|floatformat:0 }}</span>
                     </div>
                     <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                        <span class="text-gray-600">Total Orders</span>
+                        <span class="text-gray-600">Total Pedidos</span>
                         <span class="text-xl font-bold text-gray-800">{{ stats.total_orders }}</span>
                     </div>
                     <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                        <span class="text-gray-600">Units Purchased</span>
+                        <span class="text-gray-600">Unidades Compradas</span>
                         <span class="text-xl font-bold text-gray-800">{{ stats.total_units }}</span>
                     </div>
                     <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                        <span class="text-gray-600">Avg Ticket</span>
+                        <span class="text-gray-600">Ticket Promedio</span>
                         <span class="text-xl font-bold text-gray-800">${{ stats.avg_ticket|floatformat:0 }}</span>
                     </div>
                     <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                        <span class="text-gray-600">Max Ticket</span>
+                        <span class="text-gray-600">Ticket Máximo</span>
                         <span class="text-xl font-bold text-gray-800">${{ stats.max_ticket|floatformat:0 }}</span>
                     </div>
                     <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                        <span class="text-gray-600">Days Since Last Order</span>
+                        <span class="text-gray-600">Días Última Compra</span>
                         <span
                             class="text-xl font-bold {% if stats.days_since_last_order > 60 %}text-yellow-600{% else %}text-green-600{% endif %}">
                             {{ stats.days_since_last_order }}
@@ -154,26 +186,42 @@
                     </div>
                 </div>
                 {% else %}
-                <p class="text-gray-400 italic">No stats available.</p>
+                <p class="text-gray-400 italic">Sin datos disponibles.</p>
                 {% endif %}
             </div>
 
             <!-- RFM Score -->
             {% if stats %}
             <div class="bg-white rounded-3xl shadow-sm p-8">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">RFM Score</h2>
+                <h2 class="text-lg font-bold text-gray-800 mb-2">Puntaje RFM</h2>
+                <p class="text-xs text-gray-400 mb-4">Recencia · Frecuencia · Monto (1-5, mayor = mejor)</p>
                 <div class="grid grid-cols-3 gap-4 text-center">
-                    <div class="bg-blue-50 rounded-xl p-4">
+                    <div class="bg-blue-50 rounded-xl p-4 group relative">
                         <p class="text-2xl font-bold text-blue-600">{{ stats.r_score }}</p>
-                        <p class="text-xs text-gray-500 uppercase">Recency</p>
+                        <p class="text-xs text-gray-500 uppercase">Recencia</p>
+                        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                            <div class="bg-gray-800 text-white text-xs rounded px-3 py-2 whitespace-nowrap shadow-lg">
+                                Qué tan reciente fue la última compra
+                            </div>
+                        </div>
                     </div>
-                    <div class="bg-green-50 rounded-xl p-4">
+                    <div class="bg-green-50 rounded-xl p-4 group relative">
                         <p class="text-2xl font-bold text-green-600">{{ stats.f_score }}</p>
-                        <p class="text-xs text-gray-500 uppercase">Frequency</p>
+                        <p class="text-xs text-gray-500 uppercase">Frecuencia</p>
+                        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                            <div class="bg-gray-800 text-white text-xs rounded px-3 py-2 whitespace-nowrap shadow-lg">
+                                Con qué frecuencia compra
+                            </div>
+                        </div>
                     </div>
-                    <div class="bg-purple-50 rounded-xl p-4">
+                    <div class="bg-purple-50 rounded-xl p-4 group relative">
                         <p class="text-2xl font-bold text-purple-600">{{ stats.m_score }}</p>
-                        <p class="text-xs text-gray-500 uppercase">Monetary</p>
+                        <p class="text-xs text-gray-500 uppercase">Monto</p>
+                        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                            <div class="bg-gray-800 text-white text-xs rounded px-3 py-2 whitespace-nowrap shadow-lg">
+                                Cuánto gasta en total
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -182,13 +230,13 @@
             <!-- Top Products -->
             {% if top_products %}
             <div class="bg-white rounded-3xl shadow-sm p-8">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Top Products</h2>
+                <h2 class="text-lg font-bold text-gray-800 mb-4">Productos Favoritos</h2>
                 <div class="space-y-3">
                     {% for prod in top_products %}
                     <div class="flex justify-between items-center">
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-medium text-gray-800 truncate">{{ prod.product_title|truncatechars:35 }}</p>
-                            <p class="text-xs text-gray-400">{{ prod.sku|default:"No SKU" }}</p>
+                            <p class="text-xs text-gray-400">{{ prod.sku|default:"Sin SKU" }}</p>
                         </div>
                         <span class="ml-2 px-2 py-1 bg-indigo-100 text-indigo-600 rounded-lg text-sm font-bold">
                             x{{ prod.total_qty }}
@@ -202,23 +250,23 @@
             <!-- Claims/Returns -->
             {% if stats and stats.total_return_units > 0 or stats and stats.open_claims_count > 0 %}
             <div class="bg-white rounded-3xl shadow-sm p-8">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Issues</h2>
+                <h2 class="text-lg font-bold text-gray-800 mb-4">Incidencias</h2>
                 <div class="space-y-3">
                     {% if stats and stats.total_return_units > 0 %}
                     <div class="flex justify-between items-center p-3 bg-red-50 rounded-xl">
-                        <span class="text-red-600">Returns</span>
-                        <span class="font-bold text-red-600">{{ stats.total_return_units }} units ({{ stats.return_rate|floatformat:1 }}%)</span>
+                        <span class="text-red-600">Devoluciones</span>
+                        <span class="font-bold text-red-600">{{ stats.total_return_units }} uds ({{ stats.return_rate|floatformat:1 }}%)</span>
                     </div>
                     {% endif %}
                     {% if stats and stats.open_claims_count > 0 %}
                     <div class="flex justify-between items-center p-3 bg-yellow-50 rounded-xl">
-                        <span class="text-yellow-600">Open Claims</span>
+                        <span class="text-yellow-600">Reclamos Abiertos</span>
                         <span class="font-bold text-yellow-600">{{ stats.open_claims_count }}</span>
                     </div>
                     {% endif %}
                     {% if stats and stats.closed_claims_count > 0 %}
                     <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                        <span class="text-gray-600">Closed Claims</span>
+                        <span class="text-gray-600">Reclamos Cerrados</span>
                         <span class="font-bold text-gray-600">{{ stats.closed_claims_count }}</span>
                     </div>
                     {% endif %}
@@ -228,4 +276,59 @@
         </div>
     </div>
 </div>
+
+<!-- Monthly Chart -->
+{% if monthly_chart_data and monthly_chart_data != '[]' %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const data = {{ monthly_chart_data|safe }};
+    if (!data.length) return;
+
+    const ctx = document.getElementById('monthlyChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.map(d => {
+                const [y, m] = d.month.split('-');
+                const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+                return months[parseInt(m)-1] + ' ' + y.slice(2);
+            }),
+            datasets: [{
+                label: 'Ingresos',
+                data: data.map(d => d.revenue),
+                backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                borderColor: 'rgba(99, 102, 241, 1)',
+                borderWidth: 2,
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            return '$' + ctx.parsed.y.toLocaleString('es-AR') + ' (' + data[ctx.dataIndex].orders + ' pedidos)';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0) + 'K' : v)
+                    },
+                    grid: { color: 'rgba(0,0,0,0.04)' }
+                },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+});
+</script>
+{% endif %}
 {% endblock %}

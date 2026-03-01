@@ -141,17 +141,10 @@
             </div>
         </div>
 
-        <!-- TABS NAVIGATION -->
-        <div class="flex space-x-2 mb-4 px-2">
-            <button onclick="switchTab('fixed')" id="tab-btn-fixed"
-                class="px-6 py-2 rounded-xl font-bold text-sm transition-all bg-black text-white shadow-lg">
-                <i class="fas fa-file-invoice-dollar mr-2"></i> Costos Fijos
-            </button>
-            <button onclick="switchTab('purchases')" id="tab-btn-purchases"
-                class="px-6 py-2 rounded-xl font-bold text-sm transition-all bg-white text-gray-500 hover:bg-gray-100">
-                <i class="fas fa-shopping-cart mr-2"></i> Compras
-            </button>
-        </div>
+        <!-- TITLE -->
+        <h2 class="text-xl font-bold text-gray-800 px-4 mb-4">
+            <i class="fas fa-file-invoice-dollar mr-2"></i> Gestión de Costos
+        </h2>
 
         <!-- 1. GASTOS (Separated into Recurrent and Variable) -->
         <div id="content-fixed" class="space-y-8 animate-fade-in">
@@ -337,186 +330,9 @@
             </div>
         </div>
 
-        <!-- 2. PURCHASES CONTENT -->
-        <div id="content-purchases" class="hidden space-y-6 animate-fade-in">
-            <!-- Actions Bar -->
-            <div class="flex justify-between items-center bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
-                <div class="flex items-center gap-3">
-                    <span class="text-sm font-bold text-gray-700">Filtrar:</span>
-                    <!-- Category Filter -->
-                    <form method="GET" id="purchaseFilterForm" class="flex gap-2">
-                        <input type="hidden" name="year" value="{{ current_month.year }}">
-                        <input type="hidden" name="month" value="{{ current_month.month }}">
-
-                        <select id="purchaseCategorySelect" name="purchase_category"
-                            class="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-xl focus:ring-primary focus:border-primary block p-2">
-                            <option value="">Todas las Categorías</option>
-                            {% for cat in purchase_categories %}
-                            {% if cat.id == selected_category_id %}
-                            <option value="{{ cat.id }}" selected>{{ cat.name }}</option>
-                            {% else %}
-                            <option value="{{ cat.id }}">{{ cat.name }}</option>
-                            {% endif %}
-                            {% endfor %}
-                        </select>
-                    </form>
-                </div>
-
-                <button onclick="document.getElementById('addPurchaseModal').classList.remove('hidden')"
-                    class="bg-black hover:bg-gray-800 text-white px-5 py-2 rounded-xl text-sm font-bold transition-all shadow-md flex items-center">
-                    <i class="fas fa-plus mr-2"></i> Nueva Compra
-                </button>
-            </div>
-        </div>
-
-        <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                const form = document.getElementById('purchaseFilterForm');
-                const select = document.getElementById('purchaseCategorySelect');
-
-                if (form && select) {
-                    select.addEventListener('change', function () {
-                        form.submit();
-                    });
-                }
-            });
-        </script>
 
 
-        <!-- Purchases Table -->
-        <div class="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100">
-            <div class="px-8 py-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                <h2 class="text-lg font-bold text-gray-800">Compras de {{ current_month|date:"F" }}</h2>
-                <span class="bg-purple-100 text-primary px-3 py-1 rounded-lg text-sm font-bold">Total: ${{ total_purchase_amount|floatformat:2 }}</span>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="text-secondary text-xs font-bold uppercase border-b border-gray-50">
-                            <th class="px-6 py-4">Fecha</th>
-                            <th class="px-6 py-4">Código</th>
-                            <th class="px-6 py-4">Proveedor</th>
-                            <th class="px-6 py-4">Categoría/Detalle</th>
-                            <th class="px-6 py-4 text-right">Monto</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
-                        {% for purchase in purchases %}
-                        <tr class="hover:bg-gray-50 transition-colors">
-                            <td class="px-6 py-4 text-sm text-gray-600 font-medium whitespace-nowrap">
-                                {{ purchase.date|date:"d M" }}
-                            </td>
-                            <td class="px-6 py-4">
-                                {% if purchase.code %}
-                                <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-mono font-bold">{{ purchase.code }}</span>
-                                {% else %}
-                                <span class="text-gray-300 text-xs">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-6 py-4 text-sm font-bold text-gray-800">
-                                {{ purchase.provider.name|default:"-" }}
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="flex flex-col">
-                                    {% if purchase.category %}
-                                    <span class="text-xs font-bold text-primary bg-purple-50 px-2 py-0.5 rounded-md w-fit mb-1">{{ purchase.category.name }}</span>
-                                    {% endif %}
-                                    <span class="text-xs text-gray-500">{{ purchase.description|default:""|truncatechars:40 }}</span>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 text-right font-bold text-gray-800">
-                                ${{ purchase.amount|floatformat:2 }}
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="px-6 py-12 text-center text-gray-400 text-sm">
-                                No hay compras registradas en este mes.
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
 
-    <!-- Add Purchase Modal -->
-    <div id="addPurchaseModal"
-        class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl p-6 transform transition-all scale-100">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-bold text-gray-900">Registrar Nueva Compra</h3>
-                <button onclick="document.getElementById('addPurchaseModal').classList.add('hidden')"
-                    class="text-gray-400 hover:text-gray-600">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-
-            <form action="{% url 'purchase_create' %}" method="POST" class="space-y-4">
-                {% csrf_token %}
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Fecha</label>
-                        <input type="date" name="date" value="{{ current_month|date:'Y-m-d' }}" required
-                            class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Monto ($)</label>
-                        <input type="number" step="0.01" name="amount" required placeholder="0.00"
-                            class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Proveedor</label>
-                        <input type="text" name="provider" list="providersList" placeholder="Escribe o selecciona..."
-                            class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary">
-                        <datalist id="providersList">
-                            {% for p in providers %}
-                            <option value="{{ p.name }}">
-                                {% endfor %}
-                        </datalist>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Código
-                            (Opcional)</label>
-                        <input type="text" name="code" placeholder="FAC-001 / SKU"
-                            class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Categoría</label>
-                    <select name="category"
-                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary">
-                        <option value="">-- Sin Categoría --</option>
-                        {% for cat in purchase_categories %}
-                        <option value="{{ cat.id }}">{{ cat.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Descripción</label>
-                    <textarea name="description" rows="2" placeholder="Detalles de la compra..."
-                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary"></textarea>
-                </div>
-
-                <div class="pt-4 flex gap-3">
-                    <button type="button" onclick="document.getElementById('addPurchaseModal').classList.add('hidden')"
-                        class="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200 transition-colors">
-                        Cancelar
-                    </button>
-                    <button type="submit"
-                        class="flex-1 bg-black text-white font-bold py-3 rounded-xl hover:bg-gray-800 transition-all shadow-lg">
-                        Guardar Compra
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <!-- Add Variable Expense Modal (Caja Chica) -->
     <div id="addVariableExpenseModal"
@@ -572,33 +388,7 @@
         </div>
     </div>
 
-    <!-- TAB SWITCHING SCRIPT -->
-    <script>
-        function switchTab(tabName) {
-            // Hide all content
-            document.getElementById('content-fixed').classList.add('hidden');
-            document.getElementById('content-purchases').classList.add('hidden');
 
-            // Reset buttons
-            document.getElementById('tab-btn-fixed').className = "px-6 py-2 rounded-xl font-bold text-sm transition-all bg-white text-gray-500 hover:bg-gray-100";
-            document.getElementById('tab-btn-purchases').className = "px-6 py-2 rounded-xl font-bold text-sm transition-all bg-white text-gray-500 hover:bg-gray-100";
-
-            // Show selected
-            document.getElementById('content-' + tabName).classList.remove('hidden');
-
-            // Activate button
-            document.getElementById('tab-btn-' + tabName).className = "px-6 py-2 rounded-xl font-bold text-sm transition-all bg-black text-white shadow-lg";
-
-            // Store preference (Optional)
-            localStorage.setItem('financeActiveTab', tabName);
-        }
-
-        // Load last tab or default
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedTab = localStorage.getItem('financeActiveTab') || 'fixed';
-            switchTab(savedTab);
-        });
-    </script>
 
     <!-- History/Previous Months List -->
     <h3 class="text-xl font-bold text-gray-800 px-2 mt-8">Historial Mensual</h3>

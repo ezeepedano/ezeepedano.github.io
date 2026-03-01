@@ -26,6 +26,21 @@
                 <label for="{{ form.name.id_for_label }}" class="block text-sm font-bold text-gray-700 mb-2">Nombre del
                     Material</label>
                 {{ form.name }}
+                <datalist id="existing-ingredients">
+                    {% for name in existing_ingredients %}
+                        <option value="{{ name }}"></option>
+                    {% endfor %}
+                </datalist>
+                <div id="duplicate-warning" class="hidden mt-2 text-sm text-red-600 bg-red-50 p-2 rounded-lg border border-red-100">
+                    <i class="fas fa-exclamation-circle mr-1"></i> Este ingrediente ya existe.
+                </div>
+            </div>
+
+            <!-- Code -->
+            <div>
+                <label for="{{ form.code.id_for_label }}" class="block text-sm font-bold text-gray-700 mb-2">Código Interno</label>
+                {{ form.code }}
+                <p class="text-xs text-secondary mt-1">Código único de hasta 10 caracteres (letras y números).</p>
             </div>
 
             <!-- Type -->
@@ -69,4 +84,37 @@
         </form>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const nameInput = document.getElementById('{{ form.name.id_for_label }}');
+        const warning = document.getElementById('duplicate-warning');
+        
+        // Safety check if elements exist
+        if (nameInput) {
+            nameInput.setAttribute('list', 'existing-ingredients');
+            nameInput.setAttribute('autocomplete', 'off');
+            
+            // Client-side instant check
+            const existing = new Set([
+                {% for name in existing_ingredients %}
+                    "{{ name|escapejs }}".toLowerCase(),
+                {% endfor %}
+            ]);
+            
+            nameInput.addEventListener('input', function() {
+                const val = this.value.trim().toLowerCase();
+                if (existing.has(val)) {
+                    warning.classList.remove('hidden');
+                    this.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-200');
+                    this.classList.remove('focus:border-primary', 'focus:ring-primary/20');
+                } else {
+                    warning.classList.add('hidden');
+                    this.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-200');
+                    this.classList.add('focus:border-primary', 'focus:ring-primary/20');
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}

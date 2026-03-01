@@ -14,6 +14,10 @@
             <p class="text-slate-500 mt-1">Control de stock con trazabilidad completa por lotes</p>
         </div>
         <div class="flex gap-3">
+            <a href="{% url 'traceability:download_full_report' %}" 
+               class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all flex items-center gap-2 shadow-sm">
+                <i class="fas fa-file-excel"></i> <span class="hidden sm:inline">Reporte Completo</span>
+            </a>
              <a href="{% url 'traceability:production_history' %}" class="px-4 py-2 bg-white border border-slate-200 text-slate-600 hover:text-primary hover:border-primary rounded-lg shadow-sm transition-all flex items-center gap-2">
                 <i class="fas fa-history"></i> <span class="hidden sm:inline">Historial</span>
             </a>
@@ -48,7 +52,7 @@
 
     <!-- Acciones Rápidas -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <a href="{% url 'traceability:production_create' %}" class="group relative overflow-hidden bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-all">
+        <a href="{% url 'production_order_list' %}" class="group relative overflow-hidden bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-all">
             <div class="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <div class="flex items-center gap-4 relative z-10">
                 <div class="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xl group-hover:scale-110 transition-transform">

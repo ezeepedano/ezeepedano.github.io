@@ -1,13 +1,18 @@
 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse
+from django.views.generic import TemplateView, CreateView
+from django.urls import reverse_lazy
 from decimal import Decimal
-from datetime import date
+from datetime import date, timedelta
 from django.contrib import messages
-from django.db.models import Sum
+from django.db import models
+from django.db.models import Sum, Avg, Count, F
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from .models import FixedCost, MonthlyExpense, Purchase, Provider, PurchaseCategory, Asset, AssetCategory, Account, CashMovement
-from .forms import FixedCostForm, PurchaseForm, VariableExpenseForm, AssetForm, ProviderForm, TransactionImportForm
+from .forms import FixedCostForm, PurchaseForm, VariableExpenseForm, AssetForm, ProviderForm, TransactionImportForm, AccountForm
 from .services import FinanceReportService, ExpenseService, FinanceService
 from .importers.mercadopago_cash import MercadoPagoCashImporter
 from sales.models import Sale
@@ -16,8 +21,10 @@ from sales.models import Sale
 def fixed_cost_list(request):
     """Dashboard view for finance."""
     today = timezone.now().date()
-    view_year = int(request.GET.get('year', today.year))
-    view_month = int(request.GET.get('month', today.month))
+    view_year = request.GET.get('year')
+    view_year = int(view_year) if view_year else today.year
+    view_month = request.GET.get('month')
+    view_month = int(view_month) if view_month else today.month
     
     context = FinanceReportService.get_dashboard_context(view_year, view_month, request.user)
     
@@ -50,8 +57,10 @@ def fixed_cost_list(request):
 @login_required
 def generate_monthly_expenses(request):
     if request.method == 'POST':
-        year = int(request.POST.get('year', timezone.now().year))
-        month = int(request.POST.get('month', timezone.now().month))
+        year = request.POST.get('year')
+        year = int(year) if year else timezone.now().year
+        month = request.POST.get('month')
+        month = int(month) if month else timezone.now().month
         
         created, updated = ExpenseService.generate_monthly_expenses_from_templates(year, month, request.user)
         
@@ -138,6 +147,39 @@ def fixed_cost_delete(request, pk):
     return render(request, 'finance/fixed_cost_confirm_delete.html', {'cost': cost})
 
 # --- Purchases Module Views ---
+
+class PurchaseHubView(LoginRequiredMixin, TemplateView):
+    template_name = 'finance/purchase_hub.html'
+
+class GeneralPurchaseCreateView(LoginRequiredMixin, CreateView):
+    model = Purchase
+    form_class = PurchaseForm
+    template_name = 'finance/purchase_general_form.html'
+    success_url = reverse_lazy('traceability:purchase_list')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['provider'].queryset = Provider.objects.filter(user=self.request.user)
+        form.fields['category'].queryset = PurchaseCategory.objects.filter(user=self.request.user)
+        return form
+
+    def form_valid(self, form):
+        purchase = form.save(commit=False)
+        purchase.user = self.request.user
+        
+        # Handle inline provider creation if name passed and not selected
+        provider_name = self.request.POST.get('provider_name')
+        if not purchase.provider and provider_name:
+            purchase.provider, _ = Provider.objects.get_or_create(
+                name=provider_name.strip(),
+                user=self.request.user,
+                defaults={'user': self.request.user}
+            )
+            
+        purchase.save()
+        messages.success(self.request, 'Compra general registrada exitosamente.')
+        return redirect(self.success_url)
+
 
 @login_required
 def purchase_create(request):
@@ -230,6 +272,10 @@ def asset_create(request):
             post_data['category'] = ''
             
         form = AssetForm(post_data)
+        # Filter querysets for isolation
+        form.fields['provider'].queryset = Provider.objects.filter(user=request.user)
+        form.fields['category'].queryset = AssetCategory.objects.filter(user=request.user)
+
         if form.is_valid():
             try:
                 # Handle category (inline creation) and provider (inline creation)
@@ -258,13 +304,37 @@ def asset_create(request):
                 
                 asset.user = request.user
                 asset.save()
-                messages.success(request, 'Bien de uso registrado exitosamente.')
+                
+                # AUTOMATICALLY CREATE PURCHASE RECORD (Financial Transaction)
+                # This ensures the asset purchase appears in cash flow / accounts payable
+                Purchase.objects.create(
+                    user=request.user,
+                    date=asset.purchase_date,
+                    provider=asset.provider,
+                    # We might need a generic 'Activos Fijos' category or similar.
+                    # For now we leave category blank or try to find one.
+                    description=f"Compra de Activo Fijo: {asset.name}",
+                    amount=asset.cost * asset.quantity,
+                    due_date=asset.purchase_date, # Default to same day
+                    payment_status='PENDING', # Default to pending, user can update
+                    is_paid=False
+                )
+                
+                messages.success(request, 'Bien de uso registrado exitosamente (y generado su movimiento de compra).')
             except Exception as e:
                 messages.error(request, f'Error al registrar bien: {str(e)}')
         else:
             messages.error(request, f'Error validación: {form.errors}')
             
-    return redirect('asset_list')
+    else:
+        form = AssetForm()
+        form.fields['provider'].queryset = Provider.objects.filter(user=request.user)
+        form.fields['category'].queryset = AssetCategory.objects.filter(user=request.user)
+
+    return render(request, 'finance/asset_form.html', {
+        'form': form,
+        'today': timezone.now().date()
+    })
 
 @login_required
 def asset_category_delete(request, pk):
@@ -289,6 +359,10 @@ def asset_update(request, pk):
             post_data['category'] = ''
             
         form = AssetForm(post_data, instance=asset)
+        # Filter querysets for isolation
+        form.fields['provider'].queryset = Provider.objects.filter(user=request.user)
+        form.fields['category'].queryset = AssetCategory.objects.filter(user=request.user)
+
         if form.is_valid():
             try:
                 # Basic save first
@@ -312,6 +386,9 @@ def asset_update(request, pk):
              messages.error(request, f'Error validación: {form.errors}')
     else:
         form = AssetForm(instance=asset)
+        # Filter querysets for isolation
+        form.fields['provider'].queryset = Provider.objects.filter(user=request.user)
+        form.fields['category'].queryset = AssetCategory.objects.filter(user=request.user)
     
     # We need providers and categories for the form context if we use a custom template or generic form
     categories = AssetCategory.objects.filter(user=request.user).order_by('name')
@@ -397,52 +474,86 @@ def cashflow_dashboard(request):
     """
     Shows Cash Flow (Money In/Out) per Account.
     """
+    from django.core.paginator import Paginator
+
     accounts = Account.objects.filter(user=request.user, is_active=True)
-    
+
     # Calculate Live Balance for each account
-    # Formula: Opening Balance + Sum(IN) - Sum(OUT) (where date >= opening_date)
-    # Ideally this should be cached or optimized, but for <5000 rows it's fast.
     total_balance = Decimal('0.00')
-    
+
     for acc in accounts:
-        # Get movements after opening date
         m_qs = CashMovement.objects.filter(user=request.user, account=acc, date__gte=acc.opening_date)
         total_in = m_qs.filter(type='IN').aggregate(Sum('amount'))['amount__sum'] or 0
         total_out = m_qs.filter(type='OUT').aggregate(Sum('amount'))['amount__sum'] or 0
-        
+
         acc.current_balance = acc.opening_balance + total_in - total_out
         total_balance += acc.current_balance
-        
-    # Date Filter for Movements List
-    default_start = date(2026, 1, 1)
+
+    # Date Filter for Movements List — dynamic default: Jan 1 of current year
+    default_start = date(date.today().year, 1, 1)
     start_date_str = request.GET.get('start_date')
     end_date_str = request.GET.get('end_date')
-    
+    account_filter = request.GET.get('account', '')
+
     start_date = default_start
     if start_date_str:
         try:
             start_date = date.fromisoformat(start_date_str)
         except ValueError:
             pass
-            
+
     # Recent Movements Query
     movements_qs = CashMovement.objects.filter(user=request.user, date__date__gte=start_date)
-    
+
     if end_date_str:
         try:
             end_date = date.fromisoformat(end_date_str)
             movements_qs = movements_qs.filter(date__date__lte=end_date)
         except ValueError:
             pass
-            
-    movements = movements_qs.select_related('account').order_by('-date')
-    
+
+    if account_filter:
+        movements_qs = movements_qs.filter(account_id=account_filter)
+
+    movements_qs = movements_qs.select_related('account').order_by('-date')
+
+    paginator = Paginator(movements_qs, 50)
+    page_number = request.GET.get('page')
+    movements = paginator.get_page(page_number)
+
+    # Monthly chart data (IN vs OUT by month for current year)
+    import json
+    from django.db.models.functions import TruncMonth
+    from django.db.models import Count
+
+    chart_qs = CashMovement.objects.filter(
+        user=request.user,
+        date__date__gte=date(date.today().year, 1, 1)
+    ).annotate(month=TruncMonth('date')).values('month', 'type').annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    ).order_by('month')
+
+    monthly_data = {}
+    for row in chart_qs:
+        m = row['month'].strftime('%Y-%m') if row['month'] else ''
+        if m not in monthly_data:
+            monthly_data[m] = {'month': m, 'in_total': 0, 'out_total': 0}
+        if row['type'] == 'IN':
+            monthly_data[m]['in_total'] = float(row['total'] or 0)
+        else:
+            monthly_data[m]['out_total'] = float(row['total'] or 0)
+
+    cashflow_chart_data = json.dumps(list(monthly_data.values()))
+
     context = {
         'accounts': accounts,
         'total_balance': total_balance,
         'movements': movements,
         'start_date': start_date.isoformat(),
         'end_date': end_date_str or '',
+        'account_filter': account_filter,
+        'cashflow_chart_data': cashflow_chart_data,
     }
     return render(request, 'finance/dashboard_cashflow.html', context)
 
@@ -503,3 +614,118 @@ def import_transactions(request):
     return render(request, 'finance/import_form.html', {'form': form})
 
 
+
+@login_required
+def account_create_popup(request):
+    if request.method == 'POST':
+        form = AccountForm(request.POST)
+        if form.is_valid():
+            account = form.save(commit=False)
+            account.user = request.user
+            account.save()
+            return JsonResponse({
+                'status': 'success',
+                'id': account.id,
+                'name': str(account)
+            })
+        else:
+            return JsonResponse({
+                'status': 'error',
+                'errors': form.errors
+            }, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+
+@login_required
+def provider_detail_api(request, pk):
+    """API to get provider details for auto-filling purchase forms."""
+    provider = get_object_or_404(Provider, pk=pk, user=request.user)
+    
+    # Get most common category from past purchases
+    common_category = Purchase.objects.filter(
+        provider=provider,
+        user=request.user
+    ).values('category__name').annotate(
+        count=models.Count('id')
+    ).order_by('-count').first()
+    
+    # Get average payment terms
+    avg_days = Purchase.objects.filter(
+        provider=provider,
+        user=request.user,
+        due_date__isnull=False
+    ).annotate(
+        days_diff=F('due_date') - F('date')
+    ).aggregate(avg=Avg('days_diff'))
+    
+    # Calculate suggested due_date
+    suggested_due_date = None
+    if avg_days['avg']:
+        suggested_due_date = (date.today() + avg_days['avg']).isoformat()
+    elif hasattr(provider, 'credit_days') and provider.credit_days:
+        suggested_due_date = (date.today() + timedelta(days=provider.credit_days)).isoformat()
+    
+    data = {
+        'id': provider.id,
+        'name': provider.name,
+        'email': provider.email or '',
+        'phone': provider.phone or '',
+        'common_category': common_category['category__name'] if common_category else None,
+        'suggested_due_date': suggested_due_date,
+        'total_purchases': Purchase.objects.filter(provider=provider, user=request.user).count()
+    }
+    return JsonResponse(data)
+
+@login_required
+def account_balance_api(request, pk):
+    """API to get current account balance for displaying in forms."""
+    account = get_object_or_404(Account, pk=pk, user=request.user)
+    
+    data = {
+        'id': account.id,
+        'name': account.name,
+        'type': account.type,
+        'balance': float(account.balance),
+        'currency': account.currency
+    }
+    return JsonResponse(data)
+
+
+# ===== PHASE 8: FINANCE ADVANCED AUTOMATIONS =====
+
+@login_required
+def purchase_price_history_api(request, provider_id):
+    """API to get last 3 purchase prices from a provider."""
+    recent_purchases = Purchase.objects.filter(
+        provider_id=provider_id,
+        user=request.user
+    ).order_by('-date')[:3]
+    
+    history = []
+    for purchase in recent_purchases:
+        history.append({
+            'date': purchase.date.strftime('%Y-%m-%d'),
+            'amount': float(purchase.amount),
+            'description': purchase.description,
+            'category': purchase.category.name if purchase.category else None
+        })
+    
+    return JsonResponse({'history': history})
+
+
+@login_required
+def suggest_provider_by_category_api(request, category_id):
+    """API to suggest providers based on purchase category."""
+    # Find providers who frequently sell this category
+    top_providers = Purchase.objects.filter(
+        category_id=category_id,
+        user=request.user
+    ).values('provider__id', 'provider__name').annotate(
+        purchase_count=Count('id')
+    ).order_by('-purchase_count')[:5]
+    
+    suggestions = [
+        {'id': p['provider__id'], 'name': p['provider__name'], 'count': p['purchase_count']}
+        for p in top_providers
+    ]
+    
+    return JsonResponse({'suggestions': suggestions})

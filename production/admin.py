@@ -1,5 +1,8 @@
 from django.contrib import admin
-from .models import WorkCenter, BillOfMaterial, BomLine, ProductionOrder
+from .models import (
+    WorkCenter, BillOfMaterial, BomLine, ProductionOrder,
+    ProductSpecification, QualityResult, CompanyConfig,
+)
 
 class BomLineInline(admin.TabularInline):
     model = BomLine
@@ -20,3 +23,25 @@ class ProductionOrderAdmin(admin.ModelAdmin):
 @admin.register(WorkCenter)
 class WorkCenterAdmin(admin.ModelAdmin):
     list_display = ('name', 'hourly_cost')
+
+
+class QualityResultInline(admin.TabularInline):
+    model = QualityResult
+    extra = 1
+
+@admin.register(ProductSpecification)
+class ProductSpecificationAdmin(admin.ModelAdmin):
+    list_display = ('product', 'parameter', 'specification', 'method', 'sort_order')
+    list_filter = ('product',)
+    search_fields = ('parameter', 'product__name')
+    ordering = ('product', 'sort_order')
+
+@admin.register(CompanyConfig)
+class CompanyConfigAdmin(admin.ModelAdmin):
+    list_display = ('company_name', 'technical_director_name')
+
+    def has_add_permission(self, request):
+        # Singleton: only allow one instance
+        if self.model.objects.count() >= 1:
+            return False
+        return super().has_add_permission(request)

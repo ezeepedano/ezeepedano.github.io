@@ -4,6 +4,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.urls import reverse_lazy
 from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
 from decimal import Decimal
 
 from .models import (
@@ -15,6 +17,7 @@ from .models import (
 from .services import StockService, ProductionService, TraceabilityService
 from inventory.models import Ingredient, Product
 from production.models import BillOfMaterial
+from finance.models import Purchase, Provider, PurchaseCategory
 
 
 class StockListView(LoginRequiredMixin, ListView):
@@ -29,14 +32,39 @@ class StockListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         
         # Actualizar alertas
-        StockService.check_and_create_alerts()
+        StockService.check_and_create_alerts(self.request.user)
         
         # Obtener resumen de stock
-        stock_summary = StockService.get_stock_summary()
+        stock_summary = StockService.get_stock_summary(self.request.user)
         context['ingredients_data'] = stock_summary['ingredients']
         context['alerts'] = stock_summary['alerts']
         context['config'] = TraceabilityConfig.get_config()
         
+        return context
+
+
+class PurchaseListView(LoginRequiredMixin, ListView):
+    """Vista para ver historial de compras (Finanzas + Stock)."""
+    model = Purchase
+    template_name = 'traceability/purchase_list.html'
+    context_object_name = 'purchases'
+    paginate_by = 20
+    
+    def get_queryset(self):
+        queryset = Purchase.objects.filter(user=self.request.user).select_related(
+            'provider', 'category'
+        ).order_by('-date')
+        
+        # Filtros opcionales
+        provider_id = self.request.GET.get('provider')
+        if provider_id:
+            queryset = queryset.filter(provider_id=provider_id)
+            
+        return queryset
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['providers'] = Provider.objects.filter(user=self.request.user)
         return context
 
 
@@ -49,18 +77,27 @@ class PurchaseCreateView(LoginRequiredMixin, CreateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['ingredients'] = Ingredient.objects.all()
+        context['ingredients'] = Ingredient.objects.filter(user=self.request.user)
+        context['providers'] = Provider.objects.filter(user=self.request.user)
+        context['categories'] = PurchaseCategory.objects.filter(user=self.request.user)
         
         # Pre-generar ID para el ingrediente seleccionado si viene en GET
         ingredient_id = self.request.GET.get('ingredient')
         if ingredient_id:
             try:
-                ingredient = Ingredient.objects.get(pk=ingredient_id)
+                ingredient = Ingredient.objects.get(pk=ingredient_id, user=self.request.user)
                 context['suggested_id'] = StockService.get_next_internal_id(ingredient)
             except Ingredient.DoesNotExist:
                 pass
         
         return context
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['ingredient'].queryset = Ingredient.objects.filter(user=self.request.user)
+        return form
+    
+
     
     def form_valid(self, form):
         try:
@@ -69,13 +106,33 @@ class PurchaseCreateView(LoginRequiredMixin, CreateView):
             supplier_lot = form.cleaned_data['supplier_lot']
             expiration_date = form.cleaned_data['expiration_date']
             
-            # Usar servicio para crear el lote
+            # Extract NON-FORM fields for Finance
+            cost_per_kg = self.request.POST.get('cost_per_kg')
+            provider_id = self.request.POST.get('provider')
+            category_id = self.request.POST.get('category')
+            payment_status = self.request.POST.get('payment_status', 'PENDING')
+            
+            provider = None
+            if provider_id:
+                provider = Provider.objects.get(pk=provider_id, user=self.request.user)
+                
+            category = None
+            if category_id:
+                category = PurchaseCategory.objects.get(pk=category_id, user=self.request.user)
+            
+            # Usar servicio para crear el lote AND Finance Record
             lot = StockService.register_purchase(
                 ingredient=ingredient,
                 quantity=quantity,
                 supplier_lot=supplier_lot,
+                received_date=timezone.now().date(),
                 expiration_date=expiration_date,
-                user=self.request.user
+                user=self.request.user,
+                # New logic
+                cost_per_kg=float(cost_per_kg) if cost_per_kg else 0.0,
+                provider=provider,
+                category=category,
+                payment_status=payment_status
             )
             
             messages.success(
@@ -99,14 +156,14 @@ class ProductionCreateView(LoginRequiredMixin, CreateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['products'] = Product.objects.all()
-        context['boms'] = BillOfMaterial.objects.filter(is_active=True)
+        context['products'] = Product.objects.filter(user=self.request.user)
+        context['boms'] = BillOfMaterial.objects.filter(is_active=True, user=self.request.user)
         
         # Si viene un producto en GET, obtener sus BOMs
         product_id = self.request.GET.get('product')
         if product_id:
             try:
-                product = Product.objects.get(pk=product_id)
+                product = Product.objects.get(pk=product_id, user=self.request.user)
                 context['selected_product'] = product
                 context['product_boms'] = product.boms.filter(is_active=True)
             except Product.DoesNotExist:
@@ -170,9 +227,9 @@ class ProductionHistoryView(LoginRequiredMixin, ListView):
     paginate_by = 20
     
     def get_queryset(self):
-        queryset = ProductionBatch.objects.select_related(
+        queryset = ProductionBatch.objects.filter(user=self.request.user).select_related(
             'product', 'bom', 'user'
-        ).prefetch_related('consumptions').all()
+        ).prefetch_related('consumptions')
         
         # Filtros opcionales
         product_id = self.request.GET.get('product')
@@ -187,11 +244,11 @@ class ProductionHistoryView(LoginRequiredMixin, ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['products'] = Product.objects.all()
+        context['products'] = Product.objects.filter(user=self.request.user)
         context['status_choices'] = ProductionBatch.STATUS_CHOICES
         
         # Estadísticas generales
-        total_batches = ProductionBatch.objects.filter(status='COMPLETED').count()
+        total_batches = ProductionBatch.objects.filter(status='COMPLETED', user=self.request.user).count()
         context['total_batches'] = total_batches
         
         return context
@@ -202,14 +259,17 @@ class ProductionDetailView(LoginRequiredMixin, DetailView):
     model = ProductionBatch
     template_name = 'traceability/production_detail.html'
     context_object_name = 'batch'
-    
+
+    def get_queryset(self):
+        return ProductionBatch.objects.filter(user=self.request.user)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
+
         # Obtener trazabilidad completa
         traceability = TraceabilityService.get_batch_traceability(self.object)
         context['traceability'] = traceability
-        
+
         return context
 
 
@@ -222,11 +282,13 @@ class AlertListView(LoginRequiredMixin, ListView):
     
     def get_queryset(self):
         # Actualizar alertas
-        StockService.check_and_create_alerts()
+        StockService.check_and_create_alerts(self.request.user)
         
-        queryset = StockAlert.objects.select_related(
+        queryset = StockAlert.objects.filter(
+            Q(ingredient__user=self.request.user) | Q(ingredient_lot__user=self.request.user)
+        ).select_related(
             'ingredient', 'ingredient_lot'
-        ).all()
+        )
         
         # Mostrar solo activas por defecto
         show_resolved = self.request.GET.get('show_resolved')
@@ -240,12 +302,15 @@ class AlertListView(LoginRequiredMixin, ListView):
         
         # Contar por tipo
         context['low_stock_count'] = StockAlert.objects.filter(
+            ingredient__user=self.request.user,
             alert_type='LOW_STOCK', is_resolved=False
         ).count()
         context['near_expiry_count'] = StockAlert.objects.filter(
+            ingredient_lot__user=self.request.user,
             alert_type='NEAR_EXPIRY', is_resolved=False
         ).count()
         context['expired_count'] = StockAlert.objects.filter(
+            ingredient_lot__user=self.request.user,
             alert_type='EXPIRED', is_resolved=False
         ).count()
         

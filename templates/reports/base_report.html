@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 3cm 1.5cm 2.5cm 1.5cm;
+
+            @frame header {
+                -pdf-frame-content: page-header;
+                top: 0cm;
+                left: 1.5cm;
+                right: 1.5cm;
+                height: 3cm;
+            }
+
+            @frame footer {
+                -pdf-frame-content: page-footer;
+                bottom: 0cm;
+                left: 1.5cm;
+                right: 1.5cm;
+                height: 1.2cm;
+            }
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 9.5pt;
+            color: #1a1a2e;
+            line-height: 1.5;
+            background: white;
+        }
+
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           HEADER
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        #page-header {
+            padding-bottom: 4px;
+        }
+        .header-accent-bar {
+            background-color: #4f46e5;
+            height: 6px;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+        .header-main-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .header-main-table td {
+            border: none;
+            vertical-align: middle;
+            padding: 0 4px;
+        }
+        .header-company {
+            font-size: 17pt;
+            font-weight: bold;
+            color: #4f46e5;
+            letter-spacing: -0.5px;
+        }
+        .header-company-sub {
+            font-size: 7.5pt;
+            color: #6b7280;
+            margin-top: 1px;
+        }
+        .header-doc-badge {
+            background-color: #4f46e5;
+            color: white;
+            font-size: 11pt;
+            font-weight: bold;
+            text-align: center;
+            padding: 8px 12px;
+            letter-spacing: 0.5px;
+        }
+        .header-meta {
+            text-align: right;
+            font-size: 7.5pt;
+            color: #6b7280;
+            line-height: 1.7;
+        }
+        .header-meta-strong {
+            font-weight: bold;
+            color: #374151;
+        }
+        .header-divider {
+            border: none;
+            border-top: 1px solid #e5e7eb;
+            margin: 6px 0 0 0;
+        }
+
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           FOOTER
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        #page-footer {
+            border-top: 1px solid #e5e7eb;
+            padding-top: 4px;
+        }
+        .footer-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .footer-table td {
+            border: none;
+            font-size: 7.5pt;
+            color: #9ca3af;
+            padding: 0;
+        }
+        .footer-accent {
+            display: inline-block;
+            background-color: #4f46e5;
+            color: white;
+            font-size: 6.5pt;
+            padding: 1px 5px;
+            font-weight: bold;
+        }
+
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           SECTION HEADINGS
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        h2 {
+            font-size: 10pt;
+            font-weight: bold;
+            color: #4f46e5;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-left: 4px solid #4f46e5;
+            padding: 4px 0 4px 10px;
+            margin: 18px 0 8px 0;
+            background-color: #f5f3ff;
+        }
+        h3 {
+            font-size: 9.5pt;
+            font-weight: bold;
+            color: #374151;
+            margin: 12px 0 5px 0;
+        }
+
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           INFO BLOCK (key-value pairs)
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        table.info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 14px;
+            border: 1px solid #e5e7eb;
+        }
+        table.info-table td {
+            padding: 6px 10px;
+            font-size: 9pt;
+            border: 1px solid #e5e7eb;
+            vertical-align: middle;
+        }
+        .info-label {
+            background-color: #f5f3ff;
+            font-weight: bold;
+            color: #4338ca;
+            width: 22%;
+            font-size: 8.5pt;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .info-value {
+            color: #111827;
+            font-weight: bold;
+            width: 28%;
+        }
+
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           DATA TABLES
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 8px 0 16px 0;
+        }
+        table.data-table th {
+            background-color: #4f46e5;
+            color: white;
+            padding: 7px 8px;
+            font-size: 8pt;
+            text-align: left;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        table.data-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 8.5pt;
+            color: #374151;
+            vertical-align: middle;
+        }
+        table.data-table tr:nth-child(even) td {
+            background-color: #fafafa;
+        }
+        table.data-table tr:last-child td {
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           SPECIAL ROWS / CELLS
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        .text-right  { text-align: right; }
+        .text-center { text-align: center; }
+        .text-bold   { font-weight: bold; }
+
+        .badge-ok {
+            background-color: #d1fae5;
+            color: #065f46;
+            font-weight: bold;
+            padding: 2px 7px;
+            font-size: 7.5pt;
+        }
+        .badge-warn {
+            background-color: #fef3c7;
+            color: #92400e;
+            font-weight: bold;
+            padding: 2px 7px;
+            font-size: 7.5pt;
+        }
+        .badge-danger {
+            background-color: #fee2e2;
+            color: #991b1b;
+            font-weight: bold;
+            padding: 2px 7px;
+            font-size: 7.5pt;
+        }
+        .text-red   { color: #dc2626; font-weight: bold; }
+        .text-green { color: #16a34a; font-weight: bold; }
+        .text-muted { color: #9ca3af; }
+
+        .total-row td {
+            font-weight: bold;
+            font-size: 9.5pt;
+            border-top: 2px solid #4f46e5;
+            background-color: #ede9fe;
+            color: #1e1b4b;
+        }
+
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           FIELD INPUTS (manual fill)
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        .field-empty {
+            border-bottom: 1px solid #9ca3af;
+            display: inline-block;
+            min-width: 90px;
+            color: white;  /* invisible placeholder */
+        }
+        .check-box {
+            border: 1.5px solid #6b7280;
+            width: 14px;
+            height: 14px;
+            display: inline-block;
+            background-color: white;
+        }
+
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           SIGNATURE BLOCK
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        .signature-block {
+            width: 100%;
+            margin-top: 35px;
+            border-collapse: collapse;
+        }
+        .signature-block td {
+            border: none;
+            text-align: center;
+            padding-top: 45px;
+            width: 33%;
+        }
+        .signature-line {
+            border-top: 1.5px solid #4f46e5;
+            margin: 0 auto;
+            width: 140px;
+            padding-top: 5px;
+            font-size: 8pt;
+            font-weight: bold;
+            color: #374151;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .signature-sub {
+            font-size: 7.5pt;
+            color: #9ca3af;
+            margin-top: 2px;
+        }
+
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           OBSERVATIONS BOX
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        .obs-box {
+            width: 100%;
+            border: 1px solid #e5e7eb;
+            border-collapse: collapse;
+        }
+        .obs-box td {
+            border-bottom: 1px dotted #d1d5db;
+            padding: 8px 10px;
+            height: 22px;
+            font-size: 8.5pt;
+            color: white;  /* invisible lines to write on */
+        }
+        .obs-box tr:last-child td {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <div id="page-header">
+        <div class="header-accent-bar"></div>
+        <table class="header-main-table">
+            <tr>
+                <td style="width:30%">
+                    {% if logo_path %}
+                    <img src="{{ logo_path }}" style="height:36px; width:auto;" />
+                    {% else %}
+                    <div class="header-company">{{ company_name }}</div>
+                    <div class="header-company-sub">Sistema de Gestion de Produccion</div>
+                    {% endif %}
+                </td>
+                <td style="width:40%; text-align:center;">
+                    <div class="header-doc-badge">{% block report_title %}REPORTE{% endblock %}</div>
+                </td>
+                <td style="width:30%">
+                    <div class="header-meta">
+                        <span class="header-meta-strong">Fecha:</span> {{ print_date }}<br/>
+                        <span class="header-meta-strong">Por:</span> {{ print_user }}
+                    </div>
+                </td>
+            </tr>
+        </table>
+        <hr class="header-divider" />
+    </div>
+
+    <!-- FOOTER -->
+    <div id="page-footer">
+        <table class="footer-table">
+            <tr>
+                <td>
+                    <span class="footer-accent">CONFIDENCIAL</span>
+                    &nbsp;&nbsp;{{ filename }}
+                </td>
+                <td style="text-align:right;">
+                    Pag. <pdf:pagenumber/> / <pdf:pagecount/>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- CONTENT -->
+    {% block content %}{% endblock %}
+
+</body>
+</html>

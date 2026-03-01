@@ -33,6 +33,16 @@ class BillOfMaterial(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def calculate_cost(self):
+        """Calculates total cost of BOM and returns total cost."""
+        total = 0
+        for line in self.lines.all():
+            if line.ingredient:
+                total += (line.quantity * line.ingredient.cost_per_unit)
+            elif line.component_product:
+                total += (line.quantity * line.component_product.cost_price)
+        return total
+
     def __str__(self):
         if self.product:
             return f"{self.product.name} ({self.name})"
@@ -68,7 +78,6 @@ class ProductionOrder(models.Model):
     """
     STATUS_CHOICES = [
         ('DRAFT', 'Borrador'),
-        ('CONFIRMED', 'Confirmado'),
         ('IN_PROGRESS', 'En Proceso'),
         ('DONE', 'Finalizado'),
         ('CANCELLED', 'Cancelado'),
@@ -96,3 +105,98 @@ class ProductionOrder(models.Model):
 
     def __str__(self):
         return f"{self.code} - {self.product.name}"
+
+
+class ProductSpecification(models.Model):
+    """
+    Quality specification parameters for a product (used in CoA reports).
+    Each row defines a parameter like pH, appearance, vitamin content, etc.
+    """
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name='specifications'
+    )
+    parameter = models.CharField(
+        max_length=200, help_text="Nombre del parametro (ej: pH, Apariencia, Vitamina C)"
+    )
+    specification = models.CharField(
+        max_length=200, help_text="Rango aceptable (ej: 4.5 - 5.5, Polvo blanco)"
+    )
+    method = models.CharField(
+        max_length=200, blank=True, default='',
+        help_text="Metodo de analisis (ej: HPLC, Visual, Potenciometrico)"
+    )
+    sort_order = models.PositiveIntegerField(
+        default=0, help_text="Orden de aparicion en el certificado"
+    )
+
+    class Meta:
+        ordering = ['sort_order', 'pk']
+        verbose_name = "Especificacion de Producto"
+        verbose_name_plural = "Especificaciones de Producto"
+
+    def __str__(self):
+        return f"{self.product.name} - {self.parameter}"
+
+
+class QualityResult(models.Model):
+    """
+    Actual test result for a specific production batch, linked to a specification.
+    Used in the Certificate of Analysis (CoA) report.
+    """
+    production_batch = models.ForeignKey(
+        'traceability.ProductionBatch', on_delete=models.CASCADE,
+        related_name='quality_results'
+    )
+    specification = models.ForeignKey(
+        ProductSpecification, on_delete=models.CASCADE,
+        related_name='results'
+    )
+    result_value = models.CharField(
+        max_length=200, help_text="Valor obtenido en el analisis"
+    )
+    approved = models.BooleanField(default=True)
+    tested_date = models.DateField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['specification__sort_order']
+        verbose_name = "Resultado de Calidad"
+        verbose_name_plural = "Resultados de Calidad"
+        unique_together = ['production_batch', 'specification']
+
+    def __str__(self):
+        status = "OK" if self.approved else "FAIL"
+        return f"{self.production_batch} - {self.specification.parameter}: {self.result_value} [{status}]"
+
+
+class CompanyConfig(models.Model):
+    """
+    Singleton model for company-wide settings used in PDF reports.
+    """
+    company_name = models.CharField(
+        max_length=200, default='Propel ERP',
+        help_text="Nombre de la empresa para reportes"
+    )
+    technical_director_name = models.CharField(
+        max_length=200, blank=True, default='',
+        help_text="Nombre del Director Tecnico para CoA"
+    )
+    signature_image = models.ImageField(
+        upload_to='company/', blank=True, null=True,
+        help_text="Imagen de firma digitalizada del DT"
+    )
+    logo_image = models.ImageField(
+        upload_to='company/', blank=True, null=True,
+        help_text="Logo de la empresa para reportes PDF"
+    )
+
+    class Meta:
+        verbose_name = "Configuracion de Empresa"
+        verbose_name_plural = "Configuracion de Empresa"
+
+    def __str__(self):
+        return self.company_name
+
+    @classmethod
+    def get_config(cls):
+        config, _ = cls.objects.get_or_create(pk=1)
+        return config

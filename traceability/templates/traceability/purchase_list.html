@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+
+{% block title %}Historial de Compras - Propel{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-3xl shadow-sm gap-4 border border-gray-100">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">Historial de Compras</h2>
+            <p class="text-secondary text-sm">Registro unificado de Finanzas y Stock</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'traceability:stock_list' %}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors">
+                <i class="fas fa-boxes mr-2"></i> Ver Stock
+            </a>
+            <a href="{% url 'traceability:purchase_create' %}" class="px-4 py-2 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-shadow shadow-lg">
+                <i class="fas fa-plus mr-2"></i> Nueva Compra
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-3xl shadow-sm p-4 border border-gray-100">
+        <form method="get" class="flex flex-wrap gap-4 items-end">
+            <div class="w-full md:w-64">
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Filtrar por Proveedor</label>
+                <select name="provider" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary" onchange="this.form.submit()">
+                    <option value="">-- Todos --</option>
+                    {% for p in providers %}
+                    <option value="{{ p.id }}" {% if request.GET.provider|add:"0" == p.id %}selected{% endif %}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="text-secondary text-xs font-bold uppercase border-b border-gray-50 bg-gray-50/50">
+                        <th class="px-6 py-4">Fecha</th>
+                        <th class="px-6 py-4">Lote / Código</th>
+                        <th class="px-6 py-4">Proveedor</th>
+                        <th class="px-6 py-4">Detalle</th>
+                        <th class="px-6 py-4 text-center">Estado Pago</th>
+                        <th class="px-6 py-4 text-right">Monto</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for purchase in purchases %}
+                    <tr class="hover:bg-gray-50 transition-colors group">
+                        <td class="px-6 py-4 text-sm text-gray-600 font-medium whitespace-nowrap">
+                            {{ purchase.date|date:"d M Y" }}
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if purchase.code %}
+                            <span class="bg-purple-50 text-purple-700 px-2 py-1 rounded text-xs font-mono font-bold border border-purple-100">{{ purchase.code }}</span>
+                            {% else %}
+                            <span class="text-gray-300">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-sm font-bold text-gray-800">
+                            {{ purchase.provider.name|default:"-" }}
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex flex-col">
+                                <span class="text-sm text-gray-700">{{ purchase.description|truncatechars:50 }}</span>
+                                {% if purchase.category %}
+                                <span class="text-xs text-gray-400 mt-1">{{ purchase.category.name }}</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            {% if purchase.payment_status == 'PAID' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Pagado
+                            </span>
+                            {% elif purchase.payment_status == 'PARTIAL' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                Parcial
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                Pendiente
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right font-bold text-gray-800">
+                            ${{ purchase.amount|floatformat:2 }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center text-gray-400">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-shopping-cart text-4xl mb-3 text-gray-200"></i>
+                                <p>No hay compras registradas aún.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <div class="px-6 py-4 border-t border-gray-100 flex justify-center">
+            <div class="flex gap-2">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm">Anterior</a>
+                {% endif %}
+                
+                <span class="px-3 py-1 text-sm text-gray-500">Pág {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm">Siguiente</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

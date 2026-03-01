@@ -82,6 +82,53 @@ class SaleForm(forms.ModelForm):
         label="Cuenta de Destino (Para Caja Real)",
         widget=forms.Select(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'})
     )
+    
+    # Shipping Details
+    shipping_option = forms.CharField(
+        required=False,
+        label="Opción de Envío",
+        widget=forms.TextInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary', 'placeholder': 'Ej. Andreani, OCA, Uber'})
+    )
+    tracking_number = forms.CharField(
+        required=False,
+        label="Código de Seguimiento (Tracking)",
+        widget=forms.TextInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'})
+    )
+    shipping_status = forms.ChoiceField(
+        choices=[
+            ('pending', 'Pendiente'),
+            ('ready_to_ship', 'Listo para enviar'),
+            ('shipped', 'Enviado'),
+            ('delivered', 'Entregado'),
+            ('cancelled', 'Cancelado'),
+            ('returned', 'Devuelto')
+        ],
+        required=False,
+        label="Estado del Envío",
+        widget=forms.Select(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'})
+    )
+
+    # Address Fields (For Map)
+    buyer_address = forms.CharField(
+        required=False, 
+        label="Dirección de Entrega",
+        widget=forms.TextInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary', 'placeholder': 'Calle y número'})
+    )
+    city = forms.CharField(
+        required=False, 
+        label="Ciudad",
+        widget=forms.TextInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'})
+    )
+    province = forms.CharField(
+        required=False, 
+        label="Provincia",
+        widget=forms.TextInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'})
+    )
+    zip_code = forms.CharField(
+        required=False, 
+        label="Código Postal",
+        widget=forms.TextInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'})
+    )
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
@@ -93,13 +140,37 @@ class SaleForm(forms.ModelForm):
             from finance.models import Account
             self.fields['payment_account'].queryset = Account.objects.filter(user=user, is_active=True)
 
+        if self.instance.pk:
+            if self.instance.date:
+                self.initial['date'] = self.instance.date.strftime('%Y-%m-%d')
+            if self.instance.due_date:
+                self.initial['due_date'] = self.instance.due_date.strftime('%Y-%m-%d')
+            
+            # Try to populate payment_account from CashMovement
+            from django.contrib.contenttypes.models import ContentType
+            from finance.models import CashMovement
+            
+            ct = ContentType.objects.get_for_model(Sale)
+            movement = CashMovement.objects.filter(content_type=ct, object_id=self.instance.pk).first()
+            if movement:
+                self.initial['payment_account'] = movement.account
+
     class Meta:
         model = Sale
-        fields = ['date', 'customer', 'channel', 'shipping_cost', 'discounts', 'payment_status', 'paid_amount', 'payment_method', 'due_date']
+        fields = [
+            'date', 'customer', 'channel', 'shipping_cost', 'discounts', 
+            'payment_status', 'paid_amount', 'payment_method', 'due_date',
+            'shipping_option', 'tracking_number', 'shipping_status',
+            'buyer_address', 'city', 'province', 'zip_code'
+        ]
+
+class ProductChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        return obj.name
 
 class SaleItemForm(forms.ModelForm):
-    product = forms.ModelChoiceField(
-        queryset=Product.objects.all().order_by('name'),
+    product = ProductChoiceField(
+        queryset=Product.objects.filter(stock_quantity__gt=0).order_by('name'),
         widget=forms.Select(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary'}),
         required=True
     )
@@ -112,14 +183,17 @@ class SaleItemForm(forms.ModelForm):
         widget=forms.NumberInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary'})
     )
 
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super(SaleItemForm, self).__init__(*args, **kwargs)
+        if user:
+            self.fields['product'].queryset = Product.objects.filter(user=user, stock_quantity__gt=0).order_by('name')
+
     class Meta:
         model = SaleItem
         fields = ['product', 'quantity', 'unit_price']
 
 SaleItemFormSet = inlineformset_factory(
     Sale, SaleItem, form=SaleItemForm,
-    extra=1, can_delete=True,
-    widgets={
-        'product': forms.Select(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm'}),
-    }
+    extra=1, can_delete=True
 )

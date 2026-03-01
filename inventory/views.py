@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.forms import inlineformset_factory
+from django.core.exceptions import ValidationError
 from django import forms
+from django.db import models
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -61,11 +63,66 @@ def dashboard(request):
 
 @login_required
 def product_list(request):
+    from django.core.paginator import Paginator
+    from django.db.models import Sum, F
+
+    # Base queryset
     products = Product.objects.filter(user=request.user).select_related('category')
-    low_stock_count = products.filter(stock_quantity__lte=10).count()
+
+    # Calculate counts globally before filtering the list
+    total_count = products.count()
+    low_stock_count = products.filter(stock_quantity__gt=0, stock_quantity__lte=10).count()
+    out_of_stock_count = products.filter(stock_quantity__lte=0).count()
+    total_stock_value = products.aggregate(
+        val=Sum(F('stock_quantity') * F('cost_price'))
+    )['val'] or 0
+
+    # Get categories for filter dropdown
+    categories = Category.objects.filter(user=request.user).order_by('name')
+
+    # Apply filters
+    filter_type = request.GET.get('filter', 'all')
+    search = request.GET.get('q', '').strip()
+    category_id = request.GET.get('category', '')
+
+    if filter_type == 'low_stock':
+        products = products.filter(stock_quantity__gt=0, stock_quantity__lte=10)
+    elif filter_type == 'out_of_stock':
+        products = products.filter(stock_quantity__lte=0)
+
+    if search:
+        products = products.filter(
+            models.Q(name__icontains=search) |
+            models.Q(sku__icontains=search)
+        )
+
+    if category_id:
+        products = products.filter(category_id=category_id)
+
+    # Sorting
+    sort_field = request.GET.get('sort', 'name')
+    sort_order = request.GET.get('order', 'asc')
+    allowed_sorts = {'name': 'name', 'stock': 'stock_quantity', 'cost': 'cost_price', 'price': 'sale_price'}
+    sort_col = allowed_sorts.get(sort_field, 'name')
+    order_prefix = '-' if sort_order == 'desc' else ''
+    products = products.order_by(f'{order_prefix}{sort_col}')
+
+    paginator = Paginator(products, 50)
+    page_number = request.GET.get('page')
+    products_page = paginator.get_page(page_number)
+
     return render(request, 'inventory/product_list.html', {
-        'products': products,
-        'low_stock_count': low_stock_count
+        'products': products_page,
+        'low_stock_count': low_stock_count,
+        'out_of_stock_count': out_of_stock_count,
+        'total_count': total_count,
+        'total_stock_value': total_stock_value,
+        'current_filter': filter_type,
+        'search_query': search,
+        'categories': categories,
+        'selected_category': category_id,
+        'sort_field': sort_field,
+        'sort_order': sort_order,
     })
 
 @login_required
@@ -122,27 +179,39 @@ def ingredient_list(request):
 @login_required
 def ingredient_create(request):
     if request.method == 'POST':
-        form = IngredientForm(request.POST)
+        form = IngredientForm(request.POST, user=request.user)
         if form.is_valid():
             ingredient = form.save(commit=False)
             ingredient.user = request.user
             ingredient.save()
             return redirect('ingredient_list')
     else:
-        form = IngredientForm()
-    return render(request, 'inventory/ingredient_form.html', {'form': form, 'title': 'Nuevo Insumo / Materia Prima'})
+        form = IngredientForm(user=request.user)
+    
+    existing_ingredients = list(Ingredient.objects.filter(user=request.user).values_list('name', flat=True))
+    return render(request, 'inventory/ingredient_form.html', {
+        'form': form, 
+        'title': 'Nuevo Insumo / Materia Prima',
+        'existing_ingredients': existing_ingredients
+    })
 
 @login_required
 def ingredient_edit(request, pk):
     ingredient = get_object_or_404(Ingredient, pk=pk, user=request.user)
     if request.method == 'POST':
-        form = IngredientForm(request.POST, instance=ingredient)
+        form = IngredientForm(request.POST, instance=ingredient, user=request.user)
         if form.is_valid():
             form.save()
             return redirect('ingredient_list')
     else:
-        form = IngredientForm(instance=ingredient)
-    return render(request, 'inventory/ingredient_form.html', {'form': form, 'title': 'Editar Insumo / Materia Prima'})
+        form = IngredientForm(instance=ingredient, user=request.user)
+        
+    existing_ingredients = list(Ingredient.objects.filter(user=request.user).exclude(pk=pk).values_list('name', flat=True))
+    return render(request, 'inventory/ingredient_form.html', {
+        'form': form, 
+        'title': 'Editar Insumo / Materia Prima',
+        'existing_ingredients': existing_ingredients
+    })
 
 @login_required
 def product_recipe(request, pk):

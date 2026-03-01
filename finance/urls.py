@@ -16,6 +16,8 @@ urlpatterns = [
     
     # Purchases
     path('variable/new/', views.variable_expense_create, name='variable_expense_create'),
+    path('purchases/hub/', views.PurchaseHubView.as_view(), name='purchase_hub'),
+    path('purchases/general/new/', views.GeneralPurchaseCreateView.as_view(), name='general_purchase_create'),
     path('purchases/create/', views.purchase_create, name='purchase_create'),
     # Assets
     path('assets/', views.asset_list, name='asset_list'),
@@ -36,4 +38,9 @@ urlpatterns = [
     path('dashboard/', views.cashflow_dashboard, name='cashflow_dashboard'),
     path('aging/', views.aging_dashboard, name='aging_dashboard'),
     path('import/', views.import_transactions, name='import_transactions'),
+    path('accounts/create/popup/', views.account_create_popup, name='account_create_popup'),
+    path('api/provider/<int:pk>/', views.provider_detail_api, name='provider_detail_api'),
+    path('api/account/<int:pk>/balance/', views.account_balance_api, name='account_balance_api'),
+    path('api/provider/<int:provider_id>/history/', views.purchase_price_history_api, name='purchase_price_history_api'),
+    path('api/category/<int:category_id>/providers/', views.suggest_provider_by_category_api, name='suggest_provider_by_category_api'),
 ]

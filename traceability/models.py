@@ -133,12 +133,31 @@ class ProductionBatch(models.Model):
         decimal_places=3, 
         help_text="Cantidad producida (kg)"
     )
+    quantity_remaining = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="kg disponibles para venta (no asignados)",
+        editable=False
+    )
     
     # Fechas
     production_date = models.DateField(default=date.today)
     
     # Estado
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
+    
+    # Allocation tracking
+    is_allocated = models.BooleanField(
+        default=False,
+        help_text="True si todo el lote fue asignado a ventas"
+    )
+    allocated_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha cuando se asignó completamente"
+    )
     
     # Notas
     notes = models.TextField(blank=True, null=True)
@@ -153,6 +172,37 @@ class ProductionBatch(models.Model):
     
     def __str__(self):
         return f"{self.internal_lot_code} - {self.product.name} ({self.quantity_produced} kg)"
+    
+    def save(self, *args, **kwargs):
+        """Auto-initialize quantity_remaining and update allocation status"""
+        # Initialize quantity_remaining on creation
+        if not self.pk and self.quantity_remaining is None:
+            self.quantity_remaining = self.quantity_produced
+        
+        # Auto-update allocation status
+        if self.quantity_remaining is not None and self.quantity_remaining <= 0 and not self.is_allocated:
+            from django.utils import timezone
+            self.is_allocated = True
+            self.allocated_date = timezone.now()
+        
+        super().save(*args, **kwargs)
+    
+    def allocate(self, quantity):
+        """Allocate quantity to a sale. Returns True if successful."""
+        from decimal import Decimal
+        from django.core.exceptions import ValidationError
+        
+        if self.quantity_remaining is None:
+            self.quantity_remaining = self.quantity_produced
+        
+        if quantity > self.quantity_remaining:
+            raise ValidationError(
+                f"Cannot allocate {quantity} kg. Only {self.quantity_remaining} kg remaining."
+            )
+        
+        self.quantity_remaining -= Decimal(str(quantity))
+        self.save()
+        return True
 
 
 class BatchConsumption(models.Model):
@@ -285,3 +335,89 @@ class TraceabilityConfig(models.Model):
         """Obtiene o crea la configuración única"""
         config, created = cls.objects.get_or_create(pk=1)
         return config
+
+
+class SaleBatchAllocation(models.Model):
+    """
+    Vincula ventas con lotes de producción específicos.
+    Permite trazabilidad completa: Cliente → Venta → Lote → Ingredientes
+    """
+    # Relaciones
+    sale_item = models.ForeignKey(
+        'sales.SaleItem',
+        on_delete=models.CASCADE,
+        related_name='batch_allocations',
+        help_text="Item de venta asignado"
+    )
+    production_batch = models.ForeignKey(
+        ProductionBatch,
+        on_delete=models.PROTECT,
+        related_name='sales',
+        help_text="Lote de producción usado para cumplir esta venta"
+    )
+    
+    # Cantidades
+    quantity_allocated = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        help_text="kg asignados de este lote a esta venta"
+    )
+    
+    # Metadata
+    allocation_date = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Usuario que realizó la asignación"
+    )
+    
+    # Audit
+    notes = models.TextField(blank=True, null=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['allocation_date']
+        indexes = [
+            models.Index(fields=['sale_item', 'production_batch']),
+            models.Index(fields=['production_batch']),
+        ]
+        verbose_name = "Asignación de Lote a Venta"
+        verbose_name_plural = "Asignaciones de Lotes a Ventas"
+    
+    def __str__(self):
+        return f"{self.production_batch.internal_lot_code} → Sale #{self.sale_item.sale.order_id}"
+    
+    def clean(self):
+        """Validaciones de integridad"""
+        from decimal import Decimal
+        from django.db.models import Sum
+        
+        # Validation: can't allocate more than batch has
+        if self.production_batch.quantity_remaining is not None:
+            if self.quantity_allocated > self.production_batch.quantity_remaining:
+                raise ValidationError({
+                    'quantity_allocated': f"No se pueden asignar {self.quantity_allocated} kg. "
+                                         f"El lote {self.production_batch.internal_lot_code} solo tiene "
+                                         f"{self.production_batch.quantity_remaining} kg disponibles."
+                })
+        
+        # Validation: can't allocate more than sale item needs
+        total_allocated = self.sale_item.batch_allocations.exclude(pk=self.pk).aggregate(
+            total=Sum('quantity_allocated')
+        )['total'] or Decimal('0')
+        
+        # Convert sale item quantity (units) to kg
+        if self.sale_item.product and self.sale_item.product.weight_kg:
+            item_kg = Decimal(str(self.sale_item.quantity)) * self.sale_item.product.weight_kg
+        else:
+            # Fallback: assume 1 unit = 1 kg
+            item_kg = Decimal(str(self.sale_item.quantity))
+        
+        if total_allocated + self.quantity_allocated > item_kg:
+            raise ValidationError({
+                'quantity_allocated': f"No se pueden asignar {self.quantity_allocated} kg. "
+                                     f"El item de venta solo necesita {item_kg - total_allocated} kg más."
+            })

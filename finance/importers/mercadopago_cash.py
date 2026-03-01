@@ -1,7 +1,11 @@
+import logging
+
 import pandas as pd
 from decimal import Decimal
 from django.utils import timezone
 from finance.models import CashMovement, Account
+
+logger = logging.getLogger(__name__)
 
 class MercadoPagoCashImporter:
     def __init__(self, user):
@@ -22,7 +26,7 @@ class MercadoPagoCashImporter:
             # We try comma first
             try:
                 df = pd.read_csv(file_obj)
-            except:
+            except Exception:
                 file_obj.seek(0)
                 df = pd.read_csv(file_obj, sep=';')
                 
@@ -116,7 +120,7 @@ class MercadoPagoCashImporter:
                     
                 except Exception as e:
                     stats['errors'] += 1
-                    print(f"Row error: {e}")
+                    logger.error(f"Row error: {e}")
                     
             return stats
             

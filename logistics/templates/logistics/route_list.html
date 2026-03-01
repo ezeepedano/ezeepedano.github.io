@@ -45,6 +45,11 @@
                                 {{ route.get_status_display }}
                             </span>
                         </td>
+                        <td class="px-6 py-4 text-right">
+                            <a href="{% url 'delivery_route_delete' route.pk %}" class="text-slate-400 hover:text-red-500 transition-colors p-2" title="Eliminar Hoja de Ruta">
+                                <i class="fas fa-trash-alt"></i>
+                            </a>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>

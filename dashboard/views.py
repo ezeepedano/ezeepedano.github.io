@@ -230,7 +230,7 @@ class BusinessIntelligenceView(LoginRequiredMixin, TemplateView):
         context['today'] = timezone.now().date()
         
         # Add Stock Intelligence Forecasts
-        service = StockIntelligenceService(days_history=30)
+        service = StockIntelligenceService(user=self.request.user, days_history=30)
         context['forecasts'] = service.get_all_ingredients_forecast()
         
         return context

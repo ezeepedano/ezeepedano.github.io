@@ -18,7 +18,7 @@ class PurchaseForm(forms.ModelForm):
     
     class Meta:
         model = Purchase
-        fields = ['date', 'code', 'provider', 'category', 'description', 'amount']
+        fields = ['date', 'code', 'provider', 'category', 'description', 'amount', 'due_date', 'payment_status']
 
 class VariableExpenseForm(forms.ModelForm):
     class Meta:
@@ -31,7 +31,7 @@ class AssetForm(forms.ModelForm):
 
     class Meta:
         model = Asset
-        fields = ['name', 'category', 'cost', 'purchase_date', 'provider', 'location', 'description']
+        fields = ['name', 'category', 'cost', 'purchase_date', 'provider', 'location', 'description', 'quantity']
 
 class ProviderForm(forms.ModelForm):
     class Meta:
@@ -40,6 +40,17 @@ class ProviderForm(forms.ModelForm):
 
 
 
+
+class AccountForm(forms.ModelForm):
+    class Meta:
+        model = Account
+        fields = ['name', 'type', 'currency', 'opening_balance']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'w-full px-4 py-2 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all font-medium', 'placeholder': 'Ej. Banco Santander'}),
+            'type': forms.Select(attrs={'class': 'w-full px-4 py-2 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all font-medium'}),
+            'currency': forms.TextInput(attrs={'class': 'w-full px-4 py-2 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all font-medium', 'placeholder': 'ARS'}),
+            'opening_balance': forms.NumberInput(attrs={'class': 'w-full px-4 py-2 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all font-medium'}),
+        }
 
 class TransactionImportForm(forms.Form):
     file = forms.FileField(label="Archivo de Liquidación (CSV/Excel)", widget=forms.FileInput(attrs={'class': 'w-full px-4 py-2 rounded-xl bg-gray-50 border-transparent'}))

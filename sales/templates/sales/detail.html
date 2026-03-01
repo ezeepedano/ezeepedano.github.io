@@ -36,9 +36,15 @@
                 <i class="fas fa-external-link-alt mr-2"></i> View on Site
             </a>
             {% endif %}
+            
+            <a href="{% url 'sale_edit' sale.pk %}"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm flex items-center">
+                <i class="fas fa-edit mr-2"></i> Editar Venta
+            </a>
+
             <a href="{% url 'sales_dashboard' %}"
                 class="bg-white border text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg font-medium transition-colors flex items-center">
-                <i class="fas fa-arrow-left mr-2"></i> Back to List
+                <i class="fas fa-arrow-left mr-2"></i> Volver al Listado
             </a>
         </div>
     </div>
@@ -105,8 +111,8 @@
                             <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Tracking</p>
                             {% if sale.tracking_number and sale.tracking_number != "nan" %}
                                 <div class="flex items-center gap-2">
-                                    <code class="bg-gray-100 px-2 py-1 rounded text-sm">{{ sale.tracking_number }}</code>
-                                    <button class="text-gray-400 hover:text-gray-600"><i class="far fa-copy"></i></button>
+                                    <code id="tracking-code" class="bg-gray-100 px-2 py-1 rounded text-sm">{{ sale.tracking_number }}</code>
+                                    <button id="copy-tracking-btn" class="text-gray-400 hover:text-gray-600 transition-colors" title="Copiar"><i class="far fa-copy"></i></button>
                                 </div>
                             {% else %}
                                 <p class="text-sm text-gray-400 italic">No tracking info</p>
@@ -284,21 +290,21 @@
                 {% endif %}
                 
                 <div class="mt-4 pt-4 border-t border-gray-100">
-                    <a href="#" class="text-sm text-indigo-600 font-medium hover:text-indigo-700 flex items-center justify-center">
-                        View Customer Profile <i class="fas fa-chevron-right text-xs ml-1"></i>
+                    <a href="{% url 'customer_detail' sale.customer.pk %}" class="text-sm text-indigo-600 font-medium hover:text-indigo-700 flex items-center justify-center">
+                        Ver Perfil del Cliente <i class="fas fa-chevron-right text-xs ml-1"></i>
                     </a>
                 </div>
             </div>
 
             <!-- Management -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                <h2 class="font-bold text-gray-800 mb-4">Actions</h2>
+                <h2 class="font-bold text-gray-800 mb-4">Acciones</h2>
                 <div class="space-y-2">
-                    <button class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium py-2 rounded-lg transition-colors text-sm">
-                        <i class="fas fa-file-invoice mr-2"></i> Generate Invoice
+                    <button onclick="window.print()" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium py-2 rounded-lg transition-colors text-sm">
+                        <i class="fas fa-print mr-2"></i> Imprimir Orden
                     </button>
-                    <button class="w-full bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-2 rounded-lg transition-colors text-sm">
-                        <i class="fas fa-print mr-2"></i> Print Order
+                    <button onclick="if(confirm('¿Cancelar esta venta? Esta acción restaurará el stock.')){window.location='{% url 'sale_edit' sale.pk %}'}" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-medium py-2 rounded-lg transition-colors text-sm">
+                        <i class="fas fa-ban mr-2"></i> Cancelar Venta
                     </button>
                 </div>
             </div>
@@ -306,4 +312,20 @@
         </div>
     </div>
 </div>
+
+<script>
+// Copy tracking number
+document.addEventListener('DOMContentLoaded', function() {
+    const copyBtn = document.getElementById('copy-tracking-btn');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', function() {
+            const code = document.getElementById('tracking-code').textContent.trim();
+            navigator.clipboard.writeText(code).then(() => {
+                copyBtn.innerHTML = '<i class="fas fa-check text-green-500"></i>';
+                setTimeout(() => { copyBtn.innerHTML = '<i class="far fa-copy"></i>'; }, 1500);
+            });
+        });
+    }
+});
+</script>
 {% endblock %}

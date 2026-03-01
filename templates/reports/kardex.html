@@ -1,0 +1,80 @@
+{% extends "reports/base_report.html" %}
+
+{% block report_title %}KARDEX DE INVENTARIO{% endblock %}
+
+{% block content %}
+
+<!-- KARDEX HEADER INFO -->
+<h2>Ficha de Movimientos</h2>
+<table class="info-table">
+    <tr>
+        <td class="info-label">Insumo / Producto</td>
+        <td class="info-value text-bold" style="font-size:11pt;">{{ ingredient.name }}</td>
+        <td class="info-label">Codigo Interno</td>
+        <td class="info-value">{{ ingredient.code|default:ingredient.pk }}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Periodo Analizado</td>
+        <td class="info-value" style="color:#4f46e5;">{{ start_date|date:"d/m/Y" }} al {{ end_date|date:"d/m/Y" }}</td>
+        <td class="info-label">Stock Actual (Fisico)</td>
+        <td class="info-value text-bold" style="color:#059669;">{{ current_stock }} {{ unit }}</td>
+    </tr>
+</table>
+
+<!-- LEDGER TABLE -->
+<h2>Historial de Transacciones (Chronological Ledger)</h2>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th style="width:12%">Fecha</th>
+            <th style="width:12%" class="text-center">Tipo</th>
+            <th style="width:25%">Referencia (Comprobante)</th>
+            <th style="width:15%">Lote Afectado</th>
+            <th style="width:12%" class="text-right">Entrada (+)</th>
+            <th style="width:12%" class="text-right">Salida (-)</th>
+            <th style="width:12%" class="text-right">Saldo</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% setvar running_balance=0 %}
+        {% for tx in transactions %}
+        
+        {# We calculate running balance #}
+        {% if tx.type == 'ENTRADA' %}
+            {% setvar running_balance=running_balance|add:tx.quantity_in %}
+        {% else %}
+            {% setvar running_balance=running_balance|add_decimal:"-"|add_decimal:tx.quantity_out %}
+        {% endif %}
+        
+        <tr>
+            <td>{{ tx.date|date:"d/m/Y" }}</td>
+            <td class="text-center">
+                {% if tx.type == 'ENTRADA' %}
+                <span style="color:#059669; font-weight:bold;">COMPRA</span>
+                {% elif tx.type == 'CONSUMO' %}
+                <span style="color:#4f46e5; font-weight:bold;">PRODUCCION</span>
+                {% else %}
+                <span style="color:#dc2626; font-weight:bold;">MERMA</span>
+                {% endif %}
+            </td>
+            <td class="text-muted">{{ tx.reference }}</td>
+            <td style="color:#4f46e5; font-size:8pt;">{{ tx.lot_id }}</td>
+            <td class="text-right" style="color:#059669;">{% if tx.quantity_in > 0 %}+{{ tx.quantity_in|floatformat:2 }}{% else %}—{% endif %}</td>
+            <td class="text-right" style="color:#dc2626;">{% if tx.quantity_out > 0 %}-{{ tx.quantity_out|floatformat:2 }}{% else %}—{% endif %}</td>
+            <td class="text-right text-bold">N/A*</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted" style="padding: 20px;">No se registraron movimientos en el periodo seleccionado.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<table style="width:100%; border-collapse:collapse; margin-top:10px;">
+    <tr>
+        <td style="font-size:8pt; color:#6b7280; text-align:right;">
+            * Nota: El saldo historico progresivo requiere una auditoria inicial de inventario para inicializarse correctamente en esta version.
+        </td>
+    </tr>
+</table>
+
+{% endblock %}

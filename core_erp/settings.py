@@ -27,7 +27,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-utwzo86-du4)77$0pq+8)smt3mh)+h^!%*@#(!n*u^ka-dd58%')
+# In production, SECRET_KEY MUST be set via environment variable.
+_default_key = 'django-insecure-dev-only-key-do-not-use-in-production'
+SECRET_KEY = os.environ.get('SECRET_KEY', _default_key)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Render sets 'RENDER' env var to 'true'.
@@ -60,6 +62,7 @@ INSTALLED_APPS = [
     # Third party
     'rest_framework',
     'corsheaders',
+    'django_crontab',
     
     # Local apps
     'inventory',
@@ -72,6 +75,7 @@ INSTALLED_APPS = [
     'production',
     'logistics',
     'traceability',
+    'core_erp',
 ]
 
 MIDDLEWARE = [
@@ -188,4 +192,89 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CORS_ALLOW_ALL_ORIGINS = True
+# =============================================================================
+# SCHEDULED TASKS (django-crontab)
+# =============================================================================
+# On Linux/Render: python manage.py crontab add
+# On Windows: use Task Scheduler or run commands manually
+CRONJOBS = [
+    ('0 3 * * *', 'django.core.management.call_command', ['backup_db']),
+    ('0 7 * * *', 'django.core.management.call_command', ['daily_report']),
+    ('0 8 * * *', 'django.core.management.call_command', ['check_stock_alerts']),
+]
+
+# CORS — Only allow specific origins (set CORS_ORIGINS in .env, comma-separated)
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get('CORS_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000').split(',')
+    if origin.strip()
+]
+
+# =============================================================================
+# PRODUCTION SECURITY SETTINGS
+# =============================================================================
+if not DEBUG:
+    # Ensure SECRET_KEY is set in production
+    if SECRET_KEY == _default_key:
+        raise ValueError('SECRET_KEY environment variable must be set in production!')
+
+    # HTTPS / Cookie security
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# =============================================================================
+# LOGGING
+# =============================================================================
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': os.environ.get('LOG_LEVEL', 'INFO'),
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'sales': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'finance': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'inventory': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'production': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}

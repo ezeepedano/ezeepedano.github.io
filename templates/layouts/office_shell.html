@@ -1,4 +1,4 @@
-{% load static %}
+ {% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -183,42 +183,164 @@
                     {% include "components/ribbon/groups/font.html" %}
                 </div>
                 
-                <!-- Mock Contextual Content (Hidden by default, toggled by JS) -->
-                <div id="tab-content-table" class="hidden gap-1 h-full shrink-0 bg-green-50/30">
-                     {% include "components/ribbon/groups/table_tools.html" %}
-                </div>
             {% endblock %}
         </div>
     </div>
 
-    <!-- Collapse Logic Script -->
+    <!-- Ribbon + QAT + Search Script -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const tabs = document.querySelectorAll('.ribbon-tab');
             const ribbonContent = document.getElementById('ribbon-content');
             
-            tabs.forEach(tab => {
+            // --- Ribbon Tab Switching ---
+            tabs.forEach((tab, index) => {
                 tab.addEventListener('dblclick', () => {
-                    // Toggle collapse
                     if (ribbonContent.classList.contains('h-28')) {
                         ribbonContent.classList.replace('h-28', 'h-0');
-                        ribbonContent.classList.add('opacity-0');
+                        ribbonContent.classList.add('opacity-0', 'overflow-hidden');
                     } else {
                         ribbonContent.classList.replace('h-0', 'h-28');
-                        ribbonContent.classList.remove('opacity-0');
+                        ribbonContent.classList.remove('opacity-0', 'overflow-hidden');
                     }
-                    // Dispatch resize event for canvas
                     window.dispatchEvent(new Event('resize'));
                 });
                 
                 tab.addEventListener('click', (e) => {
-                    // Activate tab visual
-                    tabs.forEach(t => t.classList.remove('active', 'bg-white', 'text-brand-600', 'border-b-2', 'border-brand-600'));
-                    e.target.classList.add('active'); // active class in CSS does the rest but Tailwind overrides might need explicit classes here if using standard classes
-                    // Use command manager to switch content if dynamic
+                    // Reset all tabs
+                    tabs.forEach(t => {
+                        t.classList.remove('active');
+                        t.style.backgroundColor = '';
+                        t.style.borderBottomColor = '';
+                    });
+                    // Activate clicked tab
+                    e.target.classList.add('active');
+                    
+                    // Ensure ribbon is visible when switching tabs
+                    if (ribbonContent.classList.contains('h-0')) {
+                        ribbonContent.classList.replace('h-0', 'h-28');
+                        ribbonContent.classList.remove('opacity-0', 'overflow-hidden');
+                    }
+                    
+                    // Show corresponding content panel
+                    const panels = ribbonContent.querySelectorAll('[id^="tab-content-"]');
+                    panels.forEach(p => p.classList.add('hidden'));
+                    
+                    // Map tab index to content id
+                    const tabNames = ['home', 'insert', 'layout', 'formulas', 'data', 'review', 'view'];
+                    const panelId = 'tab-content-' + (tabNames[index] || 'home');
+                    const panel = document.getElementById(panelId);
+                    if (panel) {
+                        panel.classList.remove('hidden');
+                        panel.classList.add('flex');
+                    } else {
+                        // Show home as fallback
+                        const homePanel = document.getElementById('tab-content-home');
+                        if (homePanel) {
+                            homePanel.classList.remove('hidden');
+                            homePanel.classList.add('flex');
+                        }
+                    }
                 });
             });
+            
+            // --- QAT Buttons ---
+            const qatBtns = document.querySelectorAll('[data-command]');
+            qatBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const cmd = btn.dataset.command;
+                    // Visual feedback
+                    btn.style.transform = 'scale(0.9)';
+                    setTimeout(() => btn.style.transform = '', 150);
+                    
+                    if (cmd === 'file:save') {
+                        // Ctrl+S simulation — show save toast
+                        showToast('Guardado correctamente', 'success');
+                    } else if (cmd === 'edit:undo') {
+                        showToast('Deshacer', 'info');
+                    } else if (cmd === 'edit:redo') {
+                        showToast('Rehacer', 'info');
+                    } else if (cmd === 'file:toggle_backstage') {
+                        const backstage = document.getElementById('backstage-panel');
+                        if (backstage) backstage.classList.toggle('hidden');
+                    }
+                });
+            });
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.key === 's') {
+                    e.preventDefault();
+                    showToast('Guardado correctamente', 'success');
+                } else if (e.ctrlKey && e.key === 'z') {
+                    e.preventDefault();
+                    showToast('Deshacer', 'info');
+                } else if (e.ctrlKey && e.key === 'y') {
+                    e.preventDefault();
+                    showToast('Rehacer', 'info');
+                }
+            });
+            
+            // --- Search / Tell Me ---
+            const searchInput = document.getElementById('tell-me-input');
+            if (searchInput) {
+                let resultsContainer = document.createElement('div');
+                resultsContainer.id = 'search-results';
+                resultsContainer.className = 'absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-40 rounded shadow-lg z-50 hidden max-h-64 overflow-y-auto';
+                searchInput.parentElement.parentElement.appendChild(resultsContainer);
+                
+                const searchItems = [
+                    { label: 'Dashboard Ejecutivo', icon: 'fa-chart-line', url: '{% url "executive_dashboard" %}' },
+                    { label: 'Ventas', icon: 'fa-shopping-cart', url: '{% url "sales_dashboard" %}' },
+                    { label: 'Inventario', icon: 'fa-boxes', url: '{% url "product_list" %}' },
+                    { label: 'Producción', icon: 'fa-industry', url: '{% url "produce_product" %}' },
+                    { label: 'Finanzas', icon: 'fa-dollar-sign', url: '{% url "fixed_cost_list" %}' },
+                    { label: 'Cashflow', icon: 'fa-wallet', url: '{% url "cashflow_dashboard" %}' },
+                    { label: 'Clientes', icon: 'fa-users', url: '{% url "customer_list" %}' },
+                    { label: 'Reportes', icon: 'fa-file-pdf', url: '{% url "reports_hub" %}' },
+                    { label: 'Nuevo Producto', icon: 'fa-plus', url: '{% url "product_create" %}' },
+                    { label: 'Importar Inventario', icon: 'fa-file-upload', url: '{% url "import_inventory" %}' },
+                ];
+                
+                searchInput.addEventListener('input', (e) => {
+                    const q = e.target.value.toLowerCase().trim();
+                    if (!q) {
+                        resultsContainer.classList.add('hidden');
+                        return;
+                    }
+                    
+                    const matches = searchItems.filter(item => item.label.toLowerCase().includes(q));
+                    if (matches.length === 0) {
+                        resultsContainer.innerHTML = '<div class="px-4 py-3 text-sm text-neutral-60">Sin resultados</div>';
+                    } else {
+                        resultsContainer.innerHTML = matches.map(item =>
+                            `<a href="${item.url}" class="flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-20 text-neutral-90 text-sm transition-colors">
+                                <i class="fas ${item.icon} text-neutral-60 w-4"></i>
+                                ${item.label}
+                            </a>`
+                        ).join('');
+                    }
+                    resultsContainer.classList.remove('hidden');
+                });
+                
+                searchInput.addEventListener('blur', () => {
+                    setTimeout(() => resultsContainer.classList.add('hidden'), 200);
+                });
+                searchInput.addEventListener('focus', () => {
+                    if (searchInput.value.trim()) searchInput.dispatchEvent(new Event('input'));
+                });
+            }
         });
+        
+        // Toast notification helper
+        function showToast(msg, type = 'info') {
+            const toast = document.createElement('div');
+            const colors = { success: 'bg-green-600', info: 'bg-brand-600', error: 'bg-red-600' };
+            toast.className = `fixed bottom-10 left-1/2 -translate-x-1/2 ${colors[type] || colors.info} text-white px-5 py-2 rounded-lg shadow-lg text-sm font-medium z-50 transition-all duration-300`;
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 1500);
+        }
     </script>
     
     <!-- MAIN WORKSPACE -->
@@ -226,15 +348,27 @@
         <!-- Sidebar / Navigation Pane (Optional, mostly hidden in document view) -->
         <div class="w-60 bg-neutral-10 border-r border-neutral-40 flex flex-col hidden md:flex">
              <div class="p-2 text-xs font-semibold uppercase text-neutral-60">Navegación</div>
-             <!-- Sidebar Links Mock -->
-             <a href="#" class="px-4 py-2 text-sm hover:bg-neutral-30 text-neutral-90 flex items-center gap-2">
+             <!-- Sidebar Links -->
+             <a href="{% url 'executive_dashboard' %}" class="px-4 py-2 text-sm hover:bg-neutral-30 text-neutral-90 flex items-center gap-2 {% if request.resolver_match.url_name == 'executive_dashboard' %}bg-neutral-30 font-semibold{% endif %}">
                  <i class="fas fa-home text-neutral-60 w-4"></i> Dashboard
              </a>
-             <a href="#" class="px-4 py-2 text-sm hover:bg-neutral-30 text-neutral-90 flex items-center gap-2">
+             <a href="{% url 'sales_dashboard' %}" class="px-4 py-2 text-sm hover:bg-neutral-30 text-neutral-90 flex items-center gap-2 {% if 'sales' in request.path %}bg-neutral-30 font-semibold{% endif %}">
+                 <i class="fas fa-shopping-cart text-neutral-60 w-4"></i> Ventas
+             </a>
+             <a href="{% url 'product_list' %}" class="px-4 py-2 text-sm hover:bg-neutral-30 text-neutral-90 flex items-center gap-2 {% if 'inventory' in request.path %}bg-neutral-30 font-semibold{% endif %}">
                  <i class="fas fa-boxes text-neutral-60 w-4"></i> Inventario
              </a>
-             <a href="#" class="px-4 py-2 text-sm hover:bg-neutral-30 text-neutral-90 flex items-center gap-2">
+             <a href="{% url 'produce_product' %}" class="px-4 py-2 text-sm hover:bg-neutral-30 text-neutral-90 flex items-center gap-2 {% if 'production' in request.path %}bg-neutral-30 font-semibold{% endif %}">
                  <i class="fas fa-industry text-neutral-60 w-4"></i> Producción
+             </a>
+             <a href="{% url 'fixed_cost_list' %}" class="px-4 py-2 text-sm hover:bg-neutral-30 text-neutral-90 flex items-center gap-2 {% if 'finance' in request.path %}bg-neutral-30 font-semibold{% endif %}">
+                 <i class="fas fa-dollar-sign text-neutral-60 w-4"></i> Finanzas
+             </a>
+             <a href="{% url 'reports_hub' %}" class="px-4 py-2 text-sm hover:bg-neutral-30 text-neutral-90 flex items-center gap-2 {% if '/production/reports' in request.path %}bg-neutral-30 font-semibold{% endif %}">
+                 <i class="fas fa-file-pdf text-neutral-60 w-4"></i> Reportes
+             </a>
+             <a href="{% url 'customer_list' %}" class="px-4 py-2 text-sm hover:bg-neutral-30 text-neutral-90 flex items-center gap-2 {% if 'customers' in request.path %}bg-neutral-30 font-semibold{% endif %}">
+                 <i class="fas fa-users text-neutral-60 w-4"></i> Clientes
              </a>
         </div>
 
@@ -260,19 +394,11 @@
     <!-- STATUS BAR -->
     <div id="status-bar" class="h-6 bg-brand-600 text-white flex items-center justify-between px-2 text-xs select-none shrink-0">
         <div class="flex gap-4">
-            <span>Listo</span>
-            <span>Página 1 de 1</span>
+            <span>{% block status_text %}Listo{% endblock %}</span>
         </div>
         <div class="flex items-center gap-4">
             <span>Español (Argentina)</span>
-            <div class="flex items-center gap-2">
-                <i class="fas fa-search-minus cursor-pointer"></i>
-                <div class="w-24 h-1 bg-white/30 rounded-full relative">
-                    <div class="absolute left-1/2 w-2 h-2 bg-white rounded-full -top-0.5 -ml-1 cursor-pointer"></div>
-                </div>
-                <i class="fas fa-search-plus cursor-pointer"></i>
-                <span class="ml-1">100%</span>
-            </div>
+            <span>{{ request.user.username }}</span>
         </div>
     </div>
 

@@ -51,9 +51,33 @@
         <!-- Sales -->
         <a href="{% url 'sales_dashboard' %}"
             class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/sales/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            {% if '/sales/' in request.path and '/customers/' not in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
             <i class="fas fa-shopping-cart w-6 transition-transform group-hover:scale-110"></i>
             <span class="font-medium tracking-wide">Ventas</span>
+        </a>
+
+        <a href="{% url 'customer_list' %}"
+            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
+            {% if '/sales/customers/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            <i class="fas fa-user-tag w-6 transition-transform group-hover:scale-110"></i>
+            <span class="font-medium tracking-wide">Clientes</span>
+        </a>
+
+        <!-- Purchases Group -->
+        <div class="px-4 pt-6 pb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Compras</div>
+
+        <a href="{% url 'traceability:purchase_list' %}"
+            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
+            {% if '/traceability/purchases/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            <i class="fas fa-shopping-bag w-6 transition-transform group-hover:scale-110"></i>
+            <span class="font-medium tracking-wide">Historial Compras</span>
+        </a>
+
+        <a href="{% url 'purchase_hub' %}"
+            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
+            {% if '/purchases/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            <i class="fas fa-plus-circle w-6 transition-transform group-hover:scale-110"></i>
+            <span class="font-medium tracking-wide">Nueva Compra</span>
         </a>
 
 
@@ -141,6 +165,13 @@
             {% if '/traceability/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
             <i class="fas fa-barcode w-6 transition-transform group-hover:scale-110"></i>
             <span class="font-medium tracking-wide">Trazabilidad</span>
+        </a>
+
+        <a href="{% url 'reports_hub' %}"
+            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
+            {% if '/production/reports/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            <i class="fas fa-file-pdf w-6 transition-transform group-hover:scale-110"></i>
+            <span class="font-medium tracking-wide">Reportes</span>
         </a>
 
     </nav>

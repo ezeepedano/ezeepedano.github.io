@@ -1,0 +1,86 @@
+{% extends "reports/base_report.html" %}
+
+{% block report_title %}ANALISIS DE RENDIMIENTO Y COSTO DE LOTE{% endblock %}
+
+{% block content %}
+
+<!-- BATCH INFO -->
+<h2>Datos de Produccion Ejecutada</h2>
+<table class="info-table">
+    <tr>
+        <td class="info-label">Producto Obtenido</td>
+        <td class="info-value text-bold" style="font-size:11pt;">{{ batch.product.name }}</td>
+        <td class="info-label">Lote Generado</td>
+        <td class="info-value" style="color:#4f46e5;">{{ batch.internal_lot_code }}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Cantidad Declarada</td>
+        <td class="info-value" style="color:#059669; font-weight:bold;">{{ batch.quantity_produced }} {{ batch.product.unit_measure }}</td>
+        <td class="info-label">Fecha Fab.</td>
+        <td class="info-value">{{ batch.production_date|date:"d/m/Y" }}</td>
+    </tr>
+</table>
+
+<!-- COST SUMMARY -->
+<h2>Resumen Financiero Directo</h2>
+<table style="width:100%; border-collapse:collapse; margin-bottom: 20px;">
+    <tr>
+        <td style="width:33.3%; border:1px solid #e5e7eb; padding:15px; text-align:center; background:#f9fafb;">
+            <span style="font-size:9pt; color:#6b7280; text-transform:uppercase; font-weight:bold;">Costo Teorico (BOM)</span><br/>
+            <span style="font-size:14pt; color:#374151; font-weight:bold;">$ {{ theoretical_cost|floatformat:2 }}</span>
+        </td>
+        <td style="width:33.3%; border:1px solid #e5e7eb; padding:15px; text-align:center; background:#f9fafb;">
+            <span style="font-size:9pt; color:#6b7280; text-transform:uppercase; font-weight:bold;">Costo Real Efectivo</span><br/>
+            <span style="font-size:14pt; color:#059669; font-weight:bold;">$ {{ actual_cost|floatformat:2 }}</span>
+        </td>
+        <td style="width:33.3%; border:1px solid #e5e7eb; padding:15px; text-align:center; background:{% if cost_variance > 0 %}#fef2f2{% else %}#f0fdf4{% endif %};">
+            <span style="font-size:9pt; color:#6b7280; text-transform:uppercase; font-weight:bold;">Desvio de Costo</span><br/>
+            <span style="font-size:14pt; color:{% if cost_variance > 0 %}#dc2626{% else %}#16a34a{% endif %}; font-weight:bold;">
+                {% if cost_variance > 0 %}+{% endif %}$ {{ cost_variance|floatformat:2 }} ({{ variance_pct|floatformat:1 }}%)
+            </span>
+        </td>
+    </tr>
+</table>
+
+<!-- COST UNIT -->
+<table style="width:100%; border-collapse:collapse; margin-bottom: 20px;">
+    <tr>
+        <td style="background-color:#eff6ff; border-left:4px solid #3b82f6; padding:10px 16px;">
+            <span style="font-size:10pt; font-weight:bold; color:#1e40af;">
+                Costo Unitario Directo Final (Real): <span style="font-size:12pt;">$ {{ unit_cost_actual|floatformat:2 }} USD / {{ batch.product.unit_measure }}</span>
+            </span>
+        </td>
+    </tr>
+</table>
+
+
+<!-- DETAIL: ACTUAL CONSUMPTIONS -->
+<h2>Detalle de Consumos Reales y Mermas Registradas</h2>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th style="width:35%">Insumo Utilizado</th>
+            <th style="width:25%">Lote Trazabilidad</th>
+            <th style="width:20%" class="text-right">Cantidad Fis.</th>
+            <th style="width:20%" class="text-right">Impacto Economico</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for line in actual_lines %}
+        <tr>
+            <td class="text-bold">{{ line.name }}</td>
+            <td style="color:#4f46e5; font-size:8pt;">{{ line.lot }}</td>
+            <td class="text-right">{{ line.qty|floatformat:2 }}</td>
+            <td class="text-right text-bold text-muted">$ {{ line.cost|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center text-muted" style="padding: 20px;">No hay consumos reales registrados para este lote.</td></tr>
+        {% endfor %}
+        <tr class="total-row">
+            <td colspan="3" class="text-right">TOTAL MATERIALES:</td>
+            <td class="text-right" style="font-size:10pt; color:#059669;">$ {{ actual_cost|floatformat:2 }}</td>
+        </tr>
+    </tbody>
+</table>
+
+{% endblock %}

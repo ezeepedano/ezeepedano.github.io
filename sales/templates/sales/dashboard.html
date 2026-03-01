@@ -31,7 +31,46 @@
         </div>
     </div>
 
-    <!-- Stats & Filters -->
+    <!-- Search & Date Filters -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
+        <form method="get" class="flex flex-col md:flex-row gap-3 items-end">
+            {% if current_channel %}
+            <input type="hidden" name="channel" value="{{ current_channel }}">
+            {% endif %}
+            <!-- Search -->
+            <div class="flex-1">
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Buscar</label>
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                    <input type="text" name="q" value="{{ search_query }}" placeholder="Customer, Order ID, product..."
+                        class="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-primary focus:border-primary">
+                </div>
+            </div>
+            <!-- Date From -->
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Desde</label>
+                <input type="date" name="date_from" value="{{ date_from }}"
+                    class="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-primary focus:border-primary">
+            </div>
+            <!-- Date To -->
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Hasta</label>
+                <input type="date" name="date_to" value="{{ date_to }}"
+                    class="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-primary focus:border-primary">
+            </div>
+            <button type="submit" class="bg-gray-800 hover:bg-gray-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition-colors">
+                <i class="fas fa-filter mr-1"></i> Filtrar
+            </button>
+            {% if search_query or date_from or date_to %}
+            <a href="{% url 'sales_dashboard' %}{% if current_channel %}?channel={{ current_channel }}{% endif %}" 
+               class="text-sm text-red-500 hover:text-red-600 hover:underline whitespace-nowrap self-center">
+                <i class="fas fa-times mr-1"></i> Limpiar
+            </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Channel Filters -->
     <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
         <div class="flex flex-wrap bg-gray-100 p-1 rounded-xl w-full md:w-auto overflow-x-auto no-scrollbar">
             <a href="{% url 'sales_dashboard' %}" 
@@ -51,6 +90,11 @@
                Wholesale
             </a>
         </div>
+        {% if sales.paginator.count > 0 %}
+        <span class="text-sm text-gray-500">
+            {{ sales.paginator.count }} ventas encontradas
+        </span>
+        {% endif %}
     </div>
 
     <!-- Sales Table -->
@@ -59,13 +103,25 @@
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
-                        <th class="p-6">Date</th>
-                        <th class="p-6">Order ID</th>
-                        <th class="p-6">Customer</th>
-                        <th class="p-6 text-center">Status</th>
-                        <th class="p-6 text-center">Channel</th>
-                        <th class="p-6 text-right">Total</th>
-                        <th class="p-6 text-center">Details</th>
+                        <th class="p-6">
+                            <a href="?sort=date&order={% if sort_field == 'date' and sort_order == 'desc' %}asc{% else %}desc{% endif %}{% if current_channel %}&channel={{ current_channel }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="flex items-center gap-1 hover:text-primary transition-colors">
+                                Fecha {% if sort_field == 'date' %}<i class="fas fa-sort-{% if sort_order == 'asc' %}up{% else %}down{% endif %} text-primary"></i>{% endif %}
+                            </a>
+                        </th>
+                        <th class="p-6">N° Orden</th>
+                        <th class="p-6">Cliente</th>
+                        <th class="p-6 text-center">
+                            <a href="?sort=status&order={% if sort_field == 'status' and sort_order == 'asc' %}desc{% else %}asc{% endif %}{% if current_channel %}&channel={{ current_channel }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="flex items-center gap-1 justify-center hover:text-primary transition-colors">
+                                Estado {% if sort_field == 'status' %}<i class="fas fa-sort-{% if sort_order == 'desc' %}down{% else %}up{% endif %} text-primary"></i>{% endif %}
+                            </a>
+                        </th>
+                        <th class="p-6 text-center">Canal</th>
+                        <th class="p-6 text-right">
+                            <a href="?sort=total&order={% if sort_field == 'total' and sort_order == 'desc' %}asc{% else %}desc{% endif %}{% if current_channel %}&channel={{ current_channel }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="flex items-center gap-1 justify-end hover:text-primary transition-colors">
+                                Total {% if sort_field == 'total' %}<i class="fas fa-sort-{% if sort_order == 'desc' %}down{% else %}up{% endif %} text-primary"></i>{% endif %}
+                            </a>
+                        </th>
+                        <th class="p-6 text-center">Ver</th>
                     </tr>
                 </thead>
                 <tbody class="text-sm font-medium text-gray-700 divide-y divide-gray-50">
@@ -112,12 +168,17 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="p-12 text-center text-gray-400">
+                        <td colspan="7" class="p-12 text-center text-gray-400">
                             <div class="flex flex-col items-center">
                                 <i class="fas fa-box-open text-4xl mb-4 text-gray-200"></i>
+                                {% if search_query %}
+                                <p>No sales found for "{{ search_query }}"</p>
+                                <a href="{% url 'sales_dashboard' %}" class="mt-2 text-primary font-bold hover:underline">Clear search</a>
+                                {% else %}
                                 <p>No sales found</p>
                                 <a href="{% url 'upload_sales' %}"
                                     class="mt-2 text-primary font-bold hover:underline">Import your first Excel</a>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -125,6 +186,41 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Pagination -->
+        {% if sales.has_other_pages %}
+        <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+            <div class="text-sm text-gray-500">
+                Página {{ sales.number }} de {{ sales.paginator.num_pages }}
+                <span class="text-gray-400 ml-2">({{ sales.paginator.count }} total)</span>
+            </div>
+            <div class="flex items-center gap-1">
+                {% if sales.has_previous %}
+                <a href="?page=1{% if current_channel %}&channel={{ current_channel }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}"
+                   class="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors">
+                    <i class="fas fa-angle-double-left"></i>
+                </a>
+                <a href="?page={{ sales.previous_page_number }}{% if current_channel %}&channel={{ current_channel }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}"
+                   class="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors">
+                    <i class="fas fa-angle-left"></i>
+                </a>
+                {% endif %}
+
+                <span class="px-4 py-1.5 rounded-lg text-sm font-bold bg-primary text-white">{{ sales.number }}</span>
+
+                {% if sales.has_next %}
+                <a href="?page={{ sales.next_page_number }}{% if current_channel %}&channel={{ current_channel }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}"
+                   class="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors">
+                    <i class="fas fa-angle-right"></i>
+                </a>
+                <a href="?page={{ sales.paginator.num_pages }}{% if current_channel %}&channel={{ current_channel }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}"
+                   class="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors">
+                    <i class="fas fa-angle-double-right"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

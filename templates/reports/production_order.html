@@ -1,0 +1,138 @@
+{% extends "reports/base_report.html" %}
+
+{% block report_title %}ORDEN DE PRODUCCION{% endblock %}
+
+{% block content %}
+
+<!-- ORDER HEADER INFO -->
+<h2>Identificacion del Lote</h2>
+<table class="info-table">
+    <tr>
+        <td class="info-label">Producto</td>
+        <td class="info-value">{{ order.product.name }}</td>
+        <td class="info-label">SKU</td>
+        <td class="info-value">{{ order.product.sku }}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Orden N°</td>
+        <td class="info-value" style="color:#4f46e5;">{{ order.code }}</td>
+        <td class="info-label">Lote Asignado</td>
+        <td class="info-value" style="color:#4f46e5;">
+            <div style="display:inline-block; vertical-align:middle;">{{ lot_code }}</div>
+            {% if lot_qr_base64 %}
+            <div style="display:inline-block; vertical-align:middle; margin-left:10px;">
+                <img src="data:image/png;base64,{{ lot_qr_base64 }}" style="height:35px; width:35px;" />
+            </div>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <td class="info-label">Tamano de Lote</td>
+        <td class="info-value">{{ order.quantity_to_produce }} {{ order.product.unit_measure }}</td>
+        <td class="info-label">Venc. Lote</td>
+        <td class="info-value">{{ expiry_date|date:"d/m/Y"|default:"__/__/____" }}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Fecha Inicio</td>
+        <td class="info-value">{{ order.start_date|date:"d/m/Y"|default:"__/__/____" }}</td>
+        <td class="info-label">Director Tecnico</td>
+        <td class="info-value">{{ dt_name|default:"—" }}</td>
+    </tr>
+</table>
+
+<!-- FORMULA TABLE -->
+<h2>Formula de Produccion</h2>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th style="width:8%">Codigo</th>
+            <th style="width:25%">Ingrediente / Insumo</th>
+            <th style="width:13%">Lote Sugerido</th>
+            <th style="width:12%" class="text-right">Cant. Teorica</th>
+            <th style="width:8%"  class="text-center">Unidad</th>
+            <th style="width:20%">Lote Real Utilizado</th>
+            <th style="width:9%">Cant. Real</th>
+            <th style="width:5%" class="text-center">OK</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for line in bom_lines %}
+        <tr>
+            <td class="text-muted">{{ line.code }}</td>
+            <td class="text-bold">{{ line.name }}</td>
+            <td style="color:#4f46e5; font-size:8pt;">{{ line.suggested_lot|default:"—" }}</td>
+            <td class="text-right text-bold">{{ line.qty_theoretical }}</td>
+            <td class="text-center text-muted">{{ line.unit }}</td>
+            <td><span class="field-empty">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+            <td><span class="field-empty">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+            <td class="text-center"><span class="check-box">&nbsp;</span></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- RENDIMIENTO -->
+<h2>Control de Rendimiento</h2>
+<table style="width:100%; border-collapse:collapse;">
+    <tr>
+        <td style="width:50%; border:1px solid #e5e7eb; padding:8px 12px; background:#f5f3ff;">
+            <span style="font-size:8pt; font-weight:bold; color:#4338ca; text-transform:uppercase;">Cantidad Obtenida</span><br/>
+            <span class="field-empty">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+            <span style="color:#374151;"> {{ order.product.unit_measure }}</span>
+        </td>
+        <td style="width:50%; border:1px solid #e5e7eb; padding:8px 12px; background:#fff7ed;">
+            <span style="font-size:8pt; font-weight:bold; color:#c2410c; text-transform:uppercase;">Mermas / Descarte</span><br/>
+            <span class="field-empty">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+            <span style="color:#374151;"> {{ order.product.unit_measure }}</span>
+        </td>
+    </tr>
+</table>
+
+<!-- DESPEJE DE LINEA -->
+<h2>Despeje de Linea (Line Clearance)</h2>
+<table style="width:100%; border-collapse:collapse; margin-bottom: 20px;">
+    <tr>
+        <td style="width:50%; border:1px solid #e5e7eb; padding:8px 12px; font-size:9pt; color:#374151;">
+            <span class="check-box">&nbsp;</span> Area de trabajo limpia y sin restos de productos anteriores.
+        </td>
+        <td style="width:50%; border:1px solid #e5e7eb; padding:8px 12px; font-size:9pt; color:#374151;">
+            <span class="check-box">&nbsp;</span> Equipos limpios e identificados.
+        </td>
+    </tr>
+    <tr>
+        <td style="border:1px solid #e5e7eb; padding:8px 12px; font-size:9pt; color:#374151;">
+            <span class="check-box">&nbsp;</span> Insumos y MP disponibles y verificados segun Formula.
+        </td>
+        <td style="border:1px solid #e5e7eb; padding:8px 12px; font-size:9pt; color:#374151;">
+            <span class="check-box">&nbsp;</span> Balanzas calibradas y verificadas.
+        </td>
+    </tr>
+</table>
+
+<!-- OBSERVACIONES -->
+<h2>Observaciones</h2>
+<table class="obs-box">
+    <tr><td>&nbsp;</td></tr>
+    <tr><td>&nbsp;</td></tr>
+    <tr><td>&nbsp;</td></tr>
+</table>
+
+<!-- FIRMAS -->
+<table class="signature-block">
+    <tr>
+        <td>
+            <div class="signature-line">Elaboro</div>
+            <div class="signature-sub">Operario de Produccion</div>
+        </td>
+        <td>
+            <div class="signature-line">Verifico</div>
+            <div class="signature-sub">Control de Calidad</div>
+        </td>
+        <td>
+            <div class="signature-line">{{ technical_director_name|default:"Dir. Tecnico" }}</div>
+            <div class="signature-sub">Director Tecnico</div>
+        </td>
+    </tr>
+</table>
+
+{% endblock %}

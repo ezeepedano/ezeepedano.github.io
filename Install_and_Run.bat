@@ -1,32 +1,34 @@
 @echo off
-TITLE Propel ERP - Auto-Instalador y Launcher
+TITLE Propel ERP - Launcher
 color 0A
 CLS
-
-echo ======================================================================
-echo   PROPEL ERP - ASISTENTE DE INSTALACION Y EJECUCION
-echo ======================================================================
-echo.
 
 :: ---------------------------------------------------------
 :: 0. Asegurar directorio de trabajo
 :: ---------------------------------------------------------
 cd /d "%~dp0"
 
-:: ---------------------------------------------------------
-:: 1. Verificar Python
-:: ---------------------------------------------------------
-:: Definir nombre unico para el entorno virtual de ESTA PC
 set VENV_NAME=venv_%COMPUTERNAME%
 
-echo [1/5] Verificando instalacion de Python...
+:: ---------------------------------------------------------
+:: FASE 1: INSTALACION (primera vez o si falta el flag)
+:: ---------------------------------------------------------
+set FLAG_FILE=%VENV_NAME%\.installed_ok
+
+IF EXIST "%FLAG_FILE%" GOTO RunSplash
+
+echo ======================================================================
+echo   PROPEL ERP - PRIMERA CONFIGURACION (solo ocurre una vez)
+echo ======================================================================
+echo.
+
+:: 1. Verificar Python
+echo [1/5] Verificando Python...
 set PYTHON_CMD=python
 
-:: Check standard python command
 python --version >nul 2>&1
 IF %ERRORLEVEL% EQU 0 GOTO FoundPython
 
-:: Check py launcher
 py --version >nul 2>&1
 IF %ERRORLEVEL% EQU 0 (
     set PYTHON_CMD=py
@@ -36,13 +38,12 @@ IF %ERRORLEVEL% EQU 0 (
 GOTO NoPython
 
 :FoundPython
-echo [OK] Python detectado: %PYTHON_CMD%
+echo [OK] Python detectado.
 GOTO CheckVenv
 
 :NoPython
 echo [!] Python NO encontrado.
 echo [INFO] Solicitando permisos de Administrador para instalar Python...
-:: Check Admin
 >nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
 IF %ERRORLEVEL% NEQ 0 (
     echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
@@ -64,9 +65,7 @@ echo POR FAVOR, CIERRA ESTA VENTANA Y VUELVE A ABRIR EL ARCHIVO.
 PAUSE
 EXIT
 
-:: ---------------------------------------------------------
-:: 2. Verificar Entorno Virtual (venv)
-:: ---------------------------------------------------------
+:: 2. Verificar/Crear venv
 :CheckVenv
 echo [2/5] Verificando Entorno Virtual (%VENV_NAME%)...
 IF EXIST "%VENV_NAME%" GOTO VenvExists
@@ -78,57 +77,69 @@ IF %ERRORLEVEL% NEQ 0 (
     PAUSE
     EXIT
 )
-GOTO VenvSetup
 
 :VenvExists
 echo [OK] Venv encontrado.
-GOTO VenvSetup
 
-:VenvSetup
 echo [INFO] Activando entorno...
 CALL "%VENV_NAME%\Scripts\activate"
 
-echo [INFO] Verificando dependencias...
-python -c "import django" >nul 2>&1
-IF %ERRORLEVEL% EQU 0 GOTO Launch
-
-echo [INFO] Instalando/Actualizando dependencias...
-python -m pip install --upgrade pip
+:: 3. Instalar dependencias (solo primera vez)
+echo [INFO] Primera ejecucion: instalando dependencias...
 pip install -r requirements.txt
-echo [INFO] Aplicando migraciones...
+IF %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Fallo al instalar dependencias. Revise requirements.txt.
+    PAUSE
+    EXIT
+)
+
+:: 4. Migraciones
+echo [INFO] Aplicando migraciones de base de datos...
 python manage.py migrate
+IF %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Fallo al aplicar migraciones.
+    PAUSE
+    EXIT
+)
+
+:: Marcar como instalado
+echo %DATE% %TIME% > "%FLAG_FILE%"
+echo [OK] Instalacion completa.
 
 :: ---------------------------------------------------------
-:: 3. Crear Acceso Directo (Solo si no existe)
+:: 5. Crear Acceso Directo (Solo si no existe)
 :: ---------------------------------------------------------
-:Launch
 echo [3/5] Verificando Acceso Directo...
-:: Use PowerShell to find the actual Desktop path (handles OneDrive)
-for /f "usebackq tokens=*" %%A in (`powershell -command "[Environment]::GetFolderPath('Desktop')"`) do set "DESKTOP_DIR=%%A"
-set "SHORTCUT_PATH=%DESKTOP_DIR%\Propel ERP.lnk"
+IF EXIST "%VENV_NAME%\.shortcut_cache" del "%VENV_NAME%\.shortcut_cache"
 
-IF EXIST "%SHORTCUT_PATH%" GOTO RunServer
-
-echo [INFO] Creando acceso directo en: %SHORTCUT_PATH%
-powershell -Command "$WS = New-Object -ComObject WScript.Shell; $SC = $WS.CreateShortcut('%SHORTCUT_PATH%'); $SC.TargetPath = '%~dp0Install_and_Run.bat'; $SC.IconLocation = '%~dp0static\favicon.ico'; $SC.Save()"
+set BAT_PATH=%~dp0Install_and_Run.bat
+set ICO_PATH=%~dp0static\favicon.ico
+set WORK_DIR=%~dp0
+powershell -NoProfile -Command ^
+  "$desktop = [Environment]::GetFolderPath('Desktop');" ^
+  "$lnk = Join-Path $desktop 'Propel ERP.lnk';" ^
+  "if (-not (Test-Path $lnk)) {" ^
+  "  $ws = New-Object -ComObject WScript.Shell;" ^
+  "  $sc = $ws.CreateShortcut($lnk);" ^
+  "  $sc.TargetPath = '%BAT_PATH%';" ^
+  "  $sc.WorkingDirectory = '%WORK_DIR%';" ^
+  "  $sc.IconLocation = '%ICO_PATH%';" ^
+  "  $sc.Save();" ^
+  "  Write-Host '[OK] Acceso directo creado.'" ^
+  "} else { Write-Host '[OK] Acceso directo ya existe.' }"
 
 :: ---------------------------------------------------------
-:: 4. Ejecutar Servidor
+:: FASE 2: ARRANQUE CON SPLASH SCREEN
 :: ---------------------------------------------------------
-:RunServer
-echo [4/5] Iniciando servidor...
-echo.
-echo ======================================================================
-echo   SISTEMA ONLINE
-echo   - Abriendo navegador...
-echo   - NO CIERRES ESTA VENTANA.
-echo ======================================================================
+:RunSplash
 
-timeout /t 5 >nul
-start "" http://127.0.0.1:8000
+:: Detectar Python del venv
+set VENV_PYTHON=%~dp0%VENV_NAME%\Scripts\python.exe
+IF NOT EXIST "%VENV_PYTHON%" set VENV_PYTHON=python
 
-python manage.py runserver 0.0.0.0:8000
+:: Llamar al splash screen - esta ventana CMD queda minimizada/oculta
+:: El splash screen Python maneja todo el arranque del servidor
+start /min "" "%VENV_PYTHON%" "%~dp0scripts\splash_launcher.py"
 
-echo.
-echo [INFO] El servidor se ha detenido.
-PAUSE
+:: Cerrar esta ventana CMD (el servidor sigue corriendo via el splash)
+EXIT

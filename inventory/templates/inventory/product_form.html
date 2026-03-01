@@ -240,6 +240,28 @@
                     alert('Error creating category');
                 });
         });
+        
+        // ✨ AUTO-SUGGEST: Sale price from cost × margin (2.5x default for supplements)
+        const costInput = document.querySelector('input[name="cost_price"]');
+        const salePriceInput = document.querySelector('input[name="sale_price"]');
+        
+        if (costInput && salePriceInput) {
+            costInput.addEventListener('blur', function() {
+                const cost = parseFloat(this.value) || 0;
+                
+                // Only suggest if sale price is empty or 0
+                if (!salePriceInput.value || parseFloat(salePriceInput.value) === 0) {
+                    const suggestedPrice = (cost * 2.5).toFixed(2);
+                    salePriceInput.value = suggestedPrice;
+                    salePriceInput.style.backgroundColor = '#fef3c7'; // Yellow highlight
+                    
+                    // Reset highlight after 2 seconds
+                    setTimeout(() => {
+                        salePriceInput.style.backgroundColor = '';
+                    }, 2000);
+                }
+            });
+        }
     });
 
     function closeCategoryModal() {

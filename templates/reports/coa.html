@@ -1,0 +1,105 @@
+{% extends "reports/base_report.html" %}
+
+{% block report_title %}CERTIFICADO DE ANALISIS{% endblock %}
+
+{% block content %}
+
+<!-- COA HEADER INFO -->
+<h2>Identificacion del Producto</h2>
+<table class="info-table">
+    <tr>
+        <td class="info-label">Producto</td>
+        <td class="info-value">{{ batch.product.name }}</td>
+        <td class="info-label">SKU</td>
+        <td class="info-value">{{ batch.product.sku }}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Lote de Produccion</td>
+        <td class="info-value" style="color:#4f46e5; font-size:11pt;">{{ batch.internal_lot_code }}</td>
+        <td class="info-label">Fecha de Elaboracion</td>
+        <td class="info-value">{{ batch.production_date|date:"d/m/Y" }}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Cantidad Producida</td>
+        <td class="info-value">{{ batch.quantity_produced }} kg</td>
+        <td class="info-label">Peso Neto Unitario</td>
+        <td class="info-value">{{ batch.product.net_weight }} {{ batch.product.unit_measure }}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Fecha del Certificado</td>
+        <td class="info-value">{{ print_date }}</td>
+        <td class="info-label">Director Tecnico</td>
+        <td class="info-value text-bold" style="color:#1e40af;">{{ dt_name|default:"—" }}</td>
+    </tr>
+</table>
+
+<!-- ANALYSIS RESULTS -->
+<h2>Resultados de Analisis</h2>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th style="width:28%">Parametro</th>
+            <th style="width:26%">Especificacion</th>
+            <th style="width:26%">Resultado</th>
+            <th style="width:20%">Metodo / Norma</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in results %}
+        <tr>
+            <td class="text-bold">{{ row.parameter }}</td>
+            <td class="text-muted">{{ row.specification }}</td>
+            <td>
+                {% if row.result %}
+                <span class="text-bold">{{ row.result }}</span>
+                {% else %}
+                <span class="text-muted">Pendiente</span>
+                {% endif %}
+            </td>
+            <td class="text-muted">{{ row.method }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center text-muted">No hay parametros de analisis cargados.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- VERDICT STAMP -->
+<table style="width:100%; border-collapse:collapse; margin-top:20px; margin-bottom:20px;">
+    <tr>
+        <td style="width:20%; border:none;"></td>
+        <td style="width:60%; background-color:{% if verdict == 'APROBADO' %}#f0fdf4{% else %}#fef2f2{% endif %}; border:2.5px solid {% if verdict == 'APROBADO' %}#16a34a{% else %}#ef4444{% endif %}; padding:16px; text-align:center;">
+            <span style="font-size:16pt; font-weight:bold; color:{% if verdict == 'APROBADO' %}#166534{% else %}#991b1b{% endif %}; letter-spacing:2px;">
+                {% if verdict == 'APROBADO' %}✓ LOTE APROBADO{% else %}✕ LOTE RECHAZADO{% endif %}
+            </span><br/>
+            <span style="font-size:8pt; color:{% if verdict == 'APROBADO' %}#4ade80{% else %}#f87171{% endif %}; font-weight:bold; letter-spacing:1px;">
+                {% if verdict == 'APROBADO' %}CONFORME A ESPECIFICACIONES{% else %}FUERA DE ESPECIFICACIONES{% endif %}
+            </span>
+        </td>
+        <td style="width:20%; border:none;"></td>
+    </tr>
+</table>
+
+<!-- SIGNATURE OF DT -->
+<table style="width:100%; border-collapse:collapse; margin-top:30px;">
+    <tr>
+        <td style="width:30%; text-align:center; border:none; padding-top:20px;">
+            {% if validator_qr %}
+            <img src="data:image/png;base64,{{ validator_qr }}" style="height:65px;" /><br/>
+            <span style="font-size:7pt; color:#6b7280; font-family:monospace;">ID: {{ batch.internal_lot_code }}</span>
+            {% endif %}
+        </td>
+        <td style="width:25%; border:none;">&nbsp;</td>
+        <td style="width:45%; text-align:center; border:none; padding-top:30px;">
+            {% if signature_path %}
+            <img src="{{ signature_path }}" style="height:55px; margin-bottom:6px;" /><br/>
+            {% endif %}
+            <div class="signature-line" style="margin:0 auto; width:180px; border-color:#1e40af;">
+                {{ dt_name|default:"Director Tecnico" }}
+            </div>
+            <div class="signature-sub">Director Tecnico — Firma y Sello</div>
+        </td>
+    </tr>
+</table>
+
+{% endblock %}

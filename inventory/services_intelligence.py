@@ -7,7 +7,8 @@ from .models import Ingredient, Recipe, Product
 from sales.models import Sale, SaleItem
 
 class StockIntelligenceService:
-    def __init__(self, days_history=30):
+    def __init__(self, user, days_history=30):
+        self.user = user
         self.days_history = days_history
         self.today = timezone.now()
         self.start_date = self.today - timedelta(days=days_history)
@@ -20,8 +21,11 @@ class StockIntelligenceService:
             - runway_days (float): Days until stock runs out. (9999 if infinite/no usage)
             - project_depletion_date (Date): Estimated date of 0 stock.
         """
-        # 1. Find all products that use this ingredient
-        recipes = Recipe.objects.filter(ingredient=ingredient)
+        # 1. Find all products that use this ingredient (Recipe is linked to Product, Product is filtered by User)
+        # However, to be extra safe, we filter Recipe or ensure ingredient belongs to user.
+        # Since we iterate ingredients filtered by user in get_all_ingredients_forecast, this is ostensibly safe,
+        # but let's be explicit.
+        recipes = Recipe.objects.filter(ingredient=ingredient, product__user=self.user)
         
         total_usage_in_period = Decimal('0.00')
         
@@ -31,7 +35,9 @@ class StockIntelligenceService:
             
             # 2. Get sales volume for this product in the period
             # We filter by Sale date and ensure status is valid/completed
+            # AND ensure the sale belongs to the user
             sold_quantity = SaleItem.objects.filter(
+                sale__user=self.user,
                 sale__date__gte=self.start_date,
                 sale__status__in=['paid', 'completed', 'delivered', 'sent'],
                 product=product
@@ -79,7 +85,8 @@ class StockIntelligenceService:
         """
         Returns a list of all raw materials with their forecast data, sorted by criticality.
         """
-        ingredients = Ingredient.objects.filter(type='raw_material')
+        # !!! CRITICAL FIX: Filter by USER !!!
+        ingredients = Ingredient.objects.filter(type='raw_material', user=self.user)
         results = []
         
         for ing in ingredients:

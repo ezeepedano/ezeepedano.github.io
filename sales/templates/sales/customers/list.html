@@ -155,6 +155,16 @@
                             </span>
                             {% endif %}
                         </td>
+                        <td class="p-6 text-right">
+                            <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation();">
+                                <a href="{% url 'customer_edit' customer.pk %}" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-primary hover:text-white flex items-center justify-center text-slate-500 transition-all" title="Edit">
+                                    <i class="fas fa-pen text-xs"></i>
+                                </a>
+                                <a href="{% url 'customer_delete' customer.pk %}" class="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-500 hover:text-white flex items-center justify-center text-red-500 transition-all" title="Delete">
+                                    <i class="fas fa-trash text-xs"></i>
+                                </a>
+                            </div>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>

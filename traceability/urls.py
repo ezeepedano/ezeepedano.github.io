@@ -1,11 +1,13 @@
 from django.urls import path
 from . import views
+from . import exports
 
 app_name = 'traceability'
 
 urlpatterns = [
     # Stock Management
     path('stock/', views.StockListView.as_view(), name='stock_list'),
+    path('purchases/', views.PurchaseListView.as_view(), name='purchase_list'),
     path('purchase/create/', views.PurchaseCreateView.as_view(), name='purchase_create'),
     
     # Production
@@ -15,4 +17,8 @@ urlpatterns = [
     
     # Alerts
     path('alerts/', views.AlertListView.as_view(), name='alert_list'),
+    
+    # Excel Exports
+    path('reports/full/', exports.download_full_traceability_report, name='download_full_report'),
+    path('reports/batch/<int:batch_id>/', exports.download_batch_report, name='download_batch_report'),
 ]

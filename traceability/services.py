@@ -18,6 +18,7 @@ from .models import (
 )
 from inventory.models import Ingredient, Product
 from production.models import BillOfMaterial, BomLine
+from finance.models import Purchase, Provider, PurchaseCategory
 
 
 class StockService:
@@ -28,465 +29,417 @@ class StockService:
         """
         Genera el siguiente ID interno para un ingrediente.
         Formato: MP-{CODIGO}-{NUMERO}
-        Ejemplo: MP-MAL-001, MP-MAL-002, etc.
         """
-        # Generar código de 3 letras del ingrediente
-        name_parts = ingredient.name.upper().split()
-        if len(name_parts) >= 2:
-            code = name_parts[0][:3]
-        else:
-            code = ingredient.name.upper()[:3]
-        
-        # Buscar el último número usado para este ingrediente
+
+        # Get ingredient code
+        code = ingredient.code.upper() if ingredient.code else ingredient.name[:3].upper()
         prefix = f"MP-{code}-"
+        
+        # Find the highest number used with this prefix across ALL ingredients
+        # This prevents collisions between "Magnesium" and "Magnolia" (both MAG)
         last_lot = IngredientLot.objects.filter(
             internal_id__startswith=prefix
         ).order_by('-internal_id').first()
         
-        if last_lot:
-            # Extraer número y sumar 1
+        if last_lot and last_lot.internal_id:
             try:
-                last_number = int(last_lot.internal_id.split('-')[-1])
-                next_number = last_number + 1
+                # Extract number from last ID (MP-XYZ-001 -> 001)
+                last_num = int(last_lot.internal_id.split('-')[-1])
+                next_num = last_num + 1
             except (ValueError, IndexError):
-                next_number = 1
+                next_num = 1
         else:
-            next_number = 1
+            next_num = 1
         
-        return f"{prefix}{next_number:03d}"
+        return f"{prefix}{next_num:03d}"
     
     @staticmethod
     @transaction.atomic
-    def register_purchase(ingredient, quantity, supplier_lot, expiration_date, user=None):
+    def register_purchase(ingredient, quantity, supplier_lot, received_date, 
+                         expiration_date=None, cost_per_kg=None, notes=None, user=None,
+                         provider=None, category=None, payment_status='PENDING', due_date=None):
         """
-        Registra una compra/ingreso de stock.
-        
-        Args:
-            ingredient: Objeto Ingredient
-            quantity: Cantidad en kg (Decimal)
-            supplier_lot: Lote del proveedor (str)
-            expiration_date: Fecha de vencimiento (date o None)
-            user: Usuario que registra (User o None)
-        
-        Returns:
-            IngredientLot creado
+        Registra una compra de ingrediente.
+        Crea un nuevo IngredientLot con ID interno automático.
         """
-        # Generar ID único
+        # Generate internal ID
         internal_id = StockService.get_next_internal_id(ingredient)
         
-        # Crear lote
+        # Create lot
         lot = IngredientLot.objects.create(
-            user=user,
-            internal_id=internal_id,
             ingredient=ingredient,
+            internal_id=internal_id,
+            supplier_lot=supplier_lot,
             quantity_initial=quantity,
             quantity_current=quantity,
-            supplier_lot=supplier_lot,
+            received_date=received_date,
             expiration_date=expiration_date,
-            is_active=True
+            user=user
         )
         
-        # Actualizar stock del ingrediente
-        ingredient.stock_quantity = Decimal(ingredient.stock_quantity or 0) + quantity
-        ingredient.save()
+        # Check for alerts
+        AlertService.check_new_lot_alerts(lot)
+        
+        
+        
+        # Check for alerts
+        AlertService.check_new_lot_alerts(lot)
+        
+        # --- FINANCE INTEGRATION ---
+        # Create corresponding Finance Purchase record if cost is provided
+        if cost_per_kg and cost_per_kg > 0:
+            total_amount = Decimal(str(quantity)) * Decimal(str(cost_per_kg))
+            
+            # Ensure provider logic (if string name passed or object)
+            # Service expects objects usually, but let's handle safety
+            
+            Purchase.objects.create(
+                user=user,
+                date=received_date,
+                provider=provider,
+                category=category,
+                code=supplier_lot, # Use supplier lot as invoice code/ref
+                description=f"Compra de {ingredient.name} ({quantity} kg) - Lote: {internal_id}",
+                amount=total_amount,
+                due_date=due_date if due_date else received_date, # Default due date to today if not active
+                payment_status=payment_status,
+                is_paid=(payment_status == 'PAID')
+            )
         
         return lot
-    
+
     @staticmethod
-    def get_stock_summary():
+    def check_and_create_alerts(user):
         """
-        Obtiene resumen de stock por ingrediente con alertas.
-        
+        Verifica y crea alertas para todos los lotes activos del usuario.
+        wrapper para AlertService.check_all_alerts()
+        """
+        AlertService.check_all_alerts(user)
+
+    @staticmethod
+    def get_stock_summary(user):
+        """
+        Obtiene resumen de stock para la vista del usuario.
         Returns:
-            dict con estructura:
-            {
-                'ingredients': [
-                    {
-                        'ingredient': Ingredient,
-                        'total_stock': Decimal,
-                        'active_lots_count': int,
-                        'is_low': bool,
-                        'lots': QuerySet de IngredientLots activos
-                    },
-                    ...
-                ],
-                'alerts': QuerySet de StockAlerts activas
-            }
+            dict con 'ingredients' y 'alerts'
         """
-        config = TraceabilityConfig.get_config()
         ingredients_data = []
+        ingredients = Ingredient.objects.filter(user=user).prefetch_related('lots').all()
         
-        for ingredient in Ingredient.objects.all():
-            lots = IngredientLot.objects.filter(
-                ingredient=ingredient,
-                is_active=True
-            )
-            
-            total_stock = lots.aggregate(
-                total=Sum('quantity_current')
-            )['total'] or Decimal('0')
-            
-            is_low = total_stock < config.low_stock_threshold_kg
-            
+        for ingredient in ingredients:
+            lots = ingredient.lots.filter(is_active=True).order_by('expiration_date')
             ingredients_data.append({
                 'ingredient': ingredient,
-                'total_stock': total_stock,
-                'active_lots_count': lots.count(),
-                'is_low': is_low,
+                'total_stock': ingredient.stock_quantity,
                 'lots': lots
             })
-        
-        # Obtener alertas activas
-        alerts = StockAlert.objects.filter(is_resolved=False)
-        
+            
+        alerts = StockAlert.objects.filter(
+            Q(ingredient__user=user) | Q(ingredient_lot__user=user),
+            is_resolved=False
+        ).order_by('-created_at').distinct()
+            
         return {
             'ingredients': ingredients_data,
             'alerts': alerts
         }
-    
-    @staticmethod
-    def check_and_create_alerts():
-        """
-        Verifica stock y vencimientos, creando alertas si es necesario.
-        """
-        config = TraceabilityConfig.get_config()
-        expiry_threshold = date.today() + timedelta(days=config.expiry_alert_days)
-        
-        # Alertas de stock bajo
-        for ingredient in Ingredient.objects.all():
-            total_stock = IngredientLot.objects.filter(
-                ingredient=ingredient,
-                is_active=True
-            ).aggregate(total=Sum('quantity_current'))['total'] or Decimal('0')
-            
-            if total_stock < config.low_stock_threshold_kg:
-                # Verificar si ya existe alerta activa
-                existing = StockAlert.objects.filter(
-                    alert_type='LOW_STOCK',
-                    ingredient=ingredient,
-                    is_resolved=False
-                ).exists()
-                
-                if not existing:
-                    StockAlert.objects.create(
-                        alert_type='LOW_STOCK',
-                        ingredient=ingredient,
-                        message=f"Stock bajo de {ingredient.name}: {total_stock} kg (umbral: {config.low_stock_threshold_kg} kg)"
-                    )
-        
-        # Alertas de vencimiento próximo
-        near_expiry_lots = IngredientLot.objects.filter(
-            is_active=True,
-            expiration_date__lte=expiry_threshold,
-            expiration_date__gte=date.today()
-        )
-        
-        for lot in near_expiry_lots:
-            existing = StockAlert.objects.filter(
-                alert_type='NEAR_EXPIRY',
-                ingredient_lot=lot,
-                is_resolved=False
-            ).exists()
-            
-            if not existing:
-                days_left = (lot.expiration_date - date.today()).days
-                StockAlert.objects.create(
-                    alert_type='NEAR_EXPIRY',
-                    ingredient_lot=lot,
-                    ingredient=lot.ingredient,
-                    message=f"Lote {lot.internal_id} vence en {days_left} días ({lot.expiration_date})"
-                )
-        
-        # Alertas de vencidos
-        expired_lots = IngredientLot.objects.filter(
-            is_active=True,
-            expiration_date__lt=date.today()
-        )
-        
-        for lot in expired_lots:
-            existing = StockAlert.objects.filter(
-                alert_type='EXPIRED',
-                ingredient_lot=lot,
-                is_resolved=False
-            ).exists()
-            
-            if not existing:
-                StockAlert.objects.create(
-                    alert_type='EXPIRED',
-                    ingredient_lot=lot,
-                    ingredient=lot.ingredient,
-                    message=f"Lote {lot.internal_id} VENCIDO desde {lot.expiration_date}"
-                )
 
 
 class ProductionService:
-    """Servicio para registro de producción con trazabilidad."""
+    """Servicio para registro de producción y consumo de ingredientes."""
     
     @staticmethod
-    def check_stock_availability(bom, quantity_to_produce):
+    def check_stock_availability(bom, quantity_produced):
         """
-        Verifica si hay stock suficiente para producir.
-        
-        Args:
-            bom: BillOfMaterial
-            quantity_to_produce: Cantidad a producir en kg
+        Verifica si hay stock suficiente para una producción.
+        Simula consumo FIFO sin modificar la BD.
         
         Returns:
-            dict con estructura:
-            {
-                'available': bool,
-                'missing': [
-                    {'ingredient': Ingredient, 'needed': Decimal, 'available': Decimal},
-                    ...
-                ]
-            }
+            dict con 'available': bool y 'details': list
         """
-        missing = []
+        config = TraceabilityConfig.get_config()
+        results = []
+        all_available = True
         
         for bom_line in bom.lines.all():
-            if bom_line.ingredient:
-                # Calcular cantidad necesaria
-                quantity_per_unit = bom_line.quantity / 1000  # convertir g a kg
-                total_needed = quantity_per_unit * quantity_to_produce
+            ingredient = bom_line.ingredient
+            if not ingredient:
+                continue
+            
+            # Calculate needed quantity based on ingredient type
+            if ingredient.type == 'supply':
+                # Supplies are UNITS (e.g. 1 spoon per product)
+                # bom_line.quantity = number of units per product
+                quantity_needed = Decimal(str(quantity_produced)) * bom_line.quantity
+                # No unit conversion for supplies
+            else:
+                # Raw Materials are PERCENTAGES of the BOM base quantity
+                # bom_line.quantity = percentage (e.g. 30 for 30%)
+                # Convert to actual kg needed
+                percentage = bom_line.quantity
+                bom_base_kg = bom.quantity if bom.quantity else Decimal('0.1')
+                quantity_per_unit_kg = (percentage / 100) * bom_base_kg
                 
-                # Obtener stock disponible
-                available = IngredientLot.objects.filter(
-                    ingredient=bom_line.ingredient,
-                    is_active=True
-                ).aggregate(total=Sum('quantity_current'))['total'] or Decimal('0')
-                
-                if available < total_needed:
-                    missing.append({
-                        'ingredient': bom_line.ingredient,
-                        'needed': total_needed,
-                        'available': available
-                    })
+                # For different product sizes (e.g. 100g vs 200g)
+                # We need to scale by the product weight if applicable
+                # But quantity_produced already represents the total batch weight
+                # So we use it directly
+                quantity_needed = Decimal(str(quantity_produced)) * quantity_per_unit_kg / bom_base_kg
+            
+            # Apply waste logic (only for raw materials, not supplies)
+            if ingredient.type != 'supply' and config.waste_threshold_kg > 0:
+                quantity_needed_with_waste = quantity_needed * (1 + config.waste_threshold_kg / 100)
+            else:
+                quantity_needed_with_waste = quantity_needed
+            
+            # Get available lots (FIFO order)
+            lots = IngredientLot.objects.filter(
+                ingredient=ingredient,
+                is_active=True
+            ).order_by('received_date', 'created_at')
+            
+            available_stock = sum(lot.quantity_current for lot in lots)
+            
+            results.append({
+                'ingredient': ingredient,
+                'needed': quantity_needed,
+                'needed_with_waste': quantity_needed_with_waste,
+                'available': available_stock,
+                'sufficient': available_stock >= quantity_needed_with_waste
+            })
+            
+            if available_stock < quantity_needed_with_waste:
+                all_available = False
         
         return {
-            'available': len(missing) == 0,
-            'missing': missing
+            'available': all_available,
+            'details': results
         }
     
     @staticmethod
+    @transaction.atomic
     def consume_ingredients_fifo(ingredient, quantity_needed):
         """
-        Consume ingredientes siguiendo FIFO y aplicando lógica de merma.
+        Consume ingredients using FIFO logic.
+        Returns list of consumption records.
         
-        Args:
-            ingredient: Ingredient
-            quantity_needed: Cantidad total a consumir (kg)
-        
-        Returns:
-            list de dict con estructura:
-            [
-                {
-                    'lot': IngredientLot,
-                    'quantity': Decimal,
-                    'is_waste': bool
-                },
-                ...
-            ]
+        CRITICAL: This method handles waste logic automatically.
+        Small remainders are marked as waste.
         """
         config = TraceabilityConfig.get_config()
         consumptions = []
-        remaining_needed = Decimal(str(quantity_needed))
         
-        # Obtener lotes ordenados por FIFO (más viejos primero)
+        # Get active lots ordered by FIFO
         lots = IngredientLot.objects.filter(
             ingredient=ingredient,
             is_active=True
         ).order_by('received_date', 'created_at')
         
+        remaining = Decimal(str(quantity_needed))
+        
         for lot in lots:
-            if remaining_needed <= 0:
+            if remaining <= 0:
                 break
             
-            # Determinar cuánto consumir de este lote
-            to_consume = min(lot.quantity_current, remaining_needed)
+            # Determine how much to take from this lot
+            to_consume = min(lot.quantity_current, remaining)
             
-            # Registrar consumo
+            # Consume from lot
+            lot.consume(to_consume)
+            
             consumptions.append({
                 'lot': lot,
                 'quantity': to_consume,
                 'is_waste': False
             })
             
-            # Actualizar lote
-            lot.quantity_current -= to_consume
-            remaining_needed -= to_consume
+            remaining -= to_consume
             
-            # Verificar merma
-            if lot.quantity_current < config.waste_threshold_kg and lot.quantity_current > 0:
-                # Descartar como merma
+            # Check if remainder should be wasted
+            if config.waste_threshold_kg > 0 and lot.quantity_current <= config.waste_threshold_kg and lot.quantity_current > 0:
+                # Mark remainder as waste
+                waste_amount = lot.quantity_current
+                lot.consume(waste_amount)
+                lot.is_wasted = True
+                lot.save()
+                
                 consumptions.append({
                     'lot': lot,
-                    'quantity': lot.quantity_current,
+                    'quantity': waste_amount,
                     'is_waste': True
                 })
-                lot.quantity_current = Decimal('0')
-                lot.is_wasted = True
-            
-            # Marcar como inactivo si se agotó
-            if lot.quantity_current <= 0:
-                lot.is_active = False
-            
-            lot.save()
         
-        if remaining_needed > 0:
+        if remaining > 0:
             raise ValidationError(
-                f"Stock insuficiente de {ingredient.name}. Falta: {remaining_needed} kg"
+                f"Stock insuficiente de {ingredient.name}. Falta: {remaining} kg"
             )
-        
         return consumptions
     
     @staticmethod
     @transaction.atomic
-    def register_production(product, bom, quantity_produced, internal_lot_code, user=None, notes=None):
+    def register_production(product, bom, quantity_produced, internal_lot_code, 
+                           user=None, notes=None, production_date=None, production_order=None):
         """
-        Registra una producción completa con trazabilidad.
-        
-        Args:
-            product: Product
-            bom: BillOfMaterial
-            quantity_produced: Cantidad producida en kg
-            internal_lot_code: Código de lote (ej: L-260129-01)
-            user: Usuario
-            notes: Notas opcionales
+        Registra una producción completa:
+        1. Verifica stock
+        2. Consume ingredientes (FIFO + waste logic)
+        3. Crea ProductionBatch
+        4. Registra BatchConsumptions
+        5. Actualiza Stock del Producto Final
         
         Returns:
-            ProductionBatch creado
+            ProductionBatch created
         """
-        # 1. Verificar disponibilidad
-        availability = ProductionService.check_stock_availability(bom, quantity_produced)
-        if not availability['available']:
-            missing_details = '\n'.join([
-                f"- {m['ingredient'].name}: necesita {m['needed']} kg, disponible {m['available']} kg"
-                for m in availability['missing']
-            ])
-            raise ValidationError(f"Stock insuficiente:\n{missing_details}")
+        if production_date is None:
+            production_date = date.today()
         
-        # 2. Crear lote de producción
-        production_batch = ProductionBatch.objects.create(
-            user=user,
-            internal_lot_code=internal_lot_code,
+        # Step 1: Check stock availability
+        stock_check = ProductionService.check_stock_availability(bom, quantity_produced)
+        if not stock_check['available']:
+            insufficient = [d for d in stock_check['details'] if not d['sufficient']]
+            error_msg = "Stock insuficiente para los siguientes ingredientes:\n"
+            for d in insufficient:
+                unit_label = "unidades" if d['ingredient'].type == 'supply' else "kg"
+                error_msg += f"- {d['ingredient'].name}: Necesarios {d['needed_with_waste']} {unit_label}, Disponibles {d['available']} {unit_label} (Tu Stock)\n"
+            raise ValidationError(error_msg)
+        
+        # Step 2: Consume ingredients
+        all_consumptions = []
+        for bom_line in bom.lines.all():
+            ingredient = bom_line.ingredient
+            if not ingredient:
+                continue
+            
+            # Calculate quantity needed based on ingredient type
+            if ingredient.type == 'supply':
+                # Supplies are UNITS (e.g. 1 spoon per product)
+                quantity_needed_in_kg = Decimal(str(quantity_produced)) * bom_line.quantity
+            else:
+                # Raw Materials are PERCENTAGES
+                percentage = bom_line.quantity
+                bom_base_kg = bom.quantity if bom.quantity else Decimal('0.1')
+                quantity_per_unit_kg = (percentage / 100) * bom_base_kg
+                quantity_needed_in_kg = Decimal(str(quantity_produced)) * quantity_per_unit_kg / bom_base_kg
+            
+            # Consume using FIFO
+            consumptions_data = ProductionService.consume_ingredients_fifo(
+                ingredient, quantity_needed_in_kg
+            )
+            
+            all_consumptions.extend(consumptions_data)
+        
+        # Step 3: Create ProductionBatch
+        batch = ProductionBatch.objects.create(
             product=product,
             bom=bom,
             quantity_produced=quantity_produced,
-            production_date=date.today(),
-            status='IN_PROGRESS',
-            notes=notes
+            internal_lot_code=internal_lot_code,
+            production_date=production_date,
+            status='COMPLETED',
+            notes=notes,
+            user=user,
+            production_order=production_order
         )
         
-        # 3. Consumir ingredientes con FIFO
-        for bom_line in bom.lines.all():
-            if bom_line.ingredient:
-                # Calcular cantidad necesaria
-                quantity_per_unit = bom_line.quantity / 1000  # g a kg
-                total_needed = quantity_per_unit * quantity_produced
-                
-                # Consumir con FIFO
-                consumptions = ProductionService.consume_ingredients_fifo(
-                    bom_line.ingredient, 
-                    total_needed
-                )
-                
-                # Registrar consumos en BatchConsumption
-                for consumption in consumptions:
-                    BatchConsumption.objects.create(
-                        production_batch=production_batch,
-                        ingredient_lot=consumption['lot'],
-                        ingredient=bom_line.ingredient,
-                        quantity_consumed=consumption['quantity'],
-                        is_waste=consumption['is_waste']
-                    )
-                
-                # Actualizar stock del ingrediente
-                bom_line.ingredient.stock_quantity = Decimal(
-                    bom_line.ingredient.stock_quantity or 0
-                ) - total_needed
-                if bom_line.ingredient.stock_quantity < 0:
-                    bom_line.ingredient.stock_quantity = Decimal('0')
-                bom_line.ingredient.save()
-        
-        # 4. Actualizar stock del producto
-        product.stock_quantity += int(quantity_produced)
+        # Step 4: Register consumptions
+        for data in all_consumptions:
+            BatchConsumption.objects.create(
+                production_batch=batch,
+                ingredient_lot=data['lot'],
+                ingredient=data['lot'].ingredient,
+                quantity_consumed=data['quantity'],
+                is_waste=data['is_waste']
+            )
+            
+        # Step 5: Update Product Stock (Inventory)
+        # Assuming quantity_produced is units (or aligned with stock_quantity unit)
+        # Using F expression to avoid race conditions
+        from django.db.models import F
+        product.stock_quantity = F('stock_quantity') + int(quantity_produced)
         product.save()
         
-        # 5. Marcar producción como completada
-        production_batch.status = 'COMPLETED'
-        production_batch.save()
+        return batch
+
+
+class AlertService:
+    """Servicio para gestión de alertas de trazabilidad."""
+    
+    @staticmethod
+    def check_new_lot_alerts(lot):
+        """Verifica y crea alertas para un nuevo lote."""
+        config = TraceabilityConfig.get_config()
         
-        # 6. Verificar alertas
-        StockService.check_and_create_alerts()
+        # Check expiry
+        if lot.expiration_date:
+            days_to_expiry = (lot.expiration_date - date.today()).days
+            if days_to_expiry <= config.expiry_alert_days:
+                StockAlert.objects.create(
+                    alert_type='EXPIRY',
+                    ingredient_lot=lot,
+                    message=f"El lote {lot.internal_id} vence en {days_to_expiry} días"
+                )
         
-        return production_batch
+        # Check low stock for this ingredient
+        total_stock = IngredientLot.objects.filter(
+            ingredient=lot.ingredient,
+            is_active=True
+        ).aggregate(total=Sum('quantity_current'))['total'] or Decimal('0')
+        
+        if total_stock <= config.low_stock_threshold_kg:
+            # Check if alert already exists
+            existing = StockAlert.objects.filter(
+                alert_type='LOW_STOCK',
+                ingredient_lot__ingredient=lot.ingredient,
+                is_resolved=False
+            ).exists()
+            
+            if not existing:
+                StockAlert.objects.create(
+                    alert_type='LOW_STOCK',
+                    ingredient_lot=lot,
+                    message=f"Stock bajo de {lot.ingredient.name}: {total_stock} kg"
+                )
+    
+    @staticmethod
+    def check_all_alerts(user):
+        """Verifica todas las alertas activas y crea nuevas si es necesario."""
+        config = TraceabilityConfig.get_config()
+        
+        # Check expiry for all active lots
+        for lot in IngredientLot.objects.filter(is_active=True, user=user):
+            AlertService.check_new_lot_alerts(lot)
 
 
 class TraceabilityService:
-    """Servicio para consultas de trazabilidad."""
+    """Servicio para consultas de trazabilidad completa."""
     
     @staticmethod
-    def get_production_history(limit=None, product=None):
-        """
-        Obtiene historial de producciones.
-        
-        Args:
-            limit: Límite de resultados (None = todos)
-            product: Filtrar por producto (None = todos)
-        
-        Returns:
-            QuerySet de ProductionBatch
-        """
-        queryset = ProductionBatch.objects.select_related('product', 'bom').all()
-        
-        if product:
-            queryset = queryset.filter(product=product)
-        
-        if limit:
-            queryset = queryset[:limit]
-        
-        return queryset
-    
-    @staticmethod
-    def get_batch_traceability(production_batch):
+    def get_production_traceability(production_batch):
         """
         Obtiene trazabilidad completa de un lote de producción.
         
-        Args:
-            production_batch: ProductionBatch
-        
         Returns:
-            dict con estructura:
-            {
-                'batch': ProductionBatch,
-                'consumptions': [
-                    {
-                        'ingredient': Ingredient,
-                        'total_consumed': Decimal,
-                        'lots_used': [
-                            {'lot': IngredientLot, 'quantity': Decimal, 'is_waste': bool},
-                            ...
-                        ]
-                    },
-                    ...
-                ]
-            }
+            dict con detalles completos de ingredientes consumidos
         """
-        consumptions_data = []
+        result = {
+            'batch': production_batch,
+            'consumptions': []
+        }
         
-        # Agrupar por ingrediente
-        ingredients = set(
-            consumption.ingredient 
-            for consumption in production_batch.consumptions.all()
-        )
+        # Group consumptions by ingredient
+        ingredients_used = production_batch.consumptions.values_list(
+            'ingredient', flat=True
+        ).distinct()
         
-        for ingredient in ingredients:
-            lots_used = []
-            total_consumed = Decimal('0')
+        for ingredient_id in ingredients_used:
+            ingredient = Ingredient.objects.get(pk=ingredient_id)
             
             ingredient_consumptions = production_batch.consumptions.filter(
                 ingredient=ingredient
             ).select_related('ingredient_lot')
+            
+            lots_used = []
+            total_consumed = Decimal('0')
             
             for consumption in ingredient_consumptions:
                 lots_used.append({
@@ -497,13 +450,61 @@ class TraceabilityService:
                 if not consumption.is_waste:
                     total_consumed += consumption.quantity_consumed
             
-            consumptions_data.append({
+            result['consumptions'].append({
                 'ingredient': ingredient,
                 'total_consumed': total_consumed,
                 'lots_used': lots_used
             })
         
-        return {
-            'batch': production_batch,
-            'consumptions': consumptions_data
-        }
+        return result
+
+
+class SalesTraceabilityService:
+    """Gestiona la asignación automática de lotes de producción a ventas."""
+    
+    @staticmethod
+    @transaction.atomic
+    def auto_allocate_sale(sale):
+        from .models import SaleBatchAllocation
+        allocations_created = []
+        errors = []
+        for sale_item in sale.items.all():
+            try:
+                existing = sale_item.batch_allocations.aggregate(total=Sum('quantity_allocated'))['total'] or Decimal('0')
+                if sale_item.product and sale_item.product.weight_kg:
+                    needed_kg = (Decimal(str(sale_item.quantity)) * sale_item.product.weight_kg) - existing
+                else:
+                    needed_kg = Decimal(str(sale_item.quantity)) - existing
+                if needed_kg <= 0:
+                    continue
+                batches = ProductionBatch.objects.filter(product=sale_item.product, status='COMPLETED', quantity_remaining__gt=0).order_by('production_date', 'created_at')
+                remaining_needed = needed_kg
+                for batch in batches:
+                    if remaining_needed <= 0:
+                        break
+                    to_allocate = min(batch.quantity_remaining, remaining_needed)
+                    allocation = SaleBatchAllocation.objects.create(sale_item=sale_item, production_batch=batch, quantity_allocated=to_allocate, user=getattr(sale, 'user', None))
+                    batch.allocate(to_allocate)
+                    allocations_created.append(allocation)
+                    remaining_needed -= to_allocate
+                if remaining_needed > 0:
+                    errors.append({'sale_item': sale_item, 'product': sale_item.product, 'missing_kg': remaining_needed})
+            except Exception as e:
+                errors.append({'sale_item': sale_item, 'error': str(e)})
+        if errors:
+            raise ValidationError({'detail': 'Stock insuficiente', 'errors': errors})
+        return {'success': True, 'allocations': allocations_created, 'total_allocated': len(allocations_created)}
+    
+    @staticmethod
+    def get_sale_traceability(sale):
+        result = {'sale': sale, 'customer': getattr(sale, 'customer', None), 'items': []}
+        for sale_item in sale.items.all():
+            item_trace = {'sale_item': sale_item, 'product': sale_item.product, 'batches_used': []}
+            for allocation in sale_item.batch_allocations.all():
+                batch = allocation.production_batch
+                ingredients_used = []
+                for consumption in batch.consumptions.all():
+                    ingredients_used.append({'ingredient': consumption.ingredient, 'ingredient_lot': consumption.ingredient_lot, 'quantity': consumption.quantity_consumed, 'supplier_lot': consumption.ingredient_lot.supplier_lot})
+                item_trace['batches_used'].append({'batch': batch, 'allocated_kg': allocation.quantity_allocated, 'ingredients': ingredients_used})
+            result['items'].append(item_trace)
+        return result

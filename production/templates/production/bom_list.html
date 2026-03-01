@@ -8,17 +8,27 @@
             <h2 class="text-2xl font-bold text-slate-800">Fórmulas Maestras</h2>
             <p class="text-slate-500 text-sm">Gestiona las recetas de tus productos.</p>
         </div>
-        <a href="{% url 'bom_create' %}" class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-lg shadow-primary/30 flex items-center gap-2">
-            <i class="fas fa-flask"></i> Nueva Fórmula
-        </a>
+        <div class="flex items-center gap-3">
+            <button type="submit" form="bulkDeleteForm" id="deleteBtn" class="hidden bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-xl text-sm font-medium transition-colors border border-red-200" onclick="return confirm('¿Estás seguro de eliminar las fórmulas seleccionadas?');">
+                <i class="fas fa-trash-alt mr-2"></i>Eliminar Selección
+            </button>
+            <a href="{% url 'bom_create' %}" class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-lg shadow-primary/30 flex items-center gap-2">
+                <i class="fas fa-flask"></i> Nueva Fórmula
+            </a>
+        </div>
     </div>
 
     <!-- Table -->
+    <form id="bulkDeleteForm" method="post" action="{% url 'bulk_delete_boms' %}">
+        {% csrf_token %}
     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-sm text-left">
                 <thead class="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-100">
                     <tr>
+                        <th class="px-6 py-4 w-4">
+                            <input type="checkbox" id="selectAll" class="rounded border-gray-300 text-primary focus:ring-primary shadow-sm">
+                        </th>
                         <th class="px-6 py-4">Nombre</th>
                         <th class="px-6 py-4">Productos Asociados</th>
                         <th class="px-6 py-4">Ingredientes</th>
@@ -28,6 +38,9 @@
                 <tbody class="divide-y divide-slate-100">
                     {% for bom in boms %}
                     <tr class="hover:bg-slate-50/50 transition-colors group">
+                        <td class="px-6 py-4">
+                            <input type="checkbox" name="bom_ids" value="{{ bom.pk }}" class="bom-checkbox rounded border-gray-300 text-primary focus:ring-primary shadow-sm">
+                        </td>
                         <td class="px-6 py-4 font-medium text-slate-700">
                             <a href="{% url 'bom_update' bom.pk %}" class="hover:text-primary">{{ bom.name }}</a>
                         </td>
@@ -52,7 +65,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="4" class="px-6 py-12 text-center text-slate-400">
+                        <td colspan="5" class="px-6 py-12 text-center text-slate-400">
                             <i class="fas fa-flask text-4xl mb-3 opacity-50"></i>
                             <p>No hay fórmulas maestras registradas.</p>
                         </td>
@@ -62,5 +75,52 @@
             </table>
         </div>
     </div>
+    </form>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectAll = document.getElementById('selectAll');
+        const checkboxes = document.querySelectorAll('.bom-checkbox');
+        const deleteBtn = document.getElementById('deleteBtn');
+        const form = document.getElementById('bulkDeleteForm');
+
+        function updateUI() {
+            const checkedCount = document.querySelectorAll('.bom-checkbox:checked').length;
+            
+            if (checkedCount > 0) {
+                deleteBtn.classList.remove('hidden');
+                deleteBtn.innerHTML = `<i class="fas fa-trash-alt mr-2"></i>Eliminar (${checkedCount})`;
+            } else {
+                deleteBtn.classList.add('hidden');
+            }
+        }
+
+        if (selectAll) {
+            selectAll.addEventListener('change', function() {
+                checkboxes.forEach(cb => {
+                    cb.checked = selectAll.checked;
+                });
+                updateUI();
+            });
+        }
+
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', function() {
+                const allChecked = Array.from(checkboxes).every(c => c.checked);
+                if (selectAll) selectAll.checked = allChecked;
+                updateUI();
+            });
+        });
+
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                if (document.querySelectorAll('.bom-checkbox:checked').length === 0) {
+                    e.preventDefault();
+                    alert('Por favor selecciona al menos una fórmula para eliminar.');
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}

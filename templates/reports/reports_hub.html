@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+
+{% block title %}Centro de Reportes - Propel ERP{% endblock %}
+{% block header_title %}Reportes y Documentacion{% endblock %}
+{# Status text block removed as base.html likely doesn't support specific status bar like office_shell #}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="mb-10 text-center space-y-2 animate__animated animate__fadeIn">
+    <div class="inline-flex items-center justify-center p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg mb-4">
+        <i class="fas fa-file-contract text-3xl text-white"></i>
+    </div>
+    <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Centro de Reportes</h1>
+    <p class="text-lg text-gray-500 max-w-2xl mx-auto">
+        Genera documentacion oficial para produccion, auditorias de calidad y control de inventario.
+        <span class="block text-sm text-indigo-500 font-medium mt-1">Selecciona una de las opciones abajo para comenzar.</span>
+    </p>
+</div>
+
+<!-- REPORT CARDS GRID -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 px-4 pb-12">
+
+    <!-- REPORT 1: Orden de Produccion (BLUE) -->
+    <div class="group bg-white/80 backdrop-blur-xl rounded-3xl shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border border-white/40 overflow-hidden flex flex-col pt-1 relative">
+        <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-400 to-blue-600"></div>
+        
+        <div class="p-6 pb-4">
+            <div class="flex items-start justify-between mb-4">
+                <div class="w-14 h-14 bg-blue-50/80 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 transition-colors duration-300 shadow-sm group-hover:shadow-blue-500/30">
+                    <i class="fas fa-clipboard-check text-2xl text-blue-600 group-hover:text-white transition-colors"></i>
+                </div>
+                <span class="bg-blue-100/80 text-blue-800 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider backdrop-blur-sm border border-blue-200/50">Planta</span>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">Orden de Produccion</h3>
+            <p class="text-sm text-gray-500 leading-relaxed font-medium">
+                Genera el <strong>Batch Record</strong> operativo. Incluye formula, lotes FEFO y check de limpieza.
+            </p>
+        </div>
+
+        <div class="mt-auto bg-gray-50/50 p-6 border-t border-gray-100/60 space-y-4">
+            <!-- Step 1 -->
+            <div class="space-y-1.5">
+                <label class="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] shadow-sm">1</span>
+                    Selecciona Orden
+                </label>
+                <div class="relative group/select">
+                    <select id="report1-order" class="w-full pl-4 pr-10 py-3 bg-white/90 border border-gray-200/80 rounded-xl text-sm font-semibold text-gray-700 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm transition-all appearance-none cursor-pointer hover:border-blue-400">
+                        <option value="">-- Elige una orden pendiente --</option>
+                        {% for o in orders %}
+                        <option value="{{ o.pk }}">#{{ o.code }} - {{ o.product.name }} ({{ o.quantity_to_produce }}u)</option>
+                        {% endfor %}
+                    </select>
+                    <i class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover/select:text-blue-500 transition-colors"></i>
+                </div>
+            </div>
+            
+            <!-- Step 2 -->
+            <button onclick="openReport('report_production_order', document.getElementById('report1-order').value)" 
+                    class="w-full group/btn relative flex items-center justify-center gap-2 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-3 rounded-xl font-bold shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fas fa-file-pdf text-lg"></i>
+                <span>Generar OP</span>
+                <i class="fas fa-arrow-right opacity-0 -ml-4 group-hover/btn:opacity-100 group-hover/btn:ml-0 transition-all"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- REPORT 2: Explosion de Insumos (AMBER) -->
+    <div class="group bg-white/80 backdrop-blur-xl rounded-3xl shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border border-white/40 overflow-hidden flex flex-col pt-1 relative">
+        <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-400 to-amber-600"></div>
+        
+        <div class="p-6 pb-4">
+            <div class="flex items-start justify-between mb-4">
+                <div class="w-14 h-14 bg-amber-50/80 rounded-2xl flex items-center justify-center group-hover:bg-amber-600 transition-colors duration-300 shadow-sm group-hover:shadow-amber-500/30">
+                    <i class="fas fa-boxes-packing text-2xl text-amber-600 group-hover:text-white transition-colors"></i>
+                </div>
+                <span class="bg-amber-100/80 text-amber-800 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider backdrop-blur-sm border border-amber-200/50">Logistica</span>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-1 group-hover:text-amber-600 transition-colors">Explosion MRP</h3>
+            <p class="text-sm text-gray-500 leading-relaxed font-medium">
+                Calcula insumos y <strong>costo directo proyectado</strong>. Detecta faltantes de stock al instante.
+            </p>
+        </div>
+
+        <div class="mt-auto bg-gray-50/50 p-6 border-t border-gray-100/60 space-y-4">
+            <!-- Step 1 -->
+            <div class="flex gap-3">
+                <div class="flex-1 space-y-1.5">
+                    <label class="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] shadow-sm">1</span>
+                        Formula
+                    </label>
+                    <div class="relative group/select">
+                        <select id="report2-bom" class="w-full py-3 pl-3 pr-8 bg-white/90 border border-gray-200/80 rounded-xl text-sm font-semibold text-gray-700 focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 shadow-sm transition-all appearance-none cursor-pointer">
+                            <option value="">Seleccionar...</option>
+                            {% for b in boms %}
+                            <option value="{{ b.pk }}">{{ b.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <i class="fas fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover/select:text-amber-500 transition-colors"></i>
+                    </div>
+                </div>
+                <div class="w-24 space-y-1.5">
+                    <label class="text-xs font-bold text-gray-500 uppercase tracking-widest">Cant.</label>
+                    <input id="report2-qty" type="number" value="1" min="1" class="w-full py-3 px-3 bg-white/90 border border-gray-200/80 rounded-xl text-sm font-semibold text-center focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 shadow-sm transition-all">
+                </div>
+            </div>
+            
+            <!-- Step 2 -->
+            <button onclick="openMrp()" 
+                    class="w-full group/btn relative flex items-center justify-center gap-2 bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-4 py-3 rounded-xl font-bold shadow-md shadow-amber-500/25 hover:shadow-lg hover:shadow-amber-500/40 hover:-translate-y-0.5 transition-all active:translate-y-0">
+                <i class="fas fa-calculator text-lg"></i>
+                <span>Proyectar Costos</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- REPORT 3: Trazabilidad (EMERALD) -->
+    <div class="group bg-white/80 backdrop-blur-xl rounded-3xl shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border border-white/40 overflow-hidden flex flex-col pt-1 relative">
+        <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
+        
+        <div class="p-6 pb-4">
+            <div class="flex items-start justify-between mb-4">
+                <div class="w-14 h-14 bg-emerald-50/80 rounded-2xl flex items-center justify-center group-hover:bg-emerald-600 transition-colors duration-300 shadow-sm group-hover:shadow-emerald-500/30">
+                    <i class="fas fa-bezier-curve text-2xl text-emerald-600 group-hover:text-white transition-colors"></i>
+                </div>
+                <span class="bg-emerald-100/80 text-emerald-800 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider backdrop-blur-sm border border-emerald-200/50">Calidad</span>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-1 group-hover:text-emerald-600 transition-colors">Trazabilidad Total</h3>
+            <p class="text-sm text-gray-500 leading-relaxed font-medium">
+                Rastrea el camino completo de un lote a traves de la cadena.
+            </p>
+        </div>
+
+        <div class="mt-auto bg-gray-50/50 p-6 border-t border-gray-100/60 space-y-3">
+            <!-- Backward -->
+            <div class="bg-white/90 p-3 rounded-2xl border border-dashed border-emerald-300 hover:border-emerald-500 transition-colors shadow-sm relative group/select">
+                <label class="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest mb-1.5 block px-1">↓ Inversa (P.Ter -> MP)</label>
+                <div class="flex gap-2 relative">
+                    <select id="report3-batch" class="flex-1 py-2 pl-3 pr-8 bg-gray-50/80 border border-gray-200/50 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-emerald-500 text-gray-700 appearance-none cursor-pointer">
+                        <option value="">Selecciona Lote PT...</option>
+                        {% for b in batches %}
+                        <option value="{{ b.pk }}">{{ b.internal_lot_code }}</option>
+                        {% endfor %}
+                    </select>
+                    <i class="fas fa-chevron-down absolute right-12 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] pointer-events-none group-hover/select:text-emerald-500"></i>
+                    <button onclick="openReport('report_traceability_backward', document.getElementById('report3-batch').value)" class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-colors shadow-sm">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Forward -->
+            <div class="bg-white/90 p-3 rounded-2xl border border-dashed border-teal-300 hover:border-teal-500 transition-colors shadow-sm relative group/select2">
+                <label class="text-[10px] font-bold text-teal-600/70 uppercase tracking-widest mb-1.5 block px-1">↑ Directa (MP -> Ventas)</label>
+                <div class="flex gap-2 relative">
+                    <select id="report3-lot" class="flex-1 py-2 pl-3 pr-8 bg-gray-50/80 border border-gray-200/50 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-teal-500 text-gray-700 appearance-none cursor-pointer">
+                        <option value="">Selecciona Lote MP...</option>
+                        {% for l in ingredient_lots %}
+                        <option value="{{ l.pk }}">{{ l.internal_id }}</option>
+                        {% endfor %}
+                    </select>
+                    <i class="fas fa-chevron-down absolute right-12 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] pointer-events-none group-hover/select2:text-teal-500"></i>
+                    <button onclick="openReport('report_traceability_forward', document.getElementById('report3-lot').value)" class="w-10 h-10 rounded-xl bg-teal-100 text-teal-700 hover:bg-teal-600 hover:text-white flex items-center justify-center transition-colors shadow-sm">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REPORT 4: CoA (PURPLE) -->
+    <div class="group bg-white/80 backdrop-blur-xl rounded-3xl shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border border-white/40 overflow-hidden flex flex-col pt-1 relative">
+        <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-400 to-purple-600"></div>
+        
+        <div class="p-6 pb-4">
+            <div class="flex items-start justify-between mb-4">
+                <div class="w-14 h-14 bg-purple-50/80 rounded-2xl flex items-center justify-center group-hover:bg-purple-600 transition-colors duration-300 shadow-sm group-hover:shadow-purple-500/30">
+                    <i class="fas fa-award text-2xl text-purple-600 group-hover:text-white transition-colors"></i>
+                </div>
+                <span class="bg-purple-100/80 text-purple-800 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider backdrop-blur-sm border border-purple-200/50">Cliente</span>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-1 group-hover:text-purple-600 transition-colors">Certificado de Analisis</h3>
+            <p class="text-sm text-gray-500 leading-relaxed font-medium">
+                Emite el <strong>CoA oficial</strong> con dictamen automatico (Aprobado/Rechazado) y QR de seguridad.
+            </p>
+        </div>
+
+        <div class="mt-auto bg-gray-50/50 p-6 border-t border-gray-100/60 space-y-4">
+            <!-- Step 1 -->
+            <div class="space-y-1.5">
+                <label class="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-[10px] shadow-sm">1</span>
+                    Lote a Certificar
+                </label>
+                <div class="relative group/select">
+                    <select id="report4-batch" class="w-full pl-4 pr-10 py-3 bg-white/90 border border-gray-200/80 rounded-xl text-sm font-semibold text-gray-700 focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 shadow-sm transition-all appearance-none cursor-pointer hover:border-purple-400">
+                        <option value="">Seleccionar...</option>
+                        {% for b in batches %}
+                        <option value="{{ b.pk }}">{{ b.internal_lot_code }} - {{ b.product.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <i class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover/select:text-purple-500 transition-colors"></i>
+                </div>
+            </div>
+            
+            <!-- Step 2 -->
+            <button onclick="openReport('report_coa', document.getElementById('report4-batch').value)" 
+                    class="w-full group/btn relative flex items-center justify-center gap-2 bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-4 py-3 rounded-xl font-bold shadow-md shadow-purple-500/25 hover:shadow-lg hover:shadow-purple-500/40 hover:-translate-y-0.5 transition-all active:translate-y-0">
+                <i class="fas fa-stamp text-lg"></i>
+                <span>Emitir CoA</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- REPORT 5: Vencimientos (RED) -->
+    <div class="group bg-white/80 backdrop-blur-xl rounded-3xl shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border border-white/40 overflow-hidden flex flex-col pt-1 relative">
+        <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-400 to-red-600"></div>
+        
+        <div class="p-6 pb-4">
+            <div class="flex items-start justify-between mb-4">
+                <div class="w-14 h-14 bg-red-50/80 rounded-2xl flex items-center justify-center group-hover:bg-red-600 transition-colors duration-300 shadow-sm group-hover:shadow-red-500/30">
+                    <i class="fas fa-hourglass-half text-2xl text-red-600 group-hover:text-white transition-colors"></i>
+                </div>
+                <span class="bg-red-100/80 text-red-800 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider backdrop-blur-sm border border-red-200/50">Finanzas</span>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-1 group-hover:text-red-600 transition-colors">Reporte FEFO</h3>
+            <p class="text-sm text-gray-500 leading-relaxed font-medium">
+                Analisis de inventario segregado por <strong>niveles de riesgo</strong> de desperdicio.
+            </p>
+        </div>
+
+        <div class="mt-auto bg-gray-50/50 p-6 border-t border-gray-100/60 space-y-4">
+            <!-- Step 1 -->
+            <div class="space-y-1.5">
+                <label class="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-red-100 text-red-700 flex items-center justify-center text-[10px] shadow-sm">1</span>
+                    Horizonte
+                </label>
+                <div class="flex gap-2 bg-white/50 p-1.5 rounded-xl border border-gray-200/60">
+                    <button onclick="selectDays(30, this)" class="day-btn flex-1 py-1.5 bg-white text-red-600 rounded-lg text-xs font-bold shadow-sm ring-1 ring-red-500/50 transition-all">30d</button>
+                    <button onclick="selectDays(60, this)" class="day-btn flex-1 py-1.5 bg-transparent text-gray-500 hover:text-gray-700 rounded-lg text-xs font-bold transition-all">60d</button>
+                    <button onclick="selectDays(90, this)" class="day-btn flex-1 py-1.5 bg-transparent text-gray-500 hover:text-gray-700 rounded-lg text-xs font-bold transition-all">90d</button>
+                    <input type="hidden" id="report5-days" value="30">
+                </div>
+            </div>
+            
+            <!-- Step 2 -->
+            <button onclick="openFefo()" 
+                    class="w-full group/btn relative flex items-center justify-center gap-2 bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-3 rounded-xl font-bold shadow-md shadow-red-500/25 hover:shadow-lg hover:shadow-red-500/40 hover:-translate-y-0.5 transition-all active:translate-y-0">
+                <i class="fas fa-file-invoice-dollar text-lg"></i>
+                <span>Analizar Riesgo</span>
+            </button>
+        </div>
+    </div>
+    
+    <!-- REPORT 6: KARDEX DE INVENTARIO (CYAN) -->
+    <div class="group bg-white/80 backdrop-blur-xl rounded-3xl shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border border-white/40 overflow-hidden flex flex-col pt-1 relative">
+        <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-cyan-400 to-cyan-600"></div>
+        
+        <div class="p-6 pb-4">
+            <div class="flex items-start justify-between mb-4">
+                <div class="w-14 h-14 bg-cyan-50/80 rounded-2xl flex items-center justify-center group-hover:bg-cyan-600 transition-colors duration-300 shadow-sm group-hover:shadow-cyan-500/30">
+                    <i class="fas fa-list-ol text-2xl text-cyan-600 group-hover:text-white transition-colors"></i>
+                </div>
+                <span class="bg-cyan-100/80 text-cyan-800 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider backdrop-blur-sm border border-cyan-200/50">Auditoria</span>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-1 group-hover:text-cyan-600 transition-colors">Kardex de Inventario</h3>
+            <p class="text-sm text-gray-500 leading-relaxed font-medium">
+                Historial cronologico (Entradas, Salidas y Mermas) obligado para auditorias.
+            </p>
+        </div>
+
+        <div class="mt-auto bg-gray-50/50 p-6 border-t border-gray-100/60 space-y-4">
+             <div class="space-y-1.5">
+                <label class="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center text-[10px] shadow-sm">1</span>
+                    Material Analizado
+                </label>
+                <div class="relative group/select">
+                    <select id="report6-ing" class="w-full pl-4 pr-10 py-3 bg-white/90 border border-gray-200/80 rounded-xl text-sm font-semibold text-gray-700 focus:ring-4 focus:ring-cyan-500/20 focus:border-cyan-500 shadow-sm transition-all appearance-none cursor-pointer hover:border-cyan-400">
+                        <option value="">Seleccionar...</option>
+                        {% for i in ingredients %}
+                        <option value="{{ i.pk }}">{{ i.name }} ({{ i.code }})</option>
+                        {% endfor %}
+                    </select>
+                    <i class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover/select:text-cyan-500 transition-colors"></i>
+                </div>
+            </div>
+            
+            <button onclick="openReport('report_kardex', document.getElementById('report6-ing').value)" 
+                    class="w-full group/btn relative flex items-center justify-center gap-2 bg-gradient-to-br from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white px-4 py-3 rounded-xl font-bold shadow-md shadow-cyan-500/25 hover:shadow-lg hover:shadow-cyan-500/40 hover:-translate-y-0.5 transition-all active:translate-y-0">
+                <i class="fas fa-file-invoice text-lg"></i>
+                <span>Ver Movimientos</span>
+            </button>
+        </div>
+    </div>
+    
+    <!-- REPORT 7: ANALISIS DE RENDIMIENTO Y COSTO (FUCHSIA) -->
+    <div class="group bg-white/80 backdrop-blur-xl rounded-3xl shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border border-white/40 overflow-hidden flex flex-col pt-1 relative">
+        <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-fuchsia-400 to-fuchsia-600"></div>
+        
+        <div class="p-6 pb-4">
+            <div class="flex items-start justify-between mb-4">
+                <div class="w-14 h-14 bg-fuchsia-50/80 rounded-2xl flex items-center justify-center group-hover:bg-fuchsia-600 transition-colors duration-300 shadow-sm group-hover:shadow-fuchsia-500/30">
+                    <i class="fas fa-chart-line text-2xl text-fuchsia-600 group-hover:text-white transition-colors"></i>
+                </div>
+                <span class="bg-fuchsia-100/80 text-fuchsia-800 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider backdrop-blur-sm border border-fuchsia-200/50">Gerencia</span>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-1 group-hover:text-fuchsia-600 transition-colors">Rendimiento y Costos</h3>
+            <p class="text-sm text-gray-500 leading-relaxed font-medium">
+                Compara costo teorico vs consumo real de planta arrojando % desvio final.
+            </p>
+        </div>
+
+        <div class="mt-auto bg-gray-50/50 p-6 border-t border-gray-100/60 space-y-4">
+             <div class="space-y-1.5">
+                <label class="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-fuchsia-100 text-fuchsia-700 flex items-center justify-center text-[10px] shadow-sm">1</span>
+                    Lote Producido
+                </label>
+                <div class="relative group/select">
+                    <select id="report7-batch" class="w-full pl-4 pr-10 py-3 bg-white/90 border border-gray-200/80 rounded-xl text-sm font-semibold text-gray-700 focus:ring-4 focus:ring-fuchsia-500/20 focus:border-fuchsia-500 shadow-sm transition-all appearance-none cursor-pointer hover:border-fuchsia-400">
+                        <option value="">Seleccionar completado...</option>
+                        {% for b in completed_batches %}
+                        <option value="{{ b.pk }}">{{ b.internal_lot_code }}</option>
+                        {% endfor %}
+                    </select>
+                    <i class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover/select:text-fuchsia-500 transition-colors"></i>
+                </div>
+            </div>
+            
+            <button onclick="openReport('report_batch_yield', document.getElementById('report7-batch').value)" 
+                    class="w-full group/btn relative flex items-center justify-center gap-2 bg-gradient-to-br from-fuchsia-500 to-fuchsia-600 hover:from-fuchsia-600 hover:to-fuchsia-700 text-white px-4 py-3 rounded-xl font-bold shadow-md shadow-fuchsia-500/25 hover:shadow-lg hover:shadow-fuchsia-500/40 hover:-translate-y-0.5 transition-all active:translate-y-0">
+                <i class="fas fa-dollar-sign text-lg"></i>
+                <span>Ver Resultados</span>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Info Card -->
+    <div class="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-3xl shadow-xl p-8 flex flex-col justify-center items-center text-center text-white relative overflow-hidden group">
+        <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+        <div class="absolute -right-20 -top-20 w-64 h-64 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-50 group-hover:opacity-75 transition-opacity duration-700"></div>
+        
+        <i class="fas fa-compass text-8xl text-indigo-400/10 absolute top-4 left-4 rotate-12"></i>
+        <div class="relative z-10 flex flex-col items-center">
+            <div class="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-6 backdrop-blur-md border border-white/20 shadow-inner">
+                <i class="fas fa-lock text-3xl text-indigo-200"></i>
+            </div>
+            <h3 class="text-2xl font-bold mb-3 tracking-tight font-outfit">Soporte Auditorías</h3>
+            <p class="text-indigo-200 text-sm mb-8 leading-relaxed max-w-xs font-medium">
+                Los datos generados en estos reportes cumplen con normas locales. Ante dudas sobre cálculos, contacte administración.
+            </p>
+            <a href="#" class="text-sm font-bold text-white bg-white/10 border border-white/20 rounded-xl px-6 py-3 hover:bg-white/20 hover:-translate-y-0.5 hover:shadow-lg transition-all backdrop-blur-sm">
+                Portal de Soporte
+            </a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    const reportUrls = {
+        report_production_order: '{% url "report_production_order" pk=0 %}'.replace('/0/', '/'),
+        report_traceability_backward: '{% url "report_traceability_backward" batch_id=0 %}'.replace('/0/', '/'),
+        report_traceability_forward: '{% url "report_traceability_forward" lot_id=0 %}'.replace('/0/', '/'),
+        report_coa: '{% url "report_coa" batch_id=0 %}'.replace('/0/', '/'),
+        report_kardex: '{% url "report_kardex" ingredient_id=0 %}'.replace('/0/', '/'),
+        report_batch_yield: '{% url "report_batch_yield" batch_id=0 %}'.replace('/0/', '/'),
+    };
+
+    function openReport(reportName, id) {
+        if (!id) { 
+            Swal.fire({
+                icon: 'warning',
+                title: 'Faltan datos',
+                text: 'Por favor, selecciona una opción válida del desplegable antes de generar el reporte.',
+                confirmButtonColor: '#4f46e5'
+            });
+            return; 
+        }
+        const url = reportUrls[reportName] + id + '/';
+        window.open(url, '_blank');
+    }
+
+    function openMrp() {
+        const bomId = document.getElementById('report2-bom').value;
+        const qty = document.getElementById('report2-qty').value;
+        if (!bomId) { 
+            Swal.fire({
+                icon: 'error',
+                title: 'No hay Fórmula',
+                text: 'Debes seleccionar una receta (BOM) para poder proyectar los costos correspondientes.',
+                confirmButtonColor: '#4f46e5'
+            });
+            return;
+        }
+        const url = '{% url "report_mrp_explosion" bom_id=0 %}'.replace('/0/', '/' + bomId + '/') + '?qty=' + qty;
+        window.open(url, '_blank');
+    }
+
+    function selectDays(days, btn) {
+        document.getElementById('report5-days').value = days;
+        const container = btn.parentElement;
+        const btns = container.querySelectorAll('.day-btn');
+        
+        // Reset classes
+        btns.forEach(b => {
+             b.className = 'day-btn flex-1 py-1.5 bg-transparent text-gray-500 hover:text-gray-700 rounded-lg text-xs font-bold transition-all';
+        });
+        // Active class
+        btn.className = 'day-btn flex-1 py-1.5 bg-white text-red-600 rounded-lg text-xs font-bold shadow-sm ring-1 ring-red-500/50 transition-all';
+    }
+
+    function openFefo() {
+        const days = document.getElementById('report5-days').value;
+        window.open('{% url "report_fefo_expiry" %}?days=' + days, '_blank');
+    }
+</script>
+{% endblock %}

@@ -84,9 +84,14 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{% url 'traceability:production_detail' batch.pk %}" class="btn btn-sm btn-outline-info">
-                                <i class="fas fa-search"></i> Ver Trazabilidad
-                            </a>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'traceability:production_detail' batch.pk %}" class="btn btn-outline-info">
+                                    <i class="fas fa-search"></i> Trazabilidad
+                                </a>
+                                <a href="{% url 'traceability:download_batch_report' batch.pk %}" class="btn btn-outline-success">
+                                    <i class="fas fa-file-excel"></i> Excel
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     {% empty %}

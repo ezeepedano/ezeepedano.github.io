@@ -1,0 +1,114 @@
+{% extends "reports/base_report.html" %}
+
+{% block report_title %}VENCIMIENTOS VALORIZADOS (FEFO){% endblock %}
+
+{% block content %}
+
+<!-- FILTER INFO -->
+<h2>Parametros del Reporte</h2>
+<table class="info-table">
+    <tr>
+        <td class="info-label">Horizonte Analizado</td>
+        <td class="info-value">Proximos {{ days }} dias</td>
+        <td class="info-label">Fecha Limite</td>
+        <td class="info-value" style="color:#dc2626;">{{ until_date|date:"d/m/Y" }}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Items en Riesgo</td>
+        <td class="info-value" style="color:#4f46e5; font-size:10pt;">{{ items|length }} ({{ pct_expired|floatformat:1 }}% Venc. | {{ pct_high_risk|floatformat:1 }}% Alto)</td>
+        <td class="info-label">Capital en Riesgo</td>
+        <td class="info-value text-bold" style="color:#dc2626; font-size:11pt;">${{ total_value|floatformat:2 }}</td>
+    </tr>
+</table>
+
+{% if items_expired %}
+<!-- URGENT ALERT -->
+<table style="width:100%; border-collapse:collapse; margin-bottom:14px;">
+    <tr>
+        <td style="background-color:#fee2e2; border-left:5px solid #dc2626; border:1px solid #dc2626; padding:10px 16px;">
+            <span style="font-size:9.5pt; font-weight:bold; color:#991b1b;">
+                ⚠ ALERTA CRITICA: Hay {{ items_expired }} lote(s) con fecha de vencimiento ya superada.
+                Proceder con retiro inmediato.
+            </span>
+        </td>
+    </tr>
+</table>
+{% endif %}
+
+<!-- DETAIL TABLE -->
+<h2>Detalle de Lotes por Vencer</h2>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th style="width:26%">Insumo / Producto</th>
+            <th style="width:16%">Lote</th>
+            <th style="width:12%">F. Vencimiento</th>
+            <th style="width:10%" class="text-center">Dias Rest.</th>
+            <th style="width:10%">Unidad</th>
+            <th style="width:10%" class="text-right">Stock</th>
+            <th style="width:16%" class="text-right">Valorizacion</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td class="text-bold">{{ item.name }}</td>
+            <td style="color:#4f46e5; font-size:8pt;">{{ item.lot_code }}</td>
+            <td>{{ item.expiry_date|date:"d/m/Y" }}</td>
+            <td class="text-center">
+                {% if item.risk_level == 'VENCIDO' %}
+                <span class="badge-danger">VENCIDO</span>
+                {% elif item.risk_level == 'RIESGO ALTO' %}
+                <span class="badge-warn">{{ item.days_remaining }}d (ALTO)</span>
+                {% else %}
+                <span style="font-weight:bold; color:#374151;">{{ item.days_remaining }}d</span>
+                {% endif %}
+            </td>
+            <td class="text-muted">{{ item.unit }}</td>
+            <td class="text-right">{{ item.stock }}</td>
+            <td class="text-right text-bold">
+                {% if item.risk_level == 'VENCIDO' %}
+                <span class="text-red">${{ item.value|floatformat:2 }}</span>
+                {% elif item.risk_level == 'RIESGO ALTO' %}
+                <span style="color:#b45309;">${{ item.value|floatformat:2 }}</span>
+                {% else %}
+                ${{ item.value|floatformat:2 }}
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="7" class="text-center" style="padding:20px;">
+                <span class="badge-ok">&nbsp;Sin lotes proximos a vencer en el horizonte seleccionado.&nbsp;</span>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    {% if items %}
+    <tfoot>
+        <tr class="total-row">
+            <td colspan="6" class="text-right">CAPITAL TOTAL EN RIESGO DE PERDIDA:</td>
+            <td class="text-right text-red" style="font-size:10.5pt;">${{ total_value|floatformat:2 }}</td>
+        </tr>
+    </tfoot>
+    {% endif %}
+</table>
+
+<!-- RECOMMENDATION BOX -->
+{% if items %}
+<table style="width:100%; border-collapse:collapse; margin-top:18px;">
+    <tr>
+        <td style="background-color:#fefce8; border:1px solid #ca8a04; border-left:5px solid #ca8a04; padding:10px 16px;">
+            <span style="font-size:8.5pt; font-weight:bold; color:#78350f; text-transform:uppercase; letter-spacing:0.3px;">
+                Accion Recomendada:
+            </span>
+            <span style="font-size:8.5pt; color:#92400e;">
+                Revisar los lotes marcados en ROJO con prioridad. Considerar relocalizacion, 
+                uso en proxima produccion (FEFO) o baja formal conforme al procedimiento de descarte.
+            </span>
+        </td>
+    </tr>
+</table>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends "reports/base_report.html" %}
+
+{% block report_title %}TRAZABILIDAD BIDIRECCIONAL{% endblock %}
+
+{% block content %}
+
+{% if mode == 'backward' %}
+<!-- ═══════════════════════════════════
+     MODO INVERSA: Producto Terminado → MP
+════════════════════════════════════ -->
+
+<!-- STATUS BANNER -->
+<table style="width:100%; border-collapse:collapse; margin-bottom:14px;">
+    <tr>
+        <td style="background-color:#ecfdf5; border-left:5px solid #16a34a; padding:8px 14px;">
+            <span style="font-size:8.5pt; font-weight:bold; color:#166534; text-transform:uppercase; letter-spacing:0.5px;">
+                ◀ TRAZABILIDAD INVERSA — Desde Producto Terminado hacia Materias Primas
+            </span>
+        </td>
+    </tr>
+</table>
+
+<h2>Lote de Producto Terminado</h2>
+<table class="info-table">
+    <tr>
+        <td class="info-label">Producto</td>
+        <td class="info-value">{{ batch.product.name }}</td>
+        <td class="info-label">SKU</td>
+        <td class="info-value">{{ batch.product.sku }}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Lote Interno</td>
+        <td class="info-value" style="color:#4f46e5;">{{ batch.internal_lot_code }}</td>
+        <td class="info-label">Fecha de Elaboracion</td>
+        <td class="info-value">{{ batch.production_date|date:"d/m/Y" }}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Cantidad Producida</td>
+        <td class="info-value">{{ batch.quantity_produced }} kg</td>
+        <td class="info-label">Orden de Produccion</td>
+        <td class="info-value">{{ batch.production_order.code|default:"—" }}</td>
+    </tr>
+</table>
+
+<h2>Materias Primas Utilizadas</h2>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th style="width:28%">Ingrediente / MP</th>
+            <th style="width:18%">Lote Proveedor</th>
+            <th style="width:18%">Lote Interno MP</th>
+            <th style="width:16%" class="text-right">Cant. Consumida</th>
+            <th style="width:12%">Fecha de Uso</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for c in consumptions %}
+        <tr>
+            <td class="text-bold">{{ c.ingredient.name }}</td>
+            <td style="color:#4f46e5;">{{ c.ingredient_lot.supplier_lot }}</td>
+            <td class="text-muted">{{ c.ingredient_lot.internal_id|default:"—" }}</td>
+            <td class="text-right">{{ c.quantity_consumed }} kg</td>
+            <td>{{ c.created_at|date:"d/m/Y" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-muted">Sin registros de consumo para este lote.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% elif mode == 'forward' %}
+<!-- ═══════════════════════════════════
+     MODO DIRECTA: Materia Prima → Productos → Ventas
+════════════════════════════════════ -->
+
+<!-- STATUS BANNER -->
+<table style="width:100%; border-collapse:collapse; margin-bottom:14px;">
+    <tr>
+        <td style="background-color:#eff6ff; border-left:5px solid #2563eb; padding:8px 14px;">
+            <span style="font-size:8.5pt; font-weight:bold; color:#1e40af; text-transform:uppercase; letter-spacing:0.5px;">
+                ▶ TRAZABILIDAD DIRECTA — Desde Materia Prima hacia Productos y Ventas
+            </span>
+        </td>
+    </tr>
+</table>
+
+<h2>Lote de Materia Prima</h2>
+<table class="info-table">
+    <tr>
+        <td class="info-label">Materia Prima</td>
+        <td class="info-value">{{ ingredient.name }}</td>
+        <td class="info-label">Codigo</td>
+        <td class="info-value">{{ ingredient.code }}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Lote Interno</td>
+        <td class="info-value" style="color:#4f46e5;">{{ lot.internal_id }}</td>
+        <td class="info-label">Lote Proveedor</td>
+        <td class="info-value">{{ lot.supplier_lot }}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Cant. Inicial</td>
+        <td class="info-value">{{ lot.quantity_initial }} kg</td>
+        <td class="info-label">Fecha Ingreso</td>
+        <td class="info-value">{{ lot.entry_date|date:"d/m/Y"|default:"—" }}</td>
+    </tr>
+</table>
+
+<h2>Productos donde se Uso este Lote</h2>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th style="width:30%">Producto Terminado</th>
+            <th style="width:20%">Lote Interno PT</th>
+            <th style="width:16%" class="text-right">Cant. Usada</th>
+            <th style="width:14%">Fecha Elab.</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for c in consumptions %}
+        <tr>
+            <td class="text-bold">{{ c.production_batch.product.name }}</td>
+            <td style="color:#4f46e5;">{{ c.production_batch.internal_lot_code }}</td>
+            <td class="text-right">{{ c.quantity_consumed }} kg</td>
+            <td>{{ c.production_batch.production_date|date:"d/m/Y" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center text-muted">Sin registros de uso para este lote.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if sales_allocations %}
+<h2>Ventas Vinculadas a este Lote</h2>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th style="width:30%">Cliente</th>
+            <th style="width:20%">Pedido / Remito</th>
+            <th style="width:16%" class="text-right">Cantidad</th>
+            <th style="width:14%">Fecha</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for alloc in sales_allocations %}
+        <tr>
+            <td class="text-bold">{{ alloc.sale_item.sale.customer_name|default:"Sin nombre" }}</td>
+            <td style="color:#4f46e5;">{{ alloc.sale_item.sale.order_id }}</td>
+            <td class="text-right">{{ alloc.quantity_allocated }} kg</td>
+            <td>{{ alloc.allocation_date|date:"d/m/Y" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% endif %}
+
+{% endblock %}

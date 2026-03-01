@@ -251,7 +251,7 @@ def create_journal_entry_for_production(sender, instance, created, **kwargs):
     Dr. Finished Goods (Asset)
     Cr. Raw Materials (Asset)
     """
-    if not created or instance.status != 'completed':
+    if not created or instance.status != 'DONE':
         return
 
     # Accounts
@@ -312,6 +312,7 @@ def create_journal_entry_for_payroll(sender, instance, created, **kwargs):
         date=instance.period, 
         description=f"Liquidación Sueldos: {instance.employee}",
         reference=f"PAYROLL-{instance.id}",
+        created_by=instance.employee.user,
         posted=True
     )
 

@@ -1,6 +1,11 @@
+import logging
+
 import pandas as pd
+
 from .importers.mercadolibre import MercadoLibreImporter
 from .importers.tiendanube import TiendaNubeImporter
+
+logger = logging.getLogger(__name__)
 
 def process_sales_file(file_obj, user):
     """
@@ -19,10 +24,10 @@ def process_sales_file(file_obj, user):
         decoded_sample = ""
         try:
             decoded_sample = first_lines.decode('utf-8')
-        except:
+        except UnicodeDecodeError:
             try:
                 decoded_sample = first_lines.decode('latin-1')
-            except:
+            except UnicodeDecodeError:
                 pass
                 
         # Check for Tienda Nube signature
@@ -31,7 +36,7 @@ def process_sales_file(file_obj, user):
              return importer.process_file(file_obj)
              
     except Exception as e:
-        print(f"Detection Error: {e}")
+        logger.error(f"Detection Error: {e}")
         file_obj.seek(0)
         
     # Check for Mercado Libre (Excel)

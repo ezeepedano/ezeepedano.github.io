@@ -1,62 +1,415 @@
 {% extends 'base.html' %}
 
+
 {% block content %}
-<div class="max-w-3xl mx-auto">
-    <!-- Header -->
-    <div class="mb-6">
-        <h2 class="text-2xl font-bold text-slate-800">
-            {% if form.instance.pk %}Editar{% else %}Nueva{% endif %} Hoja de Ruta
-        </h2>
-        <p class="text-slate-500 text-sm">Planifique la logística de reparto.</p>
-    </div>
+<div class="max-w-7xl mx-auto pb-20"> <!-- Increased width for table -->
+    
+    <form method="post" class="space-y-8" id="routeForm">
+        {% csrf_token %}
 
-    <!-- Form Card -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
-        <form method="post" class="space-y-6">
-            {% csrf_token %}
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Date -->
-                <div class="col-span-2">
-                    <label class="block text-sm font-medium text-slate-700 mb-2">{{ form.date.label }}</label>
-                    {{ form.date }}
-                </div>
-
-                <!-- Vehicle -->
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">{{ form.vehicle.label }}</label>
-                    {{ form.vehicle }}
-                </div>
-
-                <!-- Driver -->
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">{{ form.driver.label }}</label>
-                    {{ form.driver }}
-                </div>
-
-                <!-- Zone -->
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">{{ form.zone.label }}</label>
-                    {{ form.zone }}
-                </div>
-
-                <!-- Status -->
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">{{ form.status.label }}</label>
-                    {{ form.status }}
-                </div>
-            </div>
-
-            <!-- Actions -->
-            <div class="pt-6 flex justify-end gap-3 border-t border-slate-100 mt-6">
-                <a href="{% url 'delivery_route_list' %}" class="px-5 py-2.5 rounded-xl text-slate-600 font-medium hover:bg-slate-50 transition-colors">
-                    Cancelar
+        <!-- Header / Actions -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <a href="{% url 'delivery_route_list' %}" class="text-slate-500 hover:text-slate-700 font-bold text-sm mb-2 inline-flex items-center transition-colors">
+                    <i class="fas fa-arrow-left mr-2"></i> Volver al Tablero
                 </a>
-                <button type="submit" class="bg-primary hover:bg-primary-dark text-white px-6 py-2.5 rounded-xl font-medium shadow-lg shadow-primary/30 transition-all transform active:scale-95">
-                    Guardar Ruta
+                <h2 class="text-3xl font-black text-slate-900 tracking-tight">
+                    {% if form.instance.pk %}Editar{% else %}Nueva{% endif %} Hoja de Ruta
+                </h2>
+                <p class="text-slate-500 font-medium">Asigna pedidos y planifica la logística del día.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                 <button type="button" onclick="history.back()" class="px-5 py-3 rounded-xl text-slate-600 font-bold bg-white border border-slate-200 hover:bg-slate-50 transition-all shadow-sm">
+                    Cancelar
+                </button>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-500/30 flex items-center gap-2 transform hover:-translate-y-1 transition-all">
+                    <span>Guardar y Generar</span>
+                    <i class="fas fa-route"></i>
                 </button>
             </div>
-        </form>
+        </div>
+
+        <!-- MAIN GRID -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- LEFT COLUMN: Route Configuration (Sticky) -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 p-6 sticky top-6">
+                    <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-50">
+                        <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                            <i class="fas fa-truck-moving"></i>
+                        </div>
+                        <h3 class="font-bold text-lg text-slate-800">Configuración</h3>
+                    </div>
+
+                    <div class="space-y-5">
+                        <!-- Date -->
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Fecha de Salida</label>
+                            {{ form.date }}
+                            {% if form.date.errors %}<p class="text-red-500 text-xs mt-1">{{ form.date.errors.0 }}</p>{% endif %}
+                        </div>
+
+ 
+                        <!-- Driver with Quick Add -->
+                        <div class="space-y-1">
+                            <div class="flex justify-between items-center">
+                                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Conductor</label>
+                                <button type="button" onclick="openModal('driverModal')" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-bold hover:bg-blue-100 transition-colors">
+                                    + Nuevo
+                                </button>
+                            </div>
+                            <div class="relative">
+                                {{ form.driver }}
+                                <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400">
+                                    <i class="fas fa-user-circle"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Vehicle with Quick Add -->
+                        <div class="space-y-1">
+                            <div class="flex justify-between items-center">
+                                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Vehículo</label>
+                                <button type="button" onclick="openModal('vehicleModal')" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-bold hover:bg-blue-100 transition-colors">
+                                    + Nuevo
+                                </button>
+                            </div>
+                            <div class="relative">
+                                {{ form.vehicle }}
+                                <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400">
+                                    <i class="fas fa-truck"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                         <!-- Zone with Quick Add -->
+                        <div class="space-y-1">
+                            <div class="flex justify-between items-center">
+                                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Zona (Opcional)</label>
+                                <button type="button" onclick="openModal('zoneModal')" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-bold hover:bg-blue-100 transition-colors">
+                                    + Nueva
+                                </button>
+                            </div>
+                            {{ form.zone }}
+                        </div>
+
+                        <!-- Status -->
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Estado</label>
+                            {{ form.status }}
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 pt-6 border-t border-slate-50 text-center">
+                        <p class="text-xs text-slate-400">
+                            Asegúrese de guardar la ruta antes de imprimir.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Order Selection -->
+            <div class="lg:col-span-2 space-y-6">
+                
+                <!-- Selection Card -->
+                <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
+                        <div>
+                            <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                                <i class="fas fa-clipboard-list text-slate-400"></i>
+                                Pedidos Pendientes
+                            </h3>
+                            <p class="text-sm text-slate-500">Seleccione los pedidos a cargar en esta ruta.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                             <div class="bg-white border border-slate-200 rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-sm">
+                                <i class="fas fa-search text-slate-400 text-sm"></i>
+                                <input type="text" id="orderSearch" placeholder="Buscar cliente, ciudad..." class="text-sm border-none focus:ring-0 p-0 w-40 placeholder-slate-400 font-medium">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-[600px] overflow-y-auto custom-scrollbar">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-50 sticky top-0 z-10 shadow-sm">
+                                <tr class="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                    <th class="px-6 py-4 w-10 text-center">
+                                        <input type="checkbox" id="selectAll" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer w-4 h-4">
+                                    </th>
+                                    <th class="px-6 py-4">Pedido / Cliente</th>
+                                    <th class="px-6 py-4">Destino</th>
+                                    <th class="px-6 py-4 text-center">Items</th>
+                                    <th class="px-6 py-4 text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-sm" id="ordersTableBody">
+                                {% for sale in pending_sales %}
+                                <tr class="hover:bg-blue-50/50 transition-colors cursor-pointer group select-row" onclick="toggleRow(this)">
+                                    <td class="px-6 py-4 text-center" onclick="event.stopPropagation()">
+                                        <input type="checkbox" name="selected_sales" value="{{ sale.id }}" class="order-checkbox rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer w-4 h-4" onchange="updateRowStyle(this)">
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex flex-col">
+                                            <span class="font-bold text-slate-800 group-hover:text-blue-700 transition-colors">
+                                                #{{ sale.order_id }} 
+                                            </span>
+                                            <span class="text-slate-500 text-xs font-medium">{{ sale.customer.name|default:"Consumidor Final" }}</span>
+                                            <span class="text-xs text-slate-400">{{ sale.date|date:"d M H:i" }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex flex-col">
+                                            <span class="font-bold text-slate-700">{{ sale.city|default:"-" }}</span>
+                                            <span class="text-xs text-slate-500 truncate max-w-[150px]" title="{{ sale.shipping_address }}">{{ sale.shipping_address|default:"-" }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-center">
+                                        <span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg font-bold text-xs">{{ sale.items.count }}</span>
+                                    </td>
+                                    <td class="px-6 py-4 text-right font-bold text-slate-800">
+                                        ${{ sale.total|floatformat:0 }}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="px-6 py-12 text-center text-slate-400">
+                                        <div class="flex flex-col items-center gap-2">
+                                            <i class="fas fa-box-open text-3xl opacity-50"></i>
+                                            <p>No hay pedidos pendientes para asignar.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                     <div class="p-4 border-t border-slate-100 bg-slate-50 text-right">
+                        <span class="text-xs font-bold text-slate-500 uppercase mr-2">Seleccionados:</span>
+                        <span id="selectedCount" class="text-blue-600 font-bold text-lg">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- ================= MODALS ================= -->
+
+<!-- VEHICLE MODAL -->
+<div id="vehicleModal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeModal('vehicleModal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 class="text-lg leading-6 font-bold text-gray-900 mb-4" id="modal-title">Nuevo Vehículo</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Nombre (Marca/Modelo)</label>
+                        <input type="text" id="vehName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Patente</label>
+                        <input type="text" id="vehPlate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2 uppercase">
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" onclick="submitQuickAdd('vehicle')" class="w-full inline-flex justify-center rounded-xl border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                    Guardar Vehículo
+                </button>
+                <button type="button" onclick="closeModal('vehicleModal')" class="mt-3 w-full inline-flex justify-center rounded-xl border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    Cancelar
+                </button>
+            </div>
+        </div>
     </div>
 </div>
+
+<!-- ZONE MODAL -->
+<div id="zoneModal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeModal('zoneModal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 class="text-lg leading-6 font-bold text-gray-900 mb-4">Nueva Zona de Reparto</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Nombre de Zona</label>
+                        <input type="text" id="zoneName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Código</label>
+                        <input type="text" id="zoneCode" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2">
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" onclick="submitQuickAdd('zone')" class="w-full inline-flex justify-center rounded-xl border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                    Guardar Zona
+                </button>
+                <button type="button" onclick="closeModal('zoneModal')" class="mt-3 w-full inline-flex justify-center rounded-xl border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DRIVER MODAL (Basic User Creation) -->
+<div id="driverModal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeModal('driverModal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 class="text-lg leading-6 font-bold text-gray-900 mb-4">Nuevo Conductor</h3>
+                <p class="text-sm text-gray-500 mb-4">Se creará un usuario de sistema para este conductor.</p>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                         <div>
+                            <label class="block text-sm font-medium text-gray-700">Nombre</label>
+                            <input type="text" id="driverName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2">
+                        </div>
+                        <div>
+                             <label class="block text-sm font-medium text-gray-700">Apellido</label>
+                            <input type="text" id="driverSurname" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" onclick="submitQuickAdd('driver')" class="w-full inline-flex justify-center rounded-xl border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                    Guardar Conductor
+                </button>
+                <button type="button" onclick="closeModal('driverModal')" class="mt-3 w-full inline-flex justify-center rounded-xl border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // -- Modal Control --
+    function openModal(id) {
+        document.getElementById(id).classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).classList.add('hidden');
+    }
+
+    // -- Quick Add Logic --
+    async function submitQuickAdd(type) {
+        let url = '';
+        let payload = {};
+        
+        if (type === 'vehicle') {
+            url = "{% url 'api_vehicle_create' %}";
+            payload = {
+                name: document.getElementById('vehName').value,
+                plate: document.getElementById('vehPlate').value
+            };
+        } else if (type === 'zone') {
+            url = "{% url 'api_zone_create' %}";
+            payload = {
+                name: document.getElementById('zoneName').value,
+                code: document.getElementById('zoneCode').value
+            };
+        } else if (type === 'driver') {
+            url = "{% url 'api_driver_create' %}";
+            payload = {
+                first_name: document.getElementById('driverName').value,
+                last_name: document.getElementById('driverSurname').value
+            };
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                // Close modal
+                closeModal(type + 'Modal');
+                
+                // Add to Select and Select it
+                const selectId = (type === 'vehicle') ? 'id_vehicle' : (type === 'zone') ? 'id_zone' : 'id_driver';
+                const select = document.getElementById(selectId);
+                
+                const option = new Option(result.label, result.id);
+                select.add(option, undefined);
+                select.value = result.id;
+                
+                // Optional: Flash success
+                // alert('Creado exitosamente'); // A bit intrusive, relying on UI update is smoother
+            } else {
+                alert('Error: ' + result.message);
+            }
+
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error inesperado al crear');
+        }
+    }
+
+    // Row Toggle Logic
+
+    function toggleRow(row) {
+        const checkbox = row.querySelector('.order-checkbox');
+        checkbox.checked = !checkbox.checked;
+        updateRowStyle(checkbox);
+    }
+
+    function updateRowStyle(checkbox) {
+        const row = checkbox.closest('tr');
+        if (checkbox.checked) {
+            row.classList.add('bg-blue-50');
+            row.classList.remove('hover:bg-blue-50/50');
+        } else {
+            row.classList.remove('bg-blue-50');
+            row.classList.add('hover:bg-blue-50/50');
+        }
+        updateCount();
+    }
+
+    // Select All
+    document.getElementById('selectAll').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.order-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = this.checked;
+            updateRowStyle(cb);
+        });
+    });
+
+    // Update Counter
+    function updateCount() {
+        const count = document.querySelectorAll('.order-checkbox:checked').length;
+        document.getElementById('selectedCount').innerText = count;
+    }
+
+    // Search Filtering
+    document.getElementById('orderSearch').addEventListener('keyup', function() {
+        const searchText = this.value.toLowerCase();
+        const rows = document.querySelectorAll('#ordersTableBody tr');
+
+        rows.forEach(row => {
+            if (row.querySelector('td')) { // Skip empty state row
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(searchText) ? '' : 'none';
+            }
+        });
+    });
+</script>
 {% endblock %}
+

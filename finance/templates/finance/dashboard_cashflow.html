@@ -48,6 +48,71 @@
         {% endfor %}
     </div>
 
+    <!-- Cashflow Chart (IN vs OUT by Month) -->
+    {% if cashflow_chart_data and cashflow_chart_data != '[]' %}
+    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+        <h3 class="font-bold text-slate-800 dark:text-white mb-4">Flujo Mensual</h3>
+        <div class="h-56">
+            <canvas id="cashflowChart"></canvas>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const data = {{ cashflow_chart_data|safe }};
+        if (!data.length) return;
+        const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        new Chart(document.getElementById('cashflowChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: data.map(d => {
+                    const [y, m] = d.month.split('-');
+                    return months[parseInt(m)-1] + ' ' + y.slice(2);
+                }),
+                datasets: [
+                    {
+                        label: 'Ingresos',
+                        data: data.map(d => d.in_total),
+                        backgroundColor: 'rgba(34, 197, 94, 0.3)',
+                        borderColor: 'rgb(34, 197, 94)',
+                        borderWidth: 2,
+                        borderRadius: 6,
+                    },
+                    {
+                        label: 'Egresos',
+                        data: data.map(d => d.out_total),
+                        backgroundColor: 'rgba(239, 68, 68, 0.3)',
+                        borderColor: 'rgb(239, 68, 68)',
+                        borderWidth: 2,
+                        borderRadius: 6,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle' } },
+                    tooltip: {
+                        callbacks: {
+                            afterBody: function(ctx) {
+                                const i = ctx[0].dataIndex;
+                                const net = data[i].in_total - data[i].out_total;
+                                return 'Neto: $' + net.toLocaleString('es-AR');
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0) + 'K' : v) }, grid: { color: 'rgba(0,0,0,0.04)' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    });
+    </script>
+    {% endif %}
+
     <!-- Recent Movements Table -->
     <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
         <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -61,10 +126,18 @@
                 <div>
                     <input type="date" name="end_date" value="{{ end_date }}" class="border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-indigo-500">
                 </div>
+                <div>
+                    <select name="account" class="border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-indigo-500">
+                        <option value="">Todas las cuentas</option>
+                        {% for acc in accounts %}
+                        <option value="{{ acc.pk }}" {% if account_filter == acc.pk|stringformat:'d' %}selected{% endif %}>{{ acc.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <button type="submit" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors">
                     Filtrar
                 </button>
-                {% if end_date or start_date != '2026-01-01' %}
+                {% if end_date or account_filter %}
                     <a href="{% url 'cashflow_dashboard' %}" class="text-xs text-red-500 hover:text-red-600 hover:underline self-center ml-2">Limpiar</a>
                 {% endif %}
             </form>
@@ -110,6 +183,31 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Pagination -->
+        {% if movements.has_other_pages %}
+        <div class="flex items-center justify-between px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50">
+            <div class="text-sm text-slate-500">
+                Página {{ movements.number }} de {{ movements.paginator.num_pages }}
+                <span class="text-slate-400 ml-2">({{ movements.paginator.count }} movimientos)</span>
+            </div>
+            <div class="flex items-center gap-1">
+                {% if movements.has_previous %}
+                <a href="?page={{ movements.previous_page_number }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if account_filter %}&account={{ account_filter }}{% endif %}"
+                   class="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">
+                    <i class="fas fa-angle-left"></i>
+                </a>
+                {% endif %}
+                <span class="px-4 py-1.5 rounded-lg text-sm font-bold bg-indigo-600 text-white">{{ movements.number }}</span>
+                {% if movements.has_next %}
+                <a href="?page={{ movements.next_page_number }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if account_filter %}&account={{ account_filter }}{% endif %}"
+                   class="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">
+                    <i class="fas fa-angle-right"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

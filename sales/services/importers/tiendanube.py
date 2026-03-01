@@ -1,16 +1,22 @@
+import io
+import hashlib
+import logging
+
 import pandas as pd
-import warnings
-import gc
 from django.db import transaction
 from django.utils import timezone
 from datetime import datetime
+
 from sales.models import Sale, SaleItem, Product, Customer
+from sales.services.stock import StockService
 from .base import BaseImporter
-from sales.services.customer import upsert_customers, build_customer_dedup_key  # We might need to adapt this for Tienda Nube format
+
+logger = logging.getLogger(__name__)
 
 class TiendaNubeImporter(BaseImporter):
     def process_file(self, file_obj):
         try:
+            import warnings
             warnings.simplefilter("ignore")
             
             # Try encodings and separators
@@ -21,10 +27,8 @@ class TiendaNubeImporter(BaseImporter):
             file_obj.seek(0)
             content_bytes = file_obj.read()
             
-            df = None
             errors = []
             
-            import io
             
             for encoding in encodings:
                 try:
@@ -84,7 +88,7 @@ class TiendaNubeImporter(BaseImporter):
                         self._process_row(row)
                     except Exception as e:
                         self.stats['errors'] += 1
-                        print(f"TN Row error: {e}")
+                        logger.error(f"TN Row error: {e}")
 
         except Exception as e:
             return {'error': f"Error processing TN file: {str(e)}"}
@@ -97,28 +101,10 @@ class TiendaNubeImporter(BaseImporter):
             return
 
         # --- Customer Handling ---
-        # We need to adapt upsert_customers logic or do it inline here since format differs from ML
-        # ML has 'Comprador' column. TN has 'Nombre del comprador', 'Email', 'DNI / CUIT'
-        
-        email = row.get('Email', '')
-        name = row.get('Nombre del comprador', 'Unknown')
-        doc = str(row.get('DNI / CUIT', ''))
-        
-        # Build a safe dedup key for TN: tiendanube_user_email_doc
-        # Prefix with user_id to scope to tenant
-        # Use email/doc as uniqueness
-        
-        # Reuse existing customer logic if possible, or create bespoke minimal customer
-        customer = self._get_or_create_customer(row)
-
-        # Validate if this row has main order data (header info)
-        # In TN exports, multi-item orders only have header info on the first row.
-        # Check if 'Total' or 'Nombre del comprador' is present.
         has_header_data = False
         if not pd.isna(row.get('Total')) and not pd.isna(row.get('Nombre del comprador')):
              has_header_data = True
 
-        # --- Customer Handling ---
         customer = None
         if has_header_data:
             customer = self._get_or_create_customer(row)
@@ -153,7 +139,7 @@ class TiendaNubeImporter(BaseImporter):
                  try:
                     dt = datetime.strptime(str(combined_date), "%d/%m/%Y %H:%M:%S")
                     sale_date = timezone.make_aware(dt, timezone.get_current_timezone())
-                 except:
+                 except (ValueError, TypeError):
                     sale_date = timezone.now()
 
             # --- Financials ---
@@ -198,6 +184,7 @@ class TiendaNubeImporter(BaseImporter):
             sale.zip_code = self._clean_str(row.get('Código postal'))
             sale.invoice_data = f"{self._clean_str(row.get('Nombre del comprador'))} - {doc} ({self._clean_str(row.get('Condición fiscal'))})".strip()
             
+            sale.stock_deducted = sale.status != 'Cancelada'
             sale.save()
             
             if created:
@@ -241,10 +228,9 @@ class TiendaNubeImporter(BaseImporter):
                 unit_price=unit_price
             )
             
-            # Stock update
-            if product and status != 'Cancelada':
-                 product.stock_quantity -= quantity
-                 product.save()
+            # Stock update via StockService
+            if product and sale.status != 'Cancelada':
+                 StockService.deduct_item_stock(product, quantity)
 
     def _get_or_create_customer(self, row):
         name = self._clean_str(row.get('Nombre del comprador') or 'Unknown')
@@ -254,7 +240,6 @@ class TiendaNubeImporter(BaseImporter):
         # Build dedup key
         # We use a custom logic here or adapt the common one
         # Let's simple hash:
-        import hashlib
         raw_key = f"TN_{email}_{doc}_{name}".lower().encode('utf-8')
         key_hash = hashlib.sha256(raw_key).hexdigest()
         
@@ -307,7 +292,7 @@ class TiendaNubeImporter(BaseImporter):
                     val_str = val_str.replace('.', '') # Remove thousands
                 val_str = val_str.replace(',', '.') # Replace decimal
             return float(val_str)
-        except:
+        except (ValueError, TypeError):
             return 0
 
     def _clean_tracking(self, val):
@@ -326,7 +311,7 @@ class TiendaNubeImporter(BaseImporter):
              # Try float first if it looks like float
              f = float(s.replace(',', '.'))
              return str(int(f))
-        except:
+        except (ValueError, TypeError, OverflowError):
              return s
 
     def _parse_date_safe(self, date_val):
@@ -338,12 +323,12 @@ class TiendaNubeImporter(BaseImporter):
             # TN CSV dates are usually DD/MM/YYYY without time for payment/shipping dates
             dt = datetime.strptime(val, "%d/%m/%Y")
             return timezone.make_aware(dt, timezone.get_current_timezone())
-        except:
+        except (ValueError, TypeError):
             # Try with time if present
             try:
                 dt = datetime.strptime(val, "%d/%m/%Y %H:%M:%S")
                 return timezone.make_aware(dt, timezone.get_current_timezone())
-            except:
+            except (ValueError, TypeError):
                 return None
 
     def _clean_str(self, val):
