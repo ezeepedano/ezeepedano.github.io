@@ -259,3 +259,159 @@ class CustomerStats(models.Model):
 
     def __str__(self):
         return f"Stats for {self.customer.name}"
+
+
+# ============================================================================
+# QUOTATION / PRESUPUESTO
+# ============================================================================
+
+QUOTATION_STATUS = (
+    ('DRAFT', 'Borrador'),
+    ('SENT', 'Enviado'),
+    ('ACCEPTED', 'Aceptado'),
+    ('REJECTED', 'Rechazado'),
+)
+
+SALE_TYPE_CHOICES = (
+    ('WHOLESALE', 'Mayorista'),
+    ('RETAIL', 'Minorista'),
+)
+
+SALE_CONDITION_CHOICES = (
+    ('CONTADO', 'Contado'),
+    ('CTA_CTE', 'Cuenta Corriente'),
+    ('CHEQUE', 'Cheque'),
+    ('TRANSFERENCIA', 'Transferencia'),
+)
+
+
+class Quotation(models.Model):
+    """
+    Sales quotation / presupuesto de venta.
+    Supports wholesale and retail pricing with IVA and discounts.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    number = models.CharField(max_length=20, unique=True, editable=False, help_text="Nro de presupuesto auto-generado")
+    date = models.DateField(help_text="Fecha de emisión")
+    valid_until = models.DateField(help_text="Válido hasta")
+    customer = models.ForeignKey(
+        Customer, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='quotations', help_text="Cliente"
+    )
+    sale_type = models.CharField(
+        max_length=20, choices=SALE_TYPE_CHOICES, default='WHOLESALE',
+        help_text="Tipo de venta"
+    )
+    sale_condition = models.CharField(
+        max_length=20, choices=SALE_CONDITION_CHOICES, default='CTA_CTE',
+        help_text="Condición de venta"
+    )
+    payment_terms = models.CharField(
+        max_length=200, blank=True, null=True,
+        help_text="Condiciones de pago (ej: 30 días)"
+    )
+    notes = models.TextField(
+        blank=True, null=True,
+        help_text="Observaciones / condiciones especiales"
+    )
+    discount_pct = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0,
+        help_text="Bonificación global %"
+    )
+    status = models.CharField(
+        max_length=20, choices=QUOTATION_STATUS, default='DRAFT'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date', '-pk']
+
+    def __str__(self):
+        customer_name = self.customer.name if self.customer else "Sin cliente"
+        return f"Presupuesto {self.number} - {customer_name}"
+
+    def save(self, *args, **kwargs):
+        if not self.number:
+            last = Quotation.objects.filter(user=self.user).order_by('-pk').first()
+            if last and last.number:
+                try:
+                    seq = int(last.number.replace('P', '')) + 1
+                except ValueError:
+                    seq = 1
+            else:
+                seq = 1
+            self.number = f"P{seq:05d}"
+        super().save(*args, **kwargs)
+
+    @property
+    def subtotal(self):
+        """Sum of all line totals before global discount."""
+        return sum(item.line_total for item in self.items.all())
+
+    @property
+    def discount_amount(self):
+        """Global discount amount."""
+        return self.subtotal * (self.discount_pct / Decimal('100'))
+
+    @property
+    def net_gravado(self):
+        """Subtotal minus global discount."""
+        return self.subtotal - self.discount_amount
+
+    @property
+    def tax_amount(self):
+        """Sum of IVA for each line (after global discount proportionally)."""
+        total_iva = Decimal('0')
+        sub = self.subtotal
+        if sub == 0:
+            return total_iva
+        discount_factor = Decimal('1') - (self.discount_pct / Decimal('100'))
+        for item in self.items.all():
+            net_line = item.line_total * discount_factor
+            total_iva += net_line * (item.iva_pct / Decimal('100'))
+        return total_iva
+
+    @property
+    def total(self):
+        """Final total = net_gravado + IVA."""
+        return self.net_gravado + self.tax_amount
+
+
+class QuotationItem(models.Model):
+    """Individual line item within a Quotation."""
+    quotation = models.ForeignKey(
+        Quotation, on_delete=models.CASCADE, related_name='items'
+    )
+    product = models.ForeignKey(
+        Product, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    description = models.CharField(
+        max_length=300, help_text="Descripción del producto"
+    )
+    quantity = models.PositiveIntegerField(default=1)
+    unit_price = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        help_text="Precio unitario"
+    )
+    discount_pct = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0,
+        help_text="Bonificación por línea %"
+    )
+    iva_pct = models.DecimalField(
+        max_digits=5, decimal_places=2, default=21,
+        help_text="% IVA"
+    )
+
+    class Meta:
+        ordering = ['pk']
+
+    def __str__(self):
+        return f"{self.quantity}x {self.description}"
+
+    @property
+    def line_total(self):
+        """quantity * unit_price * (1 - discount_pct/100)."""
+        discount_factor = Decimal('1') - (self.discount_pct / Decimal('100'))
+        return self.quantity * self.unit_price * discount_factor

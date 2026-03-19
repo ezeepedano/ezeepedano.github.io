@@ -1,6 +1,9 @@
+{% load static %}
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
     <div class="container-fluid">
-        <a class="navbar-brand" href="/">ERP System</a>
+        <a class="navbar-brand flex items-center" href="/">
+            <img src="{% static 'img/logos/logo_light.png' %}" alt="ERP System Logo" style="max-height: 30px;" onerror="this.onerror=null; this.src='{% static \'img/logos/logo_main.png\' %}'">
+        </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>

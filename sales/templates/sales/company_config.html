@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+
+{% block title %}Configuración de Empresa - ERP{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="flex items-center gap-4 mb-8">
+        <a href="{% url 'quotation_list' %}"
+            class="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h1 class="text-2xl font-bold text-gray-900">
+            <i class="fas fa-building text-indigo-500 mr-2"></i>Configuración de Empresa
+        </h1>
+    </div>
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="mb-6 p-4 rounded-xl border {% if message.tags == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-800{% else %}bg-red-50 border-red-200 text-red-800{% endif %}">
+        <i class="fas {% if message.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %} mr-2"></i>{{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data" class="space-y-6">
+        {% csrf_token %}
+
+        <!-- General -->
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <i class="fas fa-id-card text-amber-500"></i> Datos Generales
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Nombre de la Empresa</label>
+                    <input type="text" name="company_name" value="{{ config.company_name }}"
+                        class="w-full px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">CUIT</label>
+                    <input type="text" name="company_cuit" value="{{ config.company_cuit }}" placeholder="30-12345678-9"
+                        class="w-full px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Condición de IVA</label>
+                    <input type="text" name="company_iva_condition" value="{{ config.company_iva_condition }}" placeholder="RESPONSABLE INSCRIPTO"
+                        class="w-full px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Domicilio Fiscal</label>
+                    <input type="text" name="company_address" value="{{ config.company_address }}"
+                        class="w-full px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none transition-all">
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact -->
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <i class="fas fa-phone-alt text-emerald-500"></i> Contacto
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Teléfono</label>
+                    <input type="text" name="company_phone" value="{{ config.company_phone }}" placeholder="(351) 456-7890"
+                        class="w-full px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Email</label>
+                    <input type="email" name="company_email" value="{{ config.company_email }}" placeholder="ventas@empresa.com"
+                        class="w-full px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Sitio Web</label>
+                    <input type="text" name="company_website" value="{{ config.company_website }}" placeholder="www.empresa.com.ar"
+                        class="w-full px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Red Social</label>
+                    <input type="text" name="company_social" value="{{ config.company_social }}" placeholder="@empresa.ar"
+                        class="w-full px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none transition-all">
+                </div>
+            </div>
+        </div>
+
+        <!-- Images -->
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <i class="fas fa-image text-purple-500"></i> Imágenes
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Logo de la Empresa</label>
+                    {% if config.logo_image %}
+                    <div class="mb-2 p-3 bg-gray-50 rounded-xl">
+                        <img src="{{ config.logo_image.url }}" class="max-h-16" alt="Logo actual">
+                    </div>
+                    {% endif %}
+                    <input type="file" name="logo_image" accept="image/*"
+                        class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Firma Digital (para CoA)</label>
+                    {% if config.signature_image %}
+                    <div class="mb-2 p-3 bg-gray-50 rounded-xl">
+                        <img src="{{ config.signature_image.url }}" class="max-h-16" alt="Firma actual">
+                    </div>
+                    {% endif %}
+                    <input type="file" name="signature_image" accept="image/*"
+                        class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 transition-all">
+                </div>
+            </div>
+            <div class="mt-4">
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Director Técnico</label>
+                <input type="text" name="technical_director_name" value="{{ config.technical_director_name }}"
+                    class="w-full px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none transition-all">
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex justify-end gap-3 pt-2">
+            <a href="{% url 'quotation_list' %}" class="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">
+                Cancelar
+            </a>
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <i class="fas fa-save mr-2"></i> Guardar Configuración
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

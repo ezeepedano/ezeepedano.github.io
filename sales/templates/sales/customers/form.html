@@ -156,7 +156,7 @@
                         
                         // If empty, fallback to full name but try to strip basic location info if possible, or just use name
                         if (!fullAddress.trim()) {
-                            fullAddress = data.name;
+                            fullAddress = data.name || "";
                         }
 
                         // City Logic: city > town > village > hamlet > suburb
@@ -164,6 +164,11 @@
                         
                         // State Logic: state > province
                         let state = props.state || props.province || props.region || "";
+
+                        // DEFENSIVE TRUNCATION: Prevent Django ValidationError (max_length)
+                        if (fullAddress.length > 250) fullAddress = fullAddress.substring(0, 250);
+                        if (city.length > 95) city = city.substring(0, 95);
+                        if (state.length > 95) state = state.substring(0, 95);
 
                         // Update Inputs
                         if (addressInput && fullAddress) addressInput.value = fullAddress;

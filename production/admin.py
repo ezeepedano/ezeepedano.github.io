@@ -39,6 +39,17 @@ class ProductSpecificationAdmin(admin.ModelAdmin):
 @admin.register(CompanyConfig)
 class CompanyConfigAdmin(admin.ModelAdmin):
     list_display = ('company_name', 'technical_director_name')
+    fieldsets = (
+        ('General', {
+            'fields': ('company_name', 'logo_image', 'technical_director_name', 'signature_image'),
+        }),
+        ('Datos fiscales', {
+            'fields': ('company_cuit', 'company_iva_condition', 'company_address'),
+        }),
+        ('Contacto', {
+            'fields': ('company_phone', 'company_email', 'company_website', 'company_social'),
+        }),
+    )
 
     def has_add_permission(self, request):
         # Singleton: only allow one instance

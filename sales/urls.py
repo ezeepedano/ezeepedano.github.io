@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import quotation_views
 
 urlpatterns = [
     # Sales
@@ -19,4 +20,17 @@ urlpatterns = [
     path('api/customer/<int:pk>/', views.customer_detail_api, name='customer_detail_api'),
     path('api/product/<int:pk>/', views.product_detail_api, name='product_detail_api'),
     path('api/customer/<int:customer_id>/history/', views.product_purchase_history_api, name='product_history_api'),
+
+    # Quotations / Presupuestos
+    path('quotations/', quotation_views.quotation_list, name='quotation_list'),
+    path('quotations/create/', quotation_views.quotation_create, name='quotation_create'),
+    path('quotations/<int:pk>/edit/', quotation_views.quotation_edit, name='quotation_edit'),
+    path('quotations/<int:pk>/delete/', quotation_views.quotation_delete, name='quotation_delete'),
+    path('quotations/<int:pk>/pdf/', quotation_views.quotation_pdf, name='quotation_pdf'),
+    path('quotations/<int:pk>/duplicate/', quotation_views.quotation_duplicate, name='quotation_duplicate'),
+    path('api/quotation/product/<int:pk>/', quotation_views.product_price_api_quotation, name='quotation_product_api'),
+
+    # Company Config
+    path('config/', quotation_views.company_config, name='company_config'),
 ]
+

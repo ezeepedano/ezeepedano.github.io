@@ -173,7 +173,7 @@ class CompanyConfig(models.Model):
     Singleton model for company-wide settings used in PDF reports.
     """
     company_name = models.CharField(
-        max_length=200, default='Propel ERP',
+        max_length=200, default='INSAF',
         help_text="Nombre de la empresa para reportes"
     )
     technical_director_name = models.CharField(
@@ -187,6 +187,34 @@ class CompanyConfig(models.Model):
     logo_image = models.ImageField(
         upload_to='company/', blank=True, null=True,
         help_text="Logo de la empresa para reportes PDF"
+    )
+    company_cuit = models.CharField(
+        max_length=20, blank=True, default='30-71928199-7',
+        help_text="CUIT de la empresa"
+    )
+    company_iva_condition = models.CharField(
+        max_length=50, blank=True, default='RESPONSABLE INSCRIPTO',
+        help_text="Condicion de IVA (Responsable Inscripto, etc.)"
+    )
+    company_address = models.CharField(
+        max_length=300, blank=True, default='AV. BODEREAU 9116 LOCAL 2',
+        help_text="Domicilio fiscal de la empresa"
+    )
+    company_phone = models.CharField(
+        max_length=50, blank=True, default='',
+        help_text="Telefono de contacto"
+    )
+    company_email = models.CharField(
+        max_length=200, blank=True, default='',
+        help_text="Email de contacto / ventas"
+    )
+    company_website = models.CharField(
+        max_length=200, blank=True, default='',
+        help_text="Sitio web de la empresa"
+    )
+    company_social = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text="Red social (ej: @formulavital.ar)"
     )
 
     class Meta:

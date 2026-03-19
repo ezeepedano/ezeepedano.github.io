@@ -3,24 +3,19 @@
 <head>
     <meta charset="utf-8">
     <style>
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           PAGE SETUP (WeasyPrint)
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
         @page {
             size: A4;
             margin: 3cm 1.5cm 2.5cm 1.5cm;
 
-            @frame header {
-                -pdf-frame-content: page-header;
-                top: 0cm;
-                left: 1.5cm;
-                right: 1.5cm;
-                height: 3cm;
+            @top-center {
+                content: element(pageHeader);
             }
 
-            @frame footer {
-                -pdf-frame-content: page-footer;
-                bottom: 0cm;
-                left: 1.5cm;
-                right: 1.5cm;
-                height: 1.2cm;
+            @bottom-center {
+                content: element(pageFooter);
             }
         }
 
@@ -33,9 +28,10 @@
         }
 
         /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-           HEADER
+           RUNNING HEADER
         ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
         #page-header {
+            position: running(pageHeader);
             padding-bottom: 4px;
         }
         .header-accent-bar {
@@ -90,9 +86,10 @@
         }
 
         /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-           FOOTER
+           RUNNING FOOTER
         ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
         #page-footer {
+            position: running(pageFooter);
             border-top: 1px solid #e5e7eb;
             padding-top: 4px;
         }
@@ -113,6 +110,9 @@
             font-size: 6.5pt;
             padding: 1px 5px;
             font-weight: bold;
+        }
+        .page-number::after {
+            content: "Pag. " counter(page) " / " counter(pages);
         }
 
         /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -308,14 +308,14 @@
 </head>
 <body>
 
-    <!-- HEADER -->
+    <!-- RUNNING HEADER (repeated on each page) -->
     <div id="page-header">
         <div class="header-accent-bar"></div>
         <table class="header-main-table">
             <tr>
                 <td style="width:30%">
                     {% if logo_path %}
-                    <img src="{{ logo_path }}" style="height:36px; width:auto;" />
+                    <img src="file://{{ logo_path }}" style="height:36px; width:auto;" />
                     {% else %}
                     <div class="header-company">{{ company_name }}</div>
                     <div class="header-company-sub">Sistema de Gestion de Produccion</div>
@@ -335,7 +335,7 @@
         <hr class="header-divider" />
     </div>
 
-    <!-- FOOTER -->
+    <!-- RUNNING FOOTER (repeated on each page) -->
     <div id="page-footer">
         <table class="footer-table">
             <tr>
@@ -344,7 +344,7 @@
                     &nbsp;&nbsp;{{ filename }}
                 </td>
                 <td style="text-align:right;">
-                    Pag. <pdf:pagenumber/> / <pdf:pagecount/>
+                    <span class="page-number"></span>
                 </td>
             </tr>
         </table>

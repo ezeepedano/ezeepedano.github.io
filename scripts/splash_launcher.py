@@ -163,12 +163,37 @@ class SplashScreen:
 
 # ─── LOGICA DE ARRANQUE ────────────────────────────────────────────────────────
 
+def kill_stale_servers(port: int):
+    """Kill any existing Django runserver processes on the given port."""
+    try:
+        result = subprocess.run(
+            ["wmic", "process", "where",
+             f"Name='python.exe' AND CommandLine LIKE '%runserver%{port}%'",
+             "get", "ProcessId", "/format:list"],
+            capture_output=True, text=True, timeout=10,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        )
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if line.startswith("ProcessId="):
+                pid = int(line.split("=")[1])
+                if pid != os.getpid():
+                    try:
+                        os.kill(pid, 9)
+                    except OSError:
+                        pass
+    except Exception:
+        pass  # Non-critical, continue with launch
+
+
 def launch_sequence(splash: SplashScreen):
     base_dir   = get_base_dir()
     python_exe = get_venv_python(base_dir)
     manage_py  = os.path.join(base_dir, "manage.py")
 
     splash.set_step(0)
+    # Kill any leftover runserver processes from previous sessions
+    kill_stale_servers(PORT)
     time.sleep(0.5)
 
     splash.set_step(1)
@@ -178,15 +203,14 @@ def launch_sequence(splash: SplashScreen):
     time.sleep(0.4)
 
     splash.set_step(3)
-    flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+    # Spawn a visible console for the Django server instead of hiding it
+    flags = subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
     
     # Lanzar Django
     subprocess.Popen(
-        [python_exe, manage_py, "runserver", f"{HOST}:{PORT}", "--noreload"],
+        [python_exe, manage_py, "runserver", f"{HOST}:{PORT}"],
         cwd=base_dir,
-        creationflags=flags,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        creationflags=flags
     )
     time.sleep(1.0)
 

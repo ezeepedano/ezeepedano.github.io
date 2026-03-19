@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib import messages
 from django.http import JsonResponse
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, Count
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
@@ -463,6 +463,7 @@ def customer_detail(request, pk):
     """
     from django.core.paginator import Paginator
     from django.db.models.functions import TruncMonth
+    from django.db.models import Sum, Count
 
     customer = get_object_or_404(
         Customer.objects.filter(user=request.user).select_related('stats'),
@@ -485,13 +486,14 @@ def customer_detail(request, pk):
     )
 
     # Monthly purchases for chart (last 12 months)
+    import django.db.models as django_models
     monthly_purchases = list(
         Sale.objects.filter(customer=customer)
         .annotate(month=TruncMonth('date'))
         .values('month')
         .annotate(
-            revenue=Sum('total'),
-            orders=Count('id')
+            revenue=django_models.Sum('total'),
+            orders=django_models.Count('id')
         )
         .order_by('month')
     )

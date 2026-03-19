@@ -12,12 +12,11 @@ from decimal import Decimal
 from django.db.models import F
 
 from django.http import HttpResponse, Http404
-from django.template.loader import get_template
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, render
 from django.conf import settings
 
-from xhtml2pdf import pisa
+from core_erp.pdf_utils import render_to_pdf
 
 from production.models import (
     ProductionOrder, BillOfMaterial, BomLine,
@@ -29,29 +28,6 @@ from traceability.models import (
 from inventory.models import Product, Ingredient
 
 logger = logging.getLogger(__name__)
-
-
-# ============================================================================
-# UTILITY
-# ============================================================================
-
-def render_to_pdf(template_path, context, filename='report.pdf'):
-    """Render an HTML template to a PDF HttpResponse."""
-    template = get_template(template_path)
-    html = template.render(context)
-
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'inline; filename="{filename}"'
-
-    result = BytesIO()
-    pdf = pisa.pisaDocument(BytesIO(html.encode('utf-8')), result, encoding='utf-8')
-
-    if pdf.err:
-        logger.error("Error generating PDF: %s", pdf.err)
-        return HttpResponse('Error al generar el PDF.', status=500)
-
-    response.write(result.getvalue())
-    return response
 
 
 def generate_qr_base64(data):
@@ -72,12 +48,13 @@ def _base_context(request, filename):
     config = CompanyConfig.get_config()
 
     # Try to resolve logo path
-    logo_path = None
-    if config.logo_image:
-        try:
-            logo_path = config.logo_image.path
-        except Exception:
-            pass
+    logo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'logos', 'logo_report.png')
+    if not os.path.exists(logo_path):
+        # Fallback to main logo if report logo not found
+        logo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'logos', 'logo_main.png')
+        if not os.path.exists(logo_path):
+             logo_path = None
+
 
     return {
         'print_date': now.strftime('%d/%m/%Y'),

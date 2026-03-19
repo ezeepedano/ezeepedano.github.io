@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 1.2cm 1.5cm 1.2cm 1.5cm;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 9px;
+            color: #424141;
+            line-height: 1.35;
+            background: white;
+        }
+
+        /* ── UTILITY ── */
+        table { width: 100%; border-collapse: collapse; }
+        td, th { padding: 0; vertical-align: top; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .text-left { text-align: left; }
+        .bold { font-weight: bold; }
+
+        /* ── COLORS ── */
+        .color-gold { color: #E5A100; font-weight: bold; font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; }
+        .color-dark { color: #424141; }
+        .bg-dark { background-color: #424141; color: #FFFFFF; }
+        .bg-gray { background-color: #f1f1f0; }
+        .bg-yellow { background-color: #FFCC00; color: #000000; font-weight: bold; }
+
+        /* ── HEADER ── */
+        .header-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #424141;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .header-subtitle {
+            font-size: 13px;
+            color: #424141;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding-top: 3px;
+        }
+
+        /* ── CLIENT NAME ── */
+        .client-name {
+            font-size: 16px;
+            font-weight: bold;
+            padding: 3px 0;
+        }
+        .client-detail {
+            font-size: 9px;
+            line-height: 1.5;
+        }
+
+        /* ── PRODUCT TABLE ── */
+        .prod-table {
+            margin-top: 10px;
+            margin-bottom: 0;
+        }
+        .prod-table th {
+            background-color: #424141;
+            color: #f1f1f0;
+            font-size: 8px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 7px 5px;
+        }
+        .prod-table td {
+            font-size: 8px;
+            font-weight: bold;
+            color: #424141;
+            padding: 7px 5px;
+            border: none;
+        }
+        .prod-table tbody tr:nth-child(even) td {
+            background-color: #f1f1f0;
+        }
+
+        /* ── TOTALS ── */
+        .tot-row td {
+            font-size: 8px;
+            font-weight: bold;
+            padding: 5px 5px;
+            letter-spacing: 0.04em;
+        }
+        .tot-total td {
+            background-color: #424141;
+            color: #FFFFFF;
+            font-weight: bold;
+            font-size: 8px;
+            padding: 7px 5px;
+            letter-spacing: 0.04em;
+        }
+
+        /* ── FOOTER SECTION ── */
+        .footer-section {
+            margin-top: 15px;
+        }
+        .footer-text {
+            font-size: 8px;
+            line-height: 1.5;
+        }
+        .sig-line {
+            border-bottom: 1px dashed #424141;
+            width: 140px;
+            margin-top: 30px;
+            margin-bottom: 3px;
+        }
+        .sig-name {
+            font-size: 7px;
+            color: #424141;
+        }
+
+        /* ── BOTTOM BAR ── */
+        .bottom-bar {
+            margin-top: 8px;
+        }
+        .bottom-bar td {
+            padding: 3px 0;
+            vertical-align: bottom;
+        }
+        .contact-info {
+            font-size: 9px;
+            color: #424141;
+            line-height: 1.6;
+            text-align: right;
+        }
+        .website-badge {
+            background-color: #FFCC00;
+            color: #000;
+            font-weight: bold;
+            font-size: 9px;
+            text-align: center;
+            padding: 5px 10px;
+            display: inline-block;
+            margin-top: 5px;
+        }
+
+        /* ── FULL-WIDTH DARK BAR ── */
+        .dark-bar {
+            background-color: #424141;
+            height: 18px;
+            width: 110%;
+            margin-left: -5%;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     HEADER: Logo + Company Info + Title
+═══════════════════════════════════════════ -->
+<table style="margin-bottom: 12px;">
+    <tr>
+        <td style="width: 50%; vertical-align: top;">
+            {% if logo_path %}
+            <img src="file://{{ logo_path }}" style="max-height: 65px; max-width: 160px;" />
+            {% else %}
+            <div style="background-color: #424141; color: white; width: 100px; height: 80px; text-align: center; font-size: 14px; font-weight: bold; padding-top: 20px;">
+                {{ company_name }}
+            </div>
+            {% endif %}
+        </td>
+        <td style="width: 50%; text-align: right; vertical-align: middle;">
+            <div class="header-title">PRESUPUESTO</div>
+            <div class="header-subtitle">N&deg; {{ quotation.number }}</div>
+        </td>
+    </tr>
+</table>
+
+<!-- Company data row -->
+<table style="margin-bottom: 14px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">
+    <tr>
+        <td style="width: 50%; vertical-align: top;">
+            <div style="font-size: 12px; font-weight: bold; color: #424141;">{{ company_name }}</div>
+            <div class="client-detail">{{ config.company_iva_condition }}</div>
+            <div class="client-detail">CUIT: {{ config.company_cuit }}</div>
+            <div class="client-detail">{{ config.company_address }}</div>
+        </td>
+        <td style="width: 50%; text-align: right; vertical-align: top;">
+            <div class="client-detail">Fecha: {{ quotation.date|date:"d/m/Y" }}</div>
+            <div class="client-detail">Vencimiento: {{ quotation.valid_until|date:"d/m/Y" }}</div>
+        </td>
+    </tr>
+</table>
+
+<!-- ═══════════════════════════════════════════
+     CLIENT INFO
+═══════════════════════════════════════════ -->
+<table style="margin-bottom: 10px;">
+    <tr>
+        <td style="width: 50%; padding-right: 12px;">
+            <div class="color-gold" style="padding-bottom: 4px;">CLIENTE</div>
+            <div class="client-name">{{ customer.name }}</div>
+            <div class="client-detail">Razon Social | {{ customer.billing_name|default:customer.name }}</div>
+            <div class="client-detail">CUIT: {{ customer.document_number|default:"—" }}</div>
+            <div class="client-detail">Condicion de IVA: {{ customer.tax_condition|default:"—" }}</div>
+            <div class="client-detail">Domicilio: {{ customer.billing_address|default:"—" }}</div>
+        </td>
+        <td style="width: 50%; padding-left: 12px; text-align: right; vertical-align: bottom;">
+            <div class="client-detail">Condici&oacute;n de venta: {{ quotation.get_sale_condition_display }}</div>
+            <div class="client-detail">Tipo: {{ quotation.get_sale_type_display }}</div>
+            <div class="client-detail">Domicilio entrega: {{ customer.shipping_address|default:customer.billing_address|default:"—" }}</div>
+        </td>
+    </tr>
+</table>
+
+<!-- ═══════════════════════════════════════════
+     CONTACT + PAYMENT DATA
+═══════════════════════════════════════════ -->
+<table style="margin-bottom: 12px;">
+    <tr>
+        <td style="width: 50%; padding-right: 12px;">
+            <div class="color-gold" style="padding-bottom: 3px;">PERSONA DE CONTACTO</div>
+            <div class="client-detail">Tel&eacute;fono: {{ customer.phone|default:"—" }}</div>
+            <div class="client-detail">Email: {{ customer.email|default:"—" }}</div>
+        </td>
+        <td style="width: 50%; padding-left: 12px; text-align: right;">
+            <div class="color-gold" style="padding-bottom: 3px;">DATOS DE PAGO</div>
+            <div class="client-detail">Cuenta: {{ quotation.payment_terms|default:"A convenir" }}</div>
+            <div class="client-detail">{{ company_name }}</div>
+        </td>
+    </tr>
+</table>
+
+<!-- ═══════════════════════════════════════════
+     PRODUCTS TABLE
+═══════════════════════════════════════════ -->
+<table class="prod-table">
+    <thead>
+        <tr>
+            <th class="text-center" style="width: 7%;">#</th>
+            <th class="text-left" style="width: 40%;">DESCRIPCI&Oacute;N</th>
+            <th class="text-center" style="width: 18%;">PRECIO</th>
+            <th class="text-center" style="width: 15%;">CANTIDAD</th>
+            <th class="text-center" style="width: 20%;">TOTAL</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td class="text-center">{{ forloop.counter }}</td>
+            <td class="text-left">{{ item.description }}</td>
+            <td class="text-center">${{ item.unit_price|floatformat:2 }}</td>
+            <td class="text-center">{{ item.quantity|floatformat:0 }}</td>
+            <td class="text-center">${{ item.line_total|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════
+     TOTALS
+═══════════════════════════════════════════ -->
+<table style="margin-bottom: 15px;">
+    <tr>
+        <td style="width: 55%;"></td>
+        <td style="width: 45%;">
+            <table>
+                <tr class="tot-row">
+                    <td style="width: 50%;">Subtotal</td>
+                    <td class="text-center" style="width: 50%;">${{ subtotal|floatformat:2 }}</td>
+                </tr>
+                {% if discount_amount and discount_amount > 0 %}
+                <tr class="tot-row">
+                    <td>Desc. {{ quotation.discount_pct|floatformat:0 }}%</td>
+                    <td class="text-center">-${{ discount_amount|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                <tr class="tot-row">
+                    <td>Impuestos {{ items.0.iva_pct|floatformat:1|default:"21.0" }}%</td>
+                    <td class="text-center">${{ tax_amount|floatformat:2 }}</td>
+                </tr>
+                <tr class="tot-total">
+                    <td>TOTAL</td>
+                    <td class="text-center">${{ total|floatformat:2 }}</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+
+<!-- ═══════════════════════════════════════════
+     FOOTER: Conditions + Signature + Contact
+═══════════════════════════════════════════ -->
+<table class="footer-section">
+    <tr>
+        <td style="width: 50%; padding-right: 15px; vertical-align: top;">
+            <div class="color-gold" style="padding-bottom: 3px;">CONDICIONES DE PAGO</div>
+            <div class="footer-text" style="margin-bottom: 12px;">
+                Recuerde enviar comprobante luego de su pago.<br/>
+                El pedido saldr&aacute; despachado luego de confirmar la recepci&oacute;n del pago.
+            </div>
+
+            <div class="color-gold" style="padding-bottom: 3px;">OTROS DETALLES</div>
+            <div class="footer-text" style="margin-bottom: 12px;">
+                No incluye flete/transporte salvo indicaci&oacute;n contraria.<br/>
+                Disponibilidad: sujeta al stock al momento de confirmar el pedido.
+                {% if quotation.notes %}
+                <br/>{{ quotation.notes|linebreaksbr }}
+                {% endif %}
+            </div>
+
+            <div class="color-gold" style="padding-bottom: 3px;">FIRMA</div>
+            <div class="sig-line"></div>
+            <div class="sig-name">{{ print_user }}</div>
+        </td>
+        <td style="width: 50%; vertical-align: bottom; text-align: right;">
+            <div class="contact-info">
+                {% if config.company_email %}{{ config.company_email }}<br/>{% endif %}
+                {% if config.company_phone %}{{ config.company_phone }}<br/>{% endif %}
+                {% if config.company_social %}{{ config.company_social }}{% endif %}
+            </div>
+            {% if config.company_website %}
+            <div class="website-badge" style="float: right; margin-top: 8px;">
+                {{ config.company_website }}
+            </div>
+            {% endif %}
+        </td>
+    </tr>
+</table>
+
+<!-- Bottom dark bar -->
+<div class="dark-bar"></div>
+
+</body>
+</html>
