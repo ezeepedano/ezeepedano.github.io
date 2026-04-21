@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}Nueva Venta Mayorista - Propel{% endblock %}
+{% block header_title %}Venta Mayorista{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto">
@@ -150,6 +151,14 @@
             </div>
         </div>
 
+        <!-- Product Suggestions (populated dynamically) -->
+        <div id="product-suggestions" class="hidden bg-gradient-to-br from-emerald-50 to-teal-50 rounded-3xl shadow-sm border border-emerald-100 p-6">
+            <h3 class="text-md font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <i class="fas fa-history text-emerald-500"></i> Productos frecuentes de este cliente
+            </h3>
+            <div id="suggestion-chips" class="flex flex-wrap gap-2"></div>
+        </div>
+
         <!-- Order Items -->
         <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
             <h2 class="text-lg font-bold text-gray-800 mb-6 flex justify-between items-center">
@@ -160,6 +169,7 @@
             <div id="formset-container" class="space-y-4">
                 {% for item_form in formset %}
                 <div class="item-row grid grid-cols-1 md:grid-cols-12 gap-4 items-end p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    {% for hidden in item_form.hidden_fields %}{{ hidden }}{% endfor %}
                     <div class="col-span-1 md:col-span-6">
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Producto</label>
                         {{ item_form.product }}
@@ -174,11 +184,47 @@
                     </div>
                     <div class="col-span-1 md:col-span-1 flex justify-center pb-2">
                         {% if formset.can_delete %}
-                            {{ item_form.DELETE }}
+                            <label class="inline-flex items-center gap-1 text-xs text-red-600 cursor-pointer" title="Eliminar">
+                                {{ item_form.DELETE }}
+                                <i class="fas fa-trash"></i>
+                            </label>
                         {% endif %}
                     </div>
                 </div>
                 {% endfor %}
+            </div>
+
+            <template id="empty-item-row">
+                <div class="item-row grid grid-cols-1 md:grid-cols-12 gap-4 items-end p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    {% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+                    <div class="col-span-1 md:col-span-6">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Producto</label>
+                        {{ formset.empty_form.product }}
+                    </div>
+                    <div class="col-span-1 md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Cant.</label>
+                        {{ formset.empty_form.quantity }}
+                    </div>
+                    <div class="col-span-1 md:col-span-3">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Precio Un.</label>
+                        {{ formset.empty_form.unit_price }}
+                    </div>
+                    <div class="col-span-1 md:col-span-1 flex justify-center pb-2">
+                        {% if formset.can_delete %}
+                            <label class="inline-flex items-center gap-1 text-xs text-red-600 cursor-pointer" title="Eliminar">
+                                {{ formset.empty_form.DELETE }}
+                                <i class="fas fa-trash"></i>
+                            </label>
+                        {% endif %}
+                    </div>
+                </div>
+            </template>
+
+            <div class="mt-4 flex justify-start">
+                <button type="button" id="btn-add-item"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 border border-indigo-100 font-semibold text-sm transition-colors">
+                    <i class="fas fa-plus"></i> Agregar producto
+                </button>
             </div>
         </div>
 
@@ -424,6 +470,97 @@
                             }
                         });
                 }
+            });
+        }
+
+        // --- PRODUCT SUGGESTIONS FROM CUSTOMER HISTORY ---
+        const suggestionsContainer = document.getElementById('product-suggestions');
+        const chipsContainer = document.getElementById('suggestion-chips');
+        
+        if(customerSelect) {
+            customerSelect.addEventListener('change', function() {
+                const customerId = this.value;
+                if(!customerId) {
+                    suggestionsContainer.classList.add('hidden');
+                    return;
+                }
+                
+                fetch(`/sales/api/customer/${customerId}/history/`)
+                    .then(r => r.json())
+                    .then(data => {
+                        chipsContainer.innerHTML = '';
+                        if(data.products && data.products.length > 0) {
+                            suggestionsContainer.classList.remove('hidden');
+                            data.products.forEach(p => {
+                                const chip = document.createElement('button');
+                                chip.type = 'button';
+                                chip.className = 'inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-emerald-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-emerald-100 hover:border-emerald-400 transition-all shadow-sm cursor-pointer';
+                                chip.innerHTML = `<i class="fas fa-plus-circle text-emerald-500 text-xs"></i> ${p.name} <span class="text-xs text-gray-400 ml-1">x${p.qty} · $${p.price}</span>`;
+                                chip.addEventListener('click', function() {
+                                    // Find the first empty product select, or the last one
+                                    const selects = document.querySelectorAll('select[name$="-product"]');
+                                    let targetSelect = null;
+                                    selects.forEach(sel => {
+                                        if(!sel.value && !targetSelect) targetSelect = sel;
+                                    });
+                                    if(targetSelect) {
+                                        targetSelect.value = p.id;
+                                        targetSelect.dispatchEvent(new Event('change', {bubbles: true}));
+                                    }
+                                    // Visual feedback
+                                    chip.classList.add('bg-emerald-200', 'border-emerald-400');
+                                    chip.querySelector('i').className = 'fas fa-check text-emerald-600 text-xs';
+                                    setTimeout(() => {
+                                        chip.classList.remove('bg-emerald-200', 'border-emerald-400');
+                                        chip.querySelector('i').className = 'fas fa-plus-circle text-emerald-500 text-xs';
+                                    }, 1500);
+                                });
+                                chipsContainer.appendChild(chip);
+                            });
+                        } else {
+                            suggestionsContainer.classList.add('hidden');
+                        }
+                    })
+                    .catch(() => suggestionsContainer.classList.add('hidden'));
+            });
+        }
+
+        // --- AUTO-FILL PAID AMOUNT WHEN STATUS = PAID ---
+        const paymentStatusSelect = document.getElementById('id_payment_status');
+        const paidAmountInput = document.getElementById('id_paid_amount');
+        
+        if(paymentStatusSelect && paidAmountInput) {
+            paymentStatusSelect.addEventListener('change', function() {
+                if(this.value === 'PAID') {
+                    // Set paid_amount = calculated total
+                    const totalDisplay = document.getElementById('total-display');
+                    if(totalDisplay) {
+                        const totalText = totalDisplay.textContent.replace(/[^0-9.-]/g, '');
+                        const totalVal = parseFloat(totalText) || 0;
+                        if(totalVal > 0) {
+                            paidAmountInput.value = totalVal.toFixed(2);
+                        }
+                    }
+                }
+            });
+        }
+
+        // Add Product Row Logic
+        const btnAddItem = document.getElementById('btn-add-item');
+        const formsetContainer = document.getElementById('formset-container');
+        const emptyRowTpl = document.getElementById('empty-item-row');
+        const totalFormsInput = document.querySelector('input[name$="-TOTAL_FORMS"]');
+
+        if (btnAddItem && formsetContainer && emptyRowTpl && totalFormsInput) {
+            btnAddItem.addEventListener('click', function() {
+                const newIndex = parseInt(totalFormsInput.value, 10);
+                const html = emptyRowTpl.innerHTML.replace(/__prefix__/g, newIndex);
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = html.trim();
+                const newRow = wrapper.firstElementChild;
+                formsetContainer.appendChild(newRow);
+                totalFormsInput.value = newIndex + 1;
+                calculateTotal();
             });
         }
 
