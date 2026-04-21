@@ -34,9 +34,9 @@ def import_inventory(request):
         
         if result['success']:
             msg = f"Importación exitosa: {result['updated']} actualizados, {result['created']} creados."
-            if result.get('errors'):
-                msg += f" Hubo {len(result['errors'])} errores no fatales."
             messages.success(request, msg)
+            for err in (result.get('errors') or [])[:20]:
+                messages.warning(request, err)
         else:
             messages.error(request, f"Error: {result['message']}")
             
