@@ -44,7 +44,7 @@
     </div>
 
     {# ────────── KPI filter tiles ────────── #}
-    <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-6 animate__animated animate__fadeIn">
+    <div class="grid grid-cols-2 xl:grid-cols-5 gap-3 mb-6 animate__animated animate__fadeIn">
         <a href="{% url 'product_list' %}" class="block group">
             <div class="card-soft p-5 h-full {% if current_filter == 'all' %}ring-2 ring-primary-600/40 border-primary-200{% else %}hover:-translate-y-0.5 hover:border-primary-200{% endif %} transition-all duration-200 ease-soft">
                 <div class="flex items-start justify-between mb-4">
@@ -78,6 +78,18 @@
                 </div>
                 <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Sin stock</p>
                 <h3 class="text-2xl font-bold text-red-600 tracking-tight leading-none">{{ out_of_stock_count }}</h3>
+            </div>
+        </a>
+
+        <a href="{% url 'product_list' %}?filter=selling_at_loss" class="block group" title="Productos con precio de venta menor al costo">
+            <div class="card-soft p-5 h-full {% if current_filter == 'selling_at_loss' %}ring-2 ring-rose-500/40 border-rose-200{% else %}hover:-translate-y-0.5 hover:border-rose-200{% endif %} transition-all duration-200 ease-soft">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center">
+                        <i class="fas fa-arrow-trend-down"></i>
+                    </div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">A pérdida</p>
+                <h3 class="text-2xl font-bold text-rose-700 tracking-tight leading-none">{{ selling_at_loss_count|default:0 }}</h3>
             </div>
         </a>
 
@@ -142,97 +154,138 @@
             <table class="w-full text-left border-collapse">
                 <thead class="bg-slate-50/60 border-b border-slate-100">
                     <tr class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">
-                        <th class="px-5 py-3.5">
+                        <th class="px-4 py-3.5">
                             <a href="?sort=name&order={% if sort_field == 'name' and sort_order == 'asc' %}desc{% else %}asc{% endif %}{% if current_filter != 'all' %}&filter={{ current_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}"
                                class="inline-flex items-center gap-1 hover:text-primary-600 transition-colors">
                                 Producto {% if sort_field == 'name' %}<i class="fas fa-sort-{% if sort_order == 'desc' %}down{% else %}up{% endif %} text-primary-600 text-[10px]"></i>{% endif %}
                             </a>
                         </th>
-                        <th class="px-5 py-3.5">Categoría</th>
-                        <th class="px-5 py-3.5 text-center">
+                        <th class="px-4 py-3.5 text-center">
                             <a href="?sort=stock&order={% if sort_field == 'stock' and sort_order == 'asc' %}desc{% else %}asc{% endif %}{% if current_filter != 'all' %}&filter={{ current_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}"
                                class="inline-flex items-center gap-1 hover:text-primary-600 transition-colors">
                                 Stock {% if sort_field == 'stock' %}<i class="fas fa-sort-{% if sort_order == 'desc' %}down{% else %}up{% endif %} text-primary-600 text-[10px]"></i>{% endif %}
                             </a>
                         </th>
-                        <th class="px-5 py-3.5 text-right">
+                        <th class="px-4 py-3.5 text-center" title="Unidades vendidas en los últimos 30 días">
+                            <a href="?sort=velocity&order={% if sort_field == 'velocity' and sort_order == 'asc' %}desc{% else %}asc{% endif %}{% if current_filter != 'all' %}&filter={{ current_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}"
+                               class="inline-flex items-center gap-1 hover:text-primary-600 transition-colors">
+                                Vel. 30d {% if sort_field == 'velocity' %}<i class="fas fa-sort-{% if sort_order == 'desc' %}down{% else %}up{% endif %} text-primary-600 text-[10px]"></i>{% endif %}
+                            </a>
+                        </th>
+                        <th class="px-4 py-3.5 text-center" title="Días que dura el stock al ritmo actual">Cobertura</th>
+                        <th class="px-4 py-3.5 text-right">
                             <a href="?sort=cost&order={% if sort_field == 'cost' and sort_order == 'asc' %}desc{% else %}asc{% endif %}{% if current_filter != 'all' %}&filter={{ current_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}"
                                class="inline-flex items-center gap-1 justify-end hover:text-primary-600 transition-colors">
                                 Costo {% if sort_field == 'cost' %}<i class="fas fa-sort-{% if sort_order == 'desc' %}down{% else %}up{% endif %} text-primary-600 text-[10px]"></i>{% endif %}
                             </a>
                         </th>
-                        <th class="px-5 py-3.5 text-right">
+                        <th class="px-4 py-3.5 text-right">
                             <a href="?sort=price&order={% if sort_field == 'price' and sort_order == 'asc' %}desc{% else %}asc{% endif %}{% if current_filter != 'all' %}&filter={{ current_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}"
                                class="inline-flex items-center gap-1 justify-end hover:text-primary-600 transition-colors">
                                 Precio {% if sort_field == 'price' %}<i class="fas fa-sort-{% if sort_order == 'desc' %}down{% else %}up{% endif %} text-primary-600 text-[10px]"></i>{% endif %}
                             </a>
                         </th>
-                        <th class="px-5 py-3.5 text-center">Estado</th>
-                        <th class="px-5 py-3.5 text-center">Acciones</th>
+                        <th class="px-4 py-3.5 text-right">Margen</th>
+                        <th class="px-4 py-3.5 text-center">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="text-sm text-slate-700 divide-y divide-slate-100">
                     {% for product in products %}
-                    <tr class="hover:bg-slate-50/60 transition-colors group">
-                        <td class="px-5 py-4">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-md bg-primary-50 text-primary-700 flex items-center justify-center font-bold text-xs group-hover:scale-105 transition-transform duration-200 ease-soft">
+                    <tr class="hover:bg-slate-50/60 transition-colors group" data-product-pk="{{ product.pk }}">
+                        <td class="px-4 py-3.5">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-9 h-9 rounded-md bg-primary-50 text-primary-700 flex items-center justify-center font-bold text-[0.7rem] group-hover:scale-105 transition-transform duration-200 ease-soft flex-shrink-0">
                                     {{ product.name|slice:":2"|upper }}
                                 </div>
                                 <div class="min-w-0">
                                     <p class="font-semibold text-slate-900 truncate">{{ product.name }}</p>
-                                    {% if product.sku %}
-                                    <p class="text-[0.7rem] text-slate-400 font-medium">{{ product.sku }}</p>
-                                    {% endif %}
+                                    <p class="text-[0.7rem] text-slate-400 font-medium flex flex-wrap items-center gap-1.5">
+                                        {% if product.sku %}<span>{{ product.sku }}</span>{% endif %}
+                                        {% if product.category %}<span class="text-slate-300">·</span><span>{{ product.category.name }}</span>{% endif %}
+                                        {% if product.last_sold_at %}<span class="text-slate-300">·</span><span title="Última venta">vend. {{ product.last_sold_at|date:"d M" }}</span>{% endif %}
+                                    </p>
                                 </div>
                             </div>
                         </td>
-                        <td class="px-5 py-4">
-                            {% if product.category %}
-                            <span class="inline-block bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-medium">{{ product.category.name }}</span>
+                        <td class="px-4 py-3.5 text-center">
+                            <div class="flex items-center justify-center gap-1.5" data-row-stock>
+                                <button type="button"
+                                        class="qty-btn w-6 h-6 rounded bg-slate-100 hover:bg-rose-500 hover:text-white text-slate-500 flex items-center justify-center transition-all duration-150 ease-soft text-[0.65rem]"
+                                        data-delta="-1" title="Restar 1">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <span class="font-bold text-base tabular-nums w-12 text-center
+                                    {% if product.stock_quantity <= 0 %}text-red-600
+                                    {% elif product.stock_quantity <= product.min_stock %}text-amber-600
+                                    {% else %}text-slate-900{% endif %}"
+                                    data-stock-value>{{ product.stock_quantity }}</span>
+                                <button type="button"
+                                        class="qty-btn w-6 h-6 rounded bg-slate-100 hover:bg-emerald-500 hover:text-white text-slate-500 flex items-center justify-center transition-all duration-150 ease-soft text-[0.65rem]"
+                                        data-delta="1" title="Sumar 1">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                            <p class="text-[0.6rem] text-slate-400 mt-1 text-center">mín {{ product.min_stock|default:10 }}</p>
+                        </td>
+                        <td class="px-4 py-3.5 text-center tabular-nums">
+                            {% if product.sold_30d %}
+                            <span class="font-semibold text-slate-700">{{ product.sold_30d }}</span>
+                            <p class="text-[0.65rem] text-slate-400">{{ product.velocity_30d|floatformat:2 }}/día</p>
                             {% else %}
                             <span class="text-slate-300">—</span>
                             {% endif %}
                         </td>
-                        <td class="px-5 py-4 text-center">
-                            <span class="font-bold text-base {% if product.stock_quantity <= 0 %}text-red-600{% elif product.stock_quantity <= 10 %}text-amber-600{% else %}text-slate-900{% endif %}">
-                                {{ product.stock_quantity }}
-                            </span>
-                        </td>
-                        <td class="px-5 py-4 text-right text-slate-600 tabular-nums">${{ product.cost_price|floatformat:2 }}</td>
-                        <td class="px-5 py-4 text-right font-semibold text-slate-900 tabular-nums">${{ product.price|floatformat:2 }}</td>
-                        <td class="px-5 py-4 text-center">
-                            {% if product.stock_quantity <= 0 %}
-                            <span class="inline-block px-2.5 py-0.5 rounded-full text-[0.7rem] font-semibold bg-red-50 text-red-700 border border-red-100">Sin stock</span>
-                            {% elif product.stock_quantity <= 10 %}
-                            <span class="inline-block px-2.5 py-0.5 rounded-full text-[0.7rem] font-semibold bg-amber-50 text-amber-700 border border-amber-100">Stock bajo</span>
+                        <td class="px-4 py-3.5 text-center">
+                            {% if product.cover_severity == 'idle' %}
+                                <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-slate-100 text-slate-500 border border-slate-200">Sin venta 30d</span>
+                            {% elif product.cover_severity == 'red' %}
+                                <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-red-50 text-red-700 border border-red-200">{{ product.days_of_cover|floatformat:0 }} días</span>
+                            {% elif product.cover_severity == 'amber' %}
+                                <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-amber-50 text-amber-700 border border-amber-200">{{ product.days_of_cover|floatformat:0 }} días</span>
                             {% else %}
-                            <span class="inline-block px-2.5 py-0.5 rounded-full text-[0.7rem] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">OK</span>
+                                <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">{{ product.days_of_cover|floatformat:0 }} días</span>
                             {% endif %}
                         </td>
-                        <td class="px-5 py-4">
+                        <td class="px-4 py-3.5 text-right text-slate-600 tabular-nums">${{ product.cost_price|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3.5 text-right font-semibold text-slate-900 tabular-nums">${{ product.sale_price|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3.5 text-right tabular-nums">
+                            {% if product.is_selling_at_loss %}
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-rose-100 text-rose-700 border border-rose-200" title="Vendiendo a pérdida">
+                                    <i class="fas fa-arrow-trend-down text-[0.55rem]"></i>{{ product.margin_pct|floatformat:0 }}%
+                                </span>
+                            {% elif product.margin_pct == None %}
+                                <span class="text-slate-300">—</span>
+                            {% elif product.margin_pct < 20 %}
+                                <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-amber-50 text-amber-700 border border-amber-200">{{ product.margin_pct|floatformat:0 }}%</span>
+                            {% elif product.margin_pct < 50 %}
+                                <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-sky-50 text-sky-700 border border-sky-200">{{ product.margin_pct|floatformat:0 }}%</span>
+                            {% else %}
+                                <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">{{ product.margin_pct|floatformat:0 }}%</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3.5">
                             <div class="flex items-center justify-center gap-1">
                                 <a href="{% url 'product_recipe' product.pk %}"
-                                   class="w-8 h-8 rounded-md bg-primary-50 text-primary-600 hover:bg-primary-600 hover:text-white flex items-center justify-center transition-all duration-200 ease-soft"
+                                   class="w-7 h-7 rounded-md bg-primary-50 text-primary-600 hover:bg-primary-600 hover:text-white flex items-center justify-center transition-all duration-200 ease-soft"
                                    title="Receta">
-                                    <i class="fas fa-flask text-xs"></i>
+                                    <i class="fas fa-flask text-[0.7rem]"></i>
                                 </a>
                                 <a href="{% url 'product_edit' product.pk %}"
-                                   class="w-8 h-8 rounded-md bg-slate-100 text-slate-500 hover:bg-slate-900 hover:text-white flex items-center justify-center transition-all duration-200 ease-soft"
+                                   class="w-7 h-7 rounded-md bg-slate-100 text-slate-500 hover:bg-slate-900 hover:text-white flex items-center justify-center transition-all duration-200 ease-soft"
                                    title="Editar">
-                                    <i class="fas fa-pen text-xs"></i>
+                                    <i class="fas fa-pen text-[0.7rem]"></i>
                                 </a>
                                 <a href="{% url 'product_delete' product.pk %}"
-                                   class="w-8 h-8 rounded-md bg-red-50 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all duration-200 ease-soft"
+                                   class="w-7 h-7 rounded-md bg-red-50 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all duration-200 ease-soft"
                                    title="Eliminar">
-                                    <i class="fas fa-trash text-xs"></i>
+                                    <i class="fas fa-trash text-[0.7rem]"></i>
                                 </a>
                             </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="px-5">
+                        <td colspan="8" class="px-5">
                             {% url 'product_list' as reset_url %}
                             {% url 'product_create' as create_url %}
                             {% if search_query %}
@@ -284,4 +337,79 @@
         {% endif %}
     </div>
 </div>
+
+{# ─── Toast holder ─── #}
+<div id="invtoast"
+     class="fixed bottom-6 right-6 z-50 hidden flex items-center gap-2.5 px-4 py-3 rounded-md shadow-lift bg-white border border-slate-200 text-sm font-medium animate__animated animate__fadeInUp">
+    <i id="invtoast-icon" class="fas fa-check-circle text-emerald-500"></i>
+    <span id="invtoast-msg">—</span>
+</div>
+
+<script>
+(() => {
+    'use strict';
+    const csrf = (() => {
+        const m = document.cookie.match(/csrftoken=([^;]+)/);
+        return m ? m[1] : '';
+    })();
+    const toast = (msg, ok=true) => {
+        const t = document.getElementById('invtoast');
+        document.getElementById('invtoast-msg').textContent = msg;
+        const i = document.getElementById('invtoast-icon');
+        i.className = 'fas ' + (ok ? 'fa-check-circle text-emerald-500' : 'fa-triangle-exclamation text-rose-500');
+        t.classList.remove('hidden');
+        clearTimeout(toast._h);
+        toast._h = setTimeout(() => t.classList.add('hidden'), 2200);
+    };
+
+    const reclassStockSpan = (span, newStock, minStock) => {
+        span.classList.remove('text-red-600','text-amber-600','text-slate-900');
+        if (newStock <= 0) span.classList.add('text-red-600');
+        else if (newStock <= minStock) span.classList.add('text-amber-600');
+        else span.classList.add('text-slate-900');
+    };
+
+    document.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.qty-btn');
+        if (!btn) return;
+        const row = btn.closest('tr[data-product-pk]');
+        if (!row) return;
+        const pk = row.dataset.productPk;
+        const delta = parseInt(btn.dataset.delta, 10);
+        if (!pk || !Number.isFinite(delta)) return;
+
+        // Optimistic UI lock
+        btn.disabled = true;
+        const cell = btn.closest('[data-row-stock]');
+        const stockSpan = cell.querySelector('[data-stock-value]');
+        const minStockMatch = cell.parentElement.querySelector('p.text-\\[0\\.6rem\\]');
+        const minStock = parseInt((minStockMatch?.textContent.match(/\d+/) || ['10'])[0], 10);
+
+        try {
+            const fd = new FormData();
+            fd.set('delta', String(delta));
+            const r = await fetch(`/inventory/products/${pk}/stock-adjust/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'fetch' },
+                body: fd,
+                credentials: 'same-origin',
+            });
+            const data = await r.json();
+            if (!r.ok || !data.ok) {
+                toast(data.error || `Error ${r.status}`, false);
+                return;
+            }
+            stockSpan.textContent = data.new_stock;
+            reclassStockSpan(stockSpan, data.new_stock, minStock);
+            const sign = delta > 0 ? '+' : '';
+            toast(`Stock ${sign}${delta}: ${data.product_name} → ${data.new_stock}`, true);
+        } catch (err) {
+            console.error(err);
+            toast('Error de red', false);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+})();
+</script>
 {% endblock %}

@@ -63,21 +63,65 @@ def dashboard(request):
 
 @login_required
 def product_list(request):
+    """
+    Product list with sales-velocity intelligence inline.
+
+    For every product on the page we annotate:
+        * units sold in the last 30 days
+        * last sale date
+        * derived velocity (units / day)
+        * derived days-of-cover (stock / velocity)
+        * profit margin %
+        * "selling at loss" flag
+
+    The annotations are computed via subqueries so the table renders in
+    a single round trip — no per-row queries when paginating 50 rows.
+    """
     from django.core.paginator import Paginator
-    from django.db.models import Sum, F
+    from django.db.models import Sum, F, Q, OuterRef, Subquery, IntegerField, DateTimeField
+    from django.db.models.functions import Coalesce
+    from django.utils import timezone
+    from datetime import timedelta
+    from sales.models import SaleItem
 
-    # Base queryset
-    products = Product.objects.filter(user=request.user).select_related('category')
+    thirty_days_ago = timezone.now() - timedelta(days=30)
 
-    # Calculate counts globally before filtering the list
-    total_count = products.count()
-    low_stock_count = products.filter(stock_quantity__gt=0, stock_quantity__lte=10).count()
-    out_of_stock_count = products.filter(stock_quantity__lte=0).count()
-    total_stock_value = products.aggregate(
+    # Per-product 30-day units sold (subquery, scoped to current user)
+    sold_30d_sq = SaleItem.objects.filter(
+        product=OuterRef('pk'),
+        sale__user=request.user,
+        sale__date__gte=thirty_days_ago,
+    ).order_by().values('product').annotate(t=Sum('quantity')).values('t')[:1]
+
+    # Last sale date for the product
+    last_sold_sq = SaleItem.objects.filter(
+        product=OuterRef('pk'),
+        sale__user=request.user,
+    ).order_by('-sale__date').values('sale__date')[:1]
+
+    products = (
+        Product.objects.filter(user=request.user)
+        .select_related('category')
+        .annotate(
+            sold_30d=Coalesce(Subquery(sold_30d_sq, output_field=IntegerField()), 0),
+            last_sold_at=Subquery(last_sold_sq, output_field=DateTimeField()),
+        )
+    )
+
+    # Global counts BEFORE any list-narrowing filters (search/category)
+    base = products
+    total_count = base.count()
+    out_of_stock_count = base.filter(stock_quantity__lte=0).count()
+    low_stock_count = base.filter(
+        stock_quantity__gt=0, stock_quantity__lte=F('min_stock')
+    ).count()
+    selling_at_loss_count = base.filter(
+        cost_price__gt=0, sale_price__lt=F('cost_price')
+    ).count()
+    total_stock_value = base.aggregate(
         val=Sum(F('stock_quantity') * F('cost_price'))
     )['val'] or 0
 
-    # Get categories for filter dropdown
     categories = Category.objects.filter(user=request.user).order_by('name')
 
     # Apply filters
@@ -86,23 +130,29 @@ def product_list(request):
     category_id = request.GET.get('category', '')
 
     if filter_type == 'low_stock':
-        products = products.filter(stock_quantity__gt=0, stock_quantity__lte=10)
+        products = products.filter(stock_quantity__gt=0, stock_quantity__lte=F('min_stock'))
     elif filter_type == 'out_of_stock':
         products = products.filter(stock_quantity__lte=0)
+    elif filter_type == 'selling_at_loss':
+        products = products.filter(cost_price__gt=0, sale_price__lt=F('cost_price'))
 
     if search:
-        products = products.filter(
-            models.Q(name__icontains=search) |
-            models.Q(sku__icontains=search)
-        )
+        products = products.filter(Q(name__icontains=search) | Q(sku__icontains=search))
 
     if category_id:
         products = products.filter(category_id=category_id)
 
-    # Sorting
+    # Sorting (extended with velocity)
     sort_field = request.GET.get('sort', 'name')
     sort_order = request.GET.get('order', 'asc')
-    allowed_sorts = {'name': 'name', 'stock': 'stock_quantity', 'cost': 'cost_price', 'price': 'sale_price'}
+    allowed_sorts = {
+        'name':     'name',
+        'stock':    'stock_quantity',
+        'cost':     'cost_price',
+        'price':    'sale_price',
+        'velocity': 'sold_30d',
+        'updated':  'updated_at',
+    }
     sort_col = allowed_sorts.get(sort_field, 'name')
     order_prefix = '-' if sort_order == 'desc' else ''
     products = products.order_by(f'{order_prefix}{sort_col}')
@@ -111,10 +161,38 @@ def product_list(request):
     page_number = request.GET.get('page')
     products_page = paginator.get_page(page_number)
 
+    # Per-row derived fields (velocity, cover, margin, severity).
+    # Computed in Python over the page slice (≤50 rows) — keeps the
+    # SQL simple and avoids dialect-specific division-by-zero guards.
+    for p in products_page:
+        sold = int(p.sold_30d or 0)
+        velocity = sold / 30.0 if sold else 0.0
+        if (p.stock_quantity or 0) <= 0:
+            cover, severity = 0.0, 'red'
+        elif velocity > 0:
+            cover = float(p.stock_quantity) / velocity
+            severity = 'red' if cover <= 7 else ('amber' if cover <= 21 else 'green')
+        else:
+            cover, severity = None, 'idle'  # has stock, never sells
+        p.velocity_30d = velocity
+        p.days_of_cover = cover
+        p.cover_severity = severity
+        # Margin % — ``is_selling_at_loss`` is a model @property, no need
+        # to set it on the instance.
+        cost = float(p.cost_price or 0)
+        sale = float(p.sale_price or 0)
+        if cost > 0:
+            p.margin_pct = (sale - cost) / cost * 100
+        elif sale > 0:
+            p.margin_pct = 100.0  # no cost recorded → treat as 100% margin
+        else:
+            p.margin_pct = None
+
     return render(request, 'inventory/product_list.html', {
         'products': products_page,
         'low_stock_count': low_stock_count,
         'out_of_stock_count': out_of_stock_count,
+        'selling_at_loss_count': selling_at_loss_count,
         'total_count': total_count,
         'total_stock_value': total_stock_value,
         'current_filter': filter_type,
@@ -123,6 +201,56 @@ def product_list(request):
         'selected_category': category_id,
         'sort_field': sort_field,
         'sort_order': sort_order,
+    })
+
+
+@login_required
+def quick_stock_adjust(request, pk):
+    """
+    Quick +/- stock adjustment from the product list.
+
+    POST body (form-encoded):
+        delta:  signed integer (e.g. -5, +10)
+        reason: optional free text (logged for audit)
+
+    Returns JSON {ok, new_stock, severity} for the inline UI to update.
+    """
+    from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
+    from django.views.decorators.http import require_POST
+    if request.method != 'POST':
+        return HttpResponseBadRequest('POST only')
+
+    product = get_object_or_404(Product, pk=pk, user=request.user)
+    try:
+        delta = int(request.POST.get('delta', '0'))
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'delta inválido'}, status=400)
+    if delta == 0:
+        return JsonResponse({'ok': False, 'error': 'delta=0'}, status=400)
+
+    new_stock = (product.stock_quantity or 0) + delta
+    if new_stock < 0:
+        return JsonResponse({'ok': False, 'error': 'el stock no puede quedar negativo'}, status=400)
+
+    product.stock_quantity = new_stock
+    product.save(update_fields=['stock_quantity', 'updated_at'])
+
+    # Severity classification for the UI badge
+    threshold = product.min_stock if product.min_stock is not None else 10
+    if new_stock <= 0:
+        severity = 'red'
+    elif new_stock <= threshold:
+        severity = 'amber'
+    else:
+        severity = 'green'
+
+    reason = (request.POST.get('reason') or '').strip()[:200]
+    return JsonResponse({
+        'ok': True,
+        'new_stock': new_stock,
+        'severity': severity,
+        'product_name': product.name,
+        'reason': reason,
     })
 
 @login_required

@@ -4,7 +4,7 @@ from .models import Product, Recipe, ProductionOrder, Batch, Ingredient, Categor
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ['sku', 'name', 'description', 'category', 'net_weight', 'unit_measure', 'cost_price', 'sale_price', 'stock_quantity']
+        fields = ['sku', 'name', 'description', 'category', 'net_weight', 'unit_measure', 'cost_price', 'sale_price', 'stock_quantity', 'min_stock']
         widgets = {
             'sku': forms.TextInput(attrs={'class': 'w-full px-4 py-2 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all font-medium'}),
             'name': forms.TextInput(attrs={'class': 'w-full px-4 py-2 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all font-medium'}),
@@ -15,6 +15,7 @@ class ProductForm(forms.ModelForm):
             'cost_price': forms.NumberInput(attrs={'class': 'w-full pl-8 pr-4 py-2 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all font-medium'}),
             'sale_price': forms.NumberInput(attrs={'class': 'w-full pl-8 pr-4 py-2 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all font-medium'}),
             'stock_quantity': forms.NumberInput(attrs={'class': 'w-full px-4 py-2 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all font-medium'}),
+            'min_stock': forms.NumberInput(attrs={'class': 'w-full px-4 py-2 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all font-medium'}),
         }
 
 class IngredientForm(forms.ModelForm):
