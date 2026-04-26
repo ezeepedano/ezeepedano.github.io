@@ -1,0 +1,29 @@
+{% comment %}
+    Compact KPI tile for the executive dashboard.
+    Params:
+      id     : DOM id suffix (e.g. "orders" -> #kpi-orders, #kpi-orders-trend)
+      label  : tile label
+      icon   : Font Awesome class (e.g. "fa-shopping-bag")
+      tone   : primary | info | success | warning | danger | slate
+      suffix : optional ('%' for percentages, etc.)
+{% endcomment %}
+<div class="card-soft p-5 transition-all duration-200 ease-soft">
+    <div class="flex items-start justify-between mb-3">
+        <div class="w-9 h-9 rounded-md flex items-center justify-center text-sm
+            {% if tone == 'success' %}bg-emerald-50 text-emerald-600
+            {% elif tone == 'warning' %}bg-amber-50 text-amber-600
+            {% elif tone == 'info' %}bg-sky-50 text-sky-600
+            {% elif tone == 'danger' %}bg-red-50 text-red-600
+            {% elif tone == 'slate' %}bg-slate-100 text-slate-600
+            {% else %}bg-primary-50 text-primary-600{% endif %}">
+            <i class="fas {{ icon }}"></i>
+        </div>
+        <span id="kpi-{{ id }}-trend" class="inline-flex items-center text-[0.7rem] font-semibold">
+            <span class="skeleton-mini bg-slate-200 rounded h-3 w-10 inline-block"></span>
+        </span>
+    </div>
+    <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">{{ label }}</p>
+    <h3 id="kpi-{{ id }}" class="text-2xl font-bold text-slate-900 tracking-tight leading-none">
+        <span class="skeleton-mini bg-slate-200 rounded h-6 w-20 inline-block"></span>
+    </h3>
+</div>

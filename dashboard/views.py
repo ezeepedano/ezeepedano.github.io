@@ -220,6 +220,8 @@ class DashboardABCView(LoginRequiredMixin, View):
         return JsonResponse(data)
 
 from inventory.services_intelligence import StockIntelligenceService
+from .services.forecasts import SalesForecaster, TargetEngine, CashForecaster, UnifiedStockAlerts
+
 
 class BusinessIntelligenceView(LoginRequiredMixin, TemplateView):
     """Vista principal del Dashboard de Inteligencia de Negocios"""
@@ -228,9 +230,79 @@ class BusinessIntelligenceView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['today'] = timezone.now().date()
-        
-        # Add Stock Intelligence Forecasts
+
         service = StockIntelligenceService(user=self.request.user, days_history=30)
         context['forecasts'] = service.get_all_ingredients_forecast()
-        
         return context
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  Fase 3 endpoints — auto-targets, sales forecast, cash forecast, alerts
+# ──────────────────────────────────────────────────────────────────────────
+
+class DashboardTargetsView(DashboardBaseJson):
+    """Returns auto-calculated targets for the next bucket (revenue / orders / margin)."""
+    def get(self, request):
+        filters = self.get_filters()
+        bucket = request.GET.get('bucket', 'week')
+        try:
+            window = int(request.GET.get('window', '12'))
+        except Exception:
+            window = 12
+
+        trends = ExecutiveMetricsService.get_sales_trends(filters, bucket=bucket, window=window)
+        revenue_pts = trends.get('points', [])
+        rev_target = TargetEngine.from_history(revenue_pts)
+
+        # KPIs for current period to compute progress
+        kpis = ExecutiveMetricsService.get_kpis(filters)
+        progress = TargetEngine.progress(float(kpis.get('revenue') or 0),
+                                         float(rev_target.get('value') or 0))
+        return JsonResponse({
+            'revenue': {
+                **rev_target,
+                'progress': progress,
+                'actual': float(kpis.get('revenue') or 0),
+            },
+            'context': {'bucket': bucket, 'window': window},
+        })
+
+
+class DashboardSalesForecastView(DashboardBaseJson):
+    """Returns the historical sales trend extended with N forecast buckets."""
+    def get(self, request):
+        filters = self.get_filters()
+        bucket = request.GET.get('bucket', 'week')
+        try:
+            window = int(request.GET.get('window', '12'))
+            horizon = int(request.GET.get('horizon', '4'))
+        except Exception:
+            window, horizon = 12, 4
+
+        trends = ExecutiveMetricsService.get_sales_trends(filters, bucket=bucket, window=window)
+        history = trends.get('points', [])
+        forecast = SalesForecaster.project(history, horizon=horizon, bucket=bucket)
+        # Stringify Decimals for JSON
+        for p in history:
+            p['value'] = str(p.get('value', '0'))
+            p.pop('numeric_value', None)
+        return JsonResponse({'history': history, 'forecast': forecast,
+                             'bucket': bucket, 'window': window, 'horizon': horizon})
+
+
+class DashboardCashForecastView(LoginRequiredMixin, View):
+    """Returns the next 90-day daily cash projection."""
+    def get(self, request):
+        try:
+            days = int(request.GET.get('days', '90'))
+        except Exception:
+            days = 90
+        data = CashForecaster.project_90d(request.user, days=days)
+        return JsonResponse(data)
+
+
+class DashboardUnifiedAlertsView(LoginRequiredMixin, View):
+    """Combined stock + ingredient alert feed, urgency-sorted."""
+    def get(self, request):
+        data = UnifiedStockAlerts.build(request.user, limit=30)
+        return JsonResponse({'alerts': data})
