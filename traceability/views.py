@@ -179,8 +179,12 @@ class ProductionCreateView(LoginRequiredMixin, CreateView):
             internal_lot_code = form.cleaned_data['internal_lot_code']
             notes = form.cleaned_data.get('notes')
             
-            # Verificar que el lote no exista
-            if ProductionBatch.objects.filter(internal_lot_code=internal_lot_code).exists():
+            # Verificar que el lote no exista — scope per-user to avoid
+            # leaking that another tenant uses the same code.
+            if ProductionBatch.objects.filter(
+                user=self.request.user,
+                internal_lot_code=internal_lot_code,
+            ).exists():
                 messages.error(
                     self.request,
                     f'El código de lote {internal_lot_code} ya existe. Use uno diferente.'

@@ -177,9 +177,11 @@ class ExecutiveMetricsService:
         
         calc_start_date = end_date - timedelta(days=(days_per_bucket * window * 2) + 30)
         
-        # Optimization: Fetch earliest sale date
+        # Optimization: Fetch earliest sale date — scoped to current user.
         try:
-            earliest_sale = Sale.objects.earliest('date')
+            user_for_bound = filters.get('user') if isinstance(filters, dict) else None
+            sale_qs = Sale.objects.filter(user=user_for_bound) if user_for_bound is not None else Sale.objects.all()
+            earliest_sale = sale_qs.earliest('date')
             min_db_date = earliest_sale.date.date() if hasattr(earliest_sale.date, 'date') else earliest_sale.date
             
             # If calculated start date is older than DB history, just use DB history (minus buffer for previous period calc if needed)
@@ -519,11 +521,17 @@ class ExecutiveMetricsService:
     @staticmethod
     def get_customer_metrics(filters):
         """
-        RFM segmentation counts.
+        RFM segmentation counts — scoped to the current user.
+
+        ``filters`` carries ``user`` from DashboardBaseJson.get_filters.
+        Without that scope, this query would aggregate every tenant's
+        customers in the same dashboard. CustomerStats is reachable via
+        the related Customer (``customer__user``).
         """
-        # This usually relies on CustomerStats which are pre-calculated.
-        # We can just count by segment if existing.
         from sales.models import CustomerStats
-        
-        segments = CustomerStats.objects.values('segment').annotate(count=Count('id')).order_by('-count')
+        user = filters.get('user') if isinstance(filters, dict) else None
+        qs = CustomerStats.objects.all()
+        if user is not None:
+            qs = qs.filter(customer__user=user)
+        segments = qs.values('segment').annotate(count=Count('id')).order_by('-count')
         return list(segments)

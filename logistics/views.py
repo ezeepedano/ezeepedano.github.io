@@ -12,8 +12,8 @@ class DeliveryRouteListView(LoginRequiredMixin, ListView):
     ordering = ['-date']
 
     def get_queryset(self):
-        # Return all routes (shared)
-        return DeliveryRoute.objects.all()
+        # Tenant scope: each user only sees their own routes.
+        return DeliveryRoute.objects.filter(user=self.request.user).order_by('-date')
 
 class DeliveryRouteCreateView(LoginRequiredMixin, CreateView):
     model = DeliveryRoute
@@ -49,7 +49,7 @@ class DeliveryRouteCreateView(LoginRequiredMixin, CreateView):
             # Simple sequence based on selection order (or just index)
             for index, sale_id in enumerate(selected_sales_ids, start=1):
                 try:
-                    sale = Sale.objects.get(id=sale_id)
+                    sale = Sale.objects.get(id=sale_id, user=self.request.user)
                     DeliveryStop.objects.create(
                         route=self.object,
                         sale=sale,
@@ -67,10 +67,19 @@ class DeliveryRouteUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'logistics/route_form.html'
     success_url = reverse_lazy('delivery_route_list')
 
+    def get_queryset(self):
+        # Tenant scope: a user can only edit their own routes.
+        return DeliveryRoute.objects.filter(user=self.request.user)
+
+
 class DeliveryRouteDeleteView(LoginRequiredMixin, DeleteView):
     model = DeliveryRoute
     template_name = 'logistics/route_confirm_delete.html'
     success_url = reverse_lazy('delivery_route_list')
+
+    def get_queryset(self):
+        # Tenant scope: a user can only delete their own routes.
+        return DeliveryRoute.objects.filter(user=self.request.user)
 
 
 # --- QUICK MANAGE API VIEWS ---
@@ -169,7 +178,7 @@ def availability_api(request):
     from django.contrib.auth.models import User
     
     available_vehicles = Vehicle.objects.filter(user=request.user).exclude(id__in=assigned_vehicle_ids)
-    available_drivers = User.objects.filter(id__in=request.user.id).exclude(id__in=assigned_driver_ids)  # Simplified, adjust based on your driver model
+    available_drivers = User.objects.filter(id=request.user.id).exclude(id__in=assigned_driver_ids)
     
     data = {
         'date': date_str,

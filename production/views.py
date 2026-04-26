@@ -8,7 +8,7 @@ from .forms import ProductionOrderForm, BillOfMaterialForm, BomLineFormSet
 from inventory.models import Product, Ingredient
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render, get_object_or_404
 from django.contrib import messages
 
 # --- Production Orders ---
@@ -55,19 +55,21 @@ class ProductionOrderCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         # Assign current user as creator
-        form.instance.user = self.request.user 
-        
-        # Generate unique code: PO-{ID}
-        # Since we don't have ID yet, use count + sequence logic
-        # Ideally this should be a sequence model or signal, but this is simple enough
-        last = ProductionOrder.objects.all().count() + 1
+        form.instance.user = self.request.user
+
+        # Generate unique code per-user: PO-{ID}
+        # Both the count and the collision check are scoped to the
+        # current user so codes don't leak how many orders other
+        # tenants have, and they remain unique within the tenant.
+        user_qs = ProductionOrder.objects.filter(user=self.request.user)
+        last = user_qs.count() + 1
         code = f"PO-{last:05d}"
-        while ProductionOrder.objects.filter(code=code).exists():
+        while user_qs.filter(code=code).exists():
             last += 1
             code = f"PO-{last:05d}"
-        
+
         form.instance.code = code
-        
+
         return super().form_valid(form)
 
 class ProductionOrderUpdateView(LoginRequiredMixin, UpdateView):
@@ -75,6 +77,10 @@ class ProductionOrderUpdateView(LoginRequiredMixin, UpdateView):
     form_class = ProductionOrderForm
     template_name = 'production/order_form.html'
     success_url = reverse_lazy('production_order_list')
+
+    def get_queryset(self):
+        # Tenant scope: a user can only edit their own production orders.
+        return ProductionOrder.objects.filter(user=self.request.user)
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
@@ -87,7 +93,7 @@ class ProductionOrderUpdateView(LoginRequiredMixin, UpdateView):
         # Lock ONLY if the status in the DATABASE is actually DONE/COMPLETED.
         # We query the DB specifically because self.object.status might be 
         # tentatively set to 'DONE' by the invalid form submission in memory.
-        current_db_status = ProductionOrder.objects.filter(pk=self.object.pk).values_list('status', flat=True).first()
+        current_db_status = ProductionOrder.objects.filter(pk=self.object.pk, user=self.request.user).values_list('status', flat=True).first()
         context['locked'] = current_db_status in ['DONE', 'COMPLETED']
         return context
 
@@ -300,6 +306,10 @@ class BillOfMaterialUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'production/bom_form.html'
     success_url = reverse_lazy('bom_list')
 
+    def get_queryset(self):
+        # Tenant scope: a user can only edit their own BOMs.
+        return BillOfMaterial.objects.filter(user=self.request.user)
+
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
         form.fields['products'].queryset = Product.objects.filter(user=self.request.user)
@@ -350,3 +360,96 @@ def bulk_delete_boms(request):
         messages.warning(request, "No se seleccionaron fórmulas para eliminar.")
     
     return redirect('bom_list')
+
+
+# --- Work In Process (WIP) Stock ---
+
+@login_required
+def wip_stock_list(request):
+    """List all WIP stock entries grouped by stage with summary stats."""
+    from .models import WorkInProcessStock
+    from .forms import WorkInProcessStockForm
+    from django.db.models import Sum, Count
+    from decimal import Decimal
+
+    wip_items = WorkInProcessStock.objects.filter(user=request.user).select_related('product')
+    mixed_items = wip_items.filter(stage='MIXED')
+    packaged_items = wip_items.filter(stage='PACKAGED')
+
+    # Stats
+    mixed_stats = mixed_items.aggregate(
+        count=Count('id'),
+        total_qty=Sum('quantity'),
+    )
+    packaged_stats = packaged_items.aggregate(
+        count=Count('id'),
+        total_qty=Sum('quantity'),
+    )
+
+    # Count distinct products in WIP
+    distinct_products = wip_items.values('product').distinct().count()
+
+    # Finished product stock for context
+    finished_stock = Product.objects.filter(
+        user=request.user, stock_quantity__gt=0
+    ).aggregate(count=Count('id'))['count'] or 0
+
+    # Provide empty form for adding new entries
+    form = WorkInProcessStockForm()
+    form.fields['product'].queryset = Product.objects.filter(user=request.user)
+
+    return render(request, 'production/wip_stock.html', {
+        'mixed_items': mixed_items,
+        'packaged_items': packaged_items,
+        'form': form,
+        'stats': {
+            'mixed_count': mixed_stats['count'] or 0,
+            'mixed_qty': mixed_stats['total_qty'] or Decimal('0'),
+            'packaged_count': packaged_stats['count'] or 0,
+            'packaged_qty': packaged_stats['total_qty'] or Decimal('0'),
+            'total_wip': (mixed_stats['count'] or 0) + (packaged_stats['count'] or 0),
+            'distinct_products': distinct_products,
+            'finished_stock': finished_stock,
+        },
+    })
+
+
+@login_required
+@require_POST
+def wip_stock_save(request):
+    """Create or update a WIP stock entry."""
+    from .models import WorkInProcessStock
+    from .forms import WorkInProcessStockForm
+
+    pk = request.POST.get('pk')
+
+    if pk:
+        # Update existing
+        instance = get_object_or_404(WorkInProcessStock, pk=pk, user=request.user)
+        form = WorkInProcessStockForm(request.POST, instance=instance)
+    else:
+        # Create new
+        form = WorkInProcessStockForm(request.POST)
+
+    form.fields['product'].queryset = Product.objects.filter(user=request.user)
+
+    if form.is_valid():
+        obj = form.save(commit=False)
+        obj.user = request.user
+        obj.save()
+        messages.success(request, "Stock en proceso actualizado correctamente.")
+    else:
+        messages.error(request, "Error al guardar. Verifica los datos ingresados.")
+
+    return redirect('wip_stock_list')
+
+
+@login_required
+@require_POST
+def wip_stock_delete(request, pk):
+    """Delete a WIP stock entry."""
+    from .models import WorkInProcessStock
+    obj = get_object_or_404(WorkInProcessStock, pk=pk, user=request.user)
+    obj.delete()
+    messages.success(request, "Registro eliminado correctamente.")
+    return redirect('wip_stock_list')
