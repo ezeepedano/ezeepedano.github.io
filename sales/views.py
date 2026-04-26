@@ -1,14 +1,47 @@
 import uuid
+from decimal import Decimal
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib import messages
 from django.http import JsonResponse
-from django.db.models import Q, Sum, Count
+from django.db.models import Q, Sum, Count, F, ExpressionWrapper, DecimalField
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
+
+
+def _recalculate_sale_totals(sale):
+    """
+    Recompute ``Sale.product_revenue`` and ``Sale.total`` from the items
+    currently persisted in the database.
+
+    The naive pattern ``for item in formset.save(commit=False): total +=
+    item.quantity * item.unit_price`` only walks the **new and modified**
+    forms — unchanged existing rows are silently skipped. When a user edits
+    a 19-line sale and only touches one row, that pattern overwrites the
+    sale total with that one row's subtotal. This helper sidesteps the
+    issue by aggregating the live DB state.
+
+    Returns the recomputed ``total`` (a Decimal) for convenience.
+    """
+    agg = sale.items.all().aggregate(
+        subtotal=Sum(
+            ExpressionWrapper(
+                F('quantity') * F('unit_price'),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            )
+        )
+    )
+    subtotal = agg['subtotal'] or Decimal('0')
+    shipping = sale.shipping_cost or Decimal('0')
+    discounts = sale.discounts or Decimal('0')
+
+    sale.product_revenue = subtotal
+    sale.total = subtotal + shipping - discounts
+    sale.save(update_fields=['product_revenue', 'total'])
+    return sale.total
 
 from .forms import UploadFileForm, SaleForm, SaleItemFormSet, CustomerForm
 from .services.importer import process_sales_file
@@ -16,8 +49,10 @@ from .models import Sale, Customer, CustomerStats, Product, SaleItem
 from finance.services import FinanceService
 from finance.models import CashMovement
 from sales.services.stock import StockService
-
-
+from core_erp.pdf_utils import render_to_pdf
+from production.models import CompanyConfig
+import os
+from django.conf import settings
 @login_required
 def sale_create(request):
     """Create a new manual sale (generic)."""
@@ -71,18 +106,16 @@ def sale_create(request):
             
             # Save items
             items = formset.save(commit=False)
-            total_products = 0
             for item in items:
                 item.sale = sale
                 item.product_title = item.product.name if item.product else "Unknown Product"
                 item.sku = item.product.sku if item.product else ""
                 item.save()
-                total_products += item.quantity * item.unit_price
-                
-            # Update totals
-            sale.product_revenue = total_products
-            sale.total = total_products + (sale.shipping_cost or 0) - (sale.discounts or 0)
-            
+
+            # Update totals — aggregated from the DB rather than from the
+            # formset's iterator, which only includes new/changed forms.
+            _recalculate_sale_totals(sale)
+
             # DEDUCT STOCK
             StockService.deduct_sale_stock(sale)
             
@@ -232,6 +265,44 @@ def sale_detail(request, pk):
 
 
 @login_required
+def sale_pdf(request, pk):
+    """Generate PDF (Remito) for a sale."""
+    sale = get_object_or_404(
+        Sale.objects.filter(user=request.user).select_related('customer').prefetch_related('items__product'),
+        pk=pk
+    )
+    config = CompanyConfig.get_config()
+
+    # Logo
+    logo_path = None
+    if config.logo_image and hasattr(config.logo_image, 'path') and os.path.exists(config.logo_image.path):
+        logo_path = config.logo_image.path
+    else:
+        static_logo = os.path.join(settings.BASE_DIR, 'static', 'img', 'logos', 'logo_main.png')
+        if not os.path.exists(static_logo):
+            static_logo = os.path.join(settings.BASE_DIR, 'static', 'img', 'logos', 'logo_report.png')
+        if os.path.exists(static_logo):
+            logo_path = static_logo
+
+    # Items data
+    items = sale.items.all()
+    total_qty = sum(item.quantity for item in items)
+
+    filename = f"Remito_{sale.order_id}.pdf"
+    ctx = {
+        'sale': sale,
+        'items': items,
+        'total_items': total_qty,
+        'config': config,
+        'company_name': config.company_name,
+        'logo_path': logo_path,
+        'print_user': request.user.get_full_name() or request.user.username,
+    }
+
+    return render_to_pdf('reports/sale_pdf.html', ctx, filename)
+
+
+@login_required
 def upload_sales(request):
     """Handle Excel file upload for sales import."""
     if request.method == 'POST':
@@ -287,24 +358,28 @@ def sale_edit(request, pk):
             sale.save()
             
             items = formset.save(commit=False)
-            
-            # Handle deleted items
+
+            # Handle deleted items first
             for obj in formset.deleted_objects:
                 obj.delete()
-                
-            total_products = 0
+
+            # Save new + modified items. Note: ``items`` deliberately does
+            # NOT include rows the user left untouched — we don't need to
+            # re-save them, only count them in the total below.
             for item in items:
                 item.sale = sale
                 item.product_title = item.product.name if item.product else "Unknown Product"
                 item.sku = item.product.sku if item.product else ""
                 item.save()
-                total_products += item.quantity * item.unit_price
-                
+
             # DEDUCT STOCK (New State)
             StockService.deduct_sale_stock(sale)
 
-            sale.product_revenue = total_products
-            sale.total = total_products + (sale.shipping_cost or 0) - (sale.discounts or 0)
+            # Recalculate totals from the live DB state — this fixes the
+            # historic bug where editing a multi-line sale overwrote the
+            # total with just the touched line's subtotal (e.g. sale
+            # MAN-20260421-01 ended up at $24,700 instead of $524,077).
+            _recalculate_sale_totals(sale)
             
             # Financial Update Logic
             param_account = form.cleaned_data.get('payment_account')
@@ -508,12 +583,19 @@ def customer_detail(request, pk):
         for item in monthly_purchases
     ][-12:])
 
+    # Get customer's quotations
+    from .models import Quotation
+    quotations = Quotation.objects.filter(
+        customer=customer, user=request.user
+    ).order_by('-date')[:10]
+
     context = {
         'customer': customer,
         'stats': getattr(customer, 'stats', None),
         'sales': sales,
         'top_products': top_products,
         'monthly_chart_data': monthly_chart_data,
+        'quotations': quotations,
     }
 
     return render(request, 'sales/customers/detail.html', context)
@@ -577,22 +659,25 @@ def product_purchase_history_api(request, customer_id):
     """API to suggest products based on customer purchase history."""
     from django.db.models import Sum, Count
     customer = get_object_or_404(Customer, pk=customer_id, user=request.user)
-    
+
     # Get top 5 most purchased products by this customer
     top_products = SaleItem.objects.filter(
         sale__customer=customer
     ).values(
-        'product__id', 'product__name', 'product__sku'
+        'product__id', 'product__name', 'product__sale_price'
     ).annotate(
         total_quantity=Sum('quantity'),
         purchase_count=Count('id')
     ).order_by('-total_quantity')[:5]
-    
-    data = {
-        'customer_id': customer.id,
-        'customer_name': customer.name,
-        'suggested_products': list(top_products),
-        'total_purchases': Sale.objects.filter(customer=customer).count()
-    }
-    
-    return JsonResponse(data)
+
+    products = []
+    for p in top_products:
+        if p['product__id']:
+            products.append({
+                'id': p['product__id'],
+                'name': p['product__name'],
+                'qty': p['total_quantity'],
+                'price': float(p['product__sale_price'] or 0),
+            })
+
+    return JsonResponse({'products': products})
