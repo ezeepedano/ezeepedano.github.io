@@ -255,38 +255,42 @@
     };
 
     // ─── Renderers ────────────────────────────────────────────────────────
+    const setKPIRaw = (id, html, trendHtml) => {
+        const el = $('#kpi-'+id); if (el) el.innerHTML = html;
+        const t = $('#kpi-'+id+'-trend'); if (t) t.innerHTML = trendHtml || '';
+    };
+
     const renderKPIs = async () => {
         const q = buildQuery();
-        const [kpis, targets] = await Promise.all([
-            fetchJSON(`/api/kpis/?${q}`),
-            fetchJSON(`/api/targets/?${q}&bucket=${state.bucket}&window=12`),
-        ]);
+        const kpis = await fetchJSON(`/api/kpis/?${q}`);
+        const rev = Number(kpis.revenue || 0);
+        const orders = Number(kpis.orders || 0);
+        const ticket = Number(kpis.ticket_avg || 0);
+        const marginPct = Number(kpis.gross_margin_pct || 0);
 
-        $('#kpi-revenue').textContent = money(kpis.revenue, true);
-        $('#kpi-revenue-trend').innerHTML = trendBadge(kpis.growth?.revenue, false);
+        setKPIRaw('revenue', money(rev, true), trendBadge(kpis.growth ? kpis.growth.revenue : null, false));
+        setKPIRaw('orders',  num(orders),       trendBadge(kpis.growth ? kpis.growth.orders : null));
+        setKPIRaw('ticket',  money(ticket, true), trendBadge(kpis.growth ? kpis.growth.ticket_avg : null));
+        setKPIRaw('margin',  pct(marginPct),    `<span class="text-[0.7rem] text-slate-500">vs período prev.</span>`);
+    };
 
-        // Target band
-        const tg = targets.revenue;
-        if (tg && tg.value > 0) {
+    const renderTargets = async () => {
+        try {
+            const q = buildQuery();
+            const targets = await fetchJSON(`/api/targets/?${q}&bucket=${state.bucket}&window=12`);
+            const tg = targets && targets.revenue;
+            if (!tg || !(tg.value > 0) || !tg.progress) return;
             $('#kpi-revenue-target').classList.remove('hidden');
             $('#kpi-revenue-target-val').textContent = money(tg.value, true) + ` (auto · ${tg.method})`;
             $('#kpi-revenue-target-pct').textContent = `${tg.progress.pct}%`;
             $('#kpi-revenue-target-bar').style.width = Math.min(100, tg.progress.pct) + '%';
-        }
+        } catch (e) { console.warn('targets', e); }
+    };
 
-        const setKPI = (id, val, trend, suffix='') => {
-            $('#kpi-'+id).textContent = (suffix === '%') ? pct(val) : (typeof val === 'number' && val > 1000 ? money(val,true) : num(val)) + suffix;
-            $('#kpi-'+id+'-trend').innerHTML = trendBadge(trend);
-        };
-        setKPI('orders', kpis.orders, kpis.growth?.orders);
-        setKPI('ticket', kpis.ticket_avg, kpis.growth?.ticket_avg);
-        setKPI('margin', kpis.gross_margin_pct, null, '%');
-
-        // Cash from finance API
+    const renderCash = async () => {
         const finance = await fetchJSON('/api/finance/');
         const totalCash = (finance || []).reduce((s,a) => s + Number(a.balance||0), 0);
-        $('#kpi-cash').textContent = money(totalCash, true);
-        $('#kpi-cash-trend').innerHTML = `<span class="text-[0.7rem] text-slate-500">${(finance||[]).length} cuentas</span>`;
+        setKPIRaw('cash', money(totalCash, true), `<span class="text-[0.7rem] text-slate-500">${(finance||[]).length} cuentas</span>`);
     };
 
     const renderTrendForecast = async () => {
@@ -299,9 +303,14 @@
         const fcstVals = hist.map(_ => null);
         if (hist.length) fcstVals[hist.length-1] = Number(hist[hist.length-1].value||0); // bridge
         fcst.forEach(p => fcstVals.push(Number(p.value||0)));
+
+        // Confidence band: fill between hi (dataset index 2) and lo (dataset index 3)
         const lo = hist.map(_ => null).concat(fcst.map(p => Number(p.low||0)));
         const hi = hist.map(_ => null).concat(fcst.map(p => Number(p.high||0)));
-        if (hist.length && fcst.length) { lo[hist.length-1] = histVals[hist.length-1]; hi[hist.length-1] = histVals[hist.length-1]; }
+        if (hist.length && fcst.length) {
+            lo[hist.length-1] = histVals[hist.length-1];
+            hi[hist.length-1] = histVals[hist.length-1];
+        }
 
         const ctx = $('#salesTrendChart').getContext('2d');
         if (state.salesChart) state.salesChart.destroy();
@@ -311,10 +320,11 @@
         state.salesChart = new Chart(ctx, {
             type: 'line',
             data: { labels, datasets: [
-                { label: 'Histórico',  data: histVals, borderColor: '#4F46E5', backgroundColor: grad, borderWidth: 2.5, tension:.35, fill:true, pointRadius:3, pointBackgroundColor:'#fff', pointBorderColor:'#4F46E5', pointBorderWidth:2 },
-                { label: 'Proyección', data: fcstVals, borderColor: '#818CF8', borderDash:[6,4], borderWidth: 2, tension:.35, fill:false, pointRadius:3, pointBackgroundColor:'#fff', pointBorderColor:'#818CF8', pointBorderWidth:2 },
-                { label: 'Banda alta', data: hi, borderColor:'transparent', backgroundColor:'rgba(129,140,248,.18)', pointRadius:0, fill: '+1' },
-                { label: 'Banda baja', data: lo, borderColor:'transparent', backgroundColor:'rgba(129,140,248,.18)', pointRadius:0, fill: false },
+                // ↓ Order matters for the fill: hi (idx 0) fills DOWN to lo (idx 1)
+                { label: 'Banda alta', data: hi, borderColor:'transparent', backgroundColor:'rgba(129,140,248,.18)', pointRadius:0, fill: '+1', spanGaps: false },
+                { label: 'Banda baja', data: lo, borderColor:'transparent', backgroundColor:'rgba(129,140,248,.18)', pointRadius:0, fill: false, spanGaps: false },
+                { label: 'Histórico',  data: histVals, borderColor: '#4F46E5', backgroundColor: grad, borderWidth: 2.5, tension:.35, fill:'origin', pointRadius:3, pointBackgroundColor:'#fff', pointBorderColor:'#4F46E5', pointBorderWidth:2, spanGaps: false },
+                { label: 'Proyección', data: fcstVals, borderColor: '#818CF8', borderDash:[6,4], borderWidth: 2, tension:.35, fill:false, pointRadius:3, pointBackgroundColor:'#fff', pointBorderColor:'#818CF8', pointBorderWidth:2, spanGaps: false },
             ]},
             options: {
                 responsive:true, maintainAspectRatio:false,
@@ -480,20 +490,28 @@
     };
 
     // ─── Refresh ──────────────────────────────────────────────────────────
+    const guarded = (label, fn) => fn().catch(e => { console.error('['+label+']', e); throw e; });
+
     const refreshAll = async () => {
         const r = computeRange(state.range);
         state.date_from = r.from; state.date_to = r.to;
         $('#period-label').textContent = r.label;
-        try {
-            await Promise.all([
-                renderKPIs(), renderTrendForecast(), renderChannel(),
-                renderTopProducts(), renderCustomers(), renderFinance(), renderAlerts(),
-            ]);
-            $('#last-refresh-at').textContent = fmtTime();
-        } catch (e) {
-            console.error('Dashboard refresh error', e);
-            $('#last-refresh-at').innerHTML = `<span class="text-red-500">error · ${fmtTime()}</span>`;
-        }
+        const tasks = [
+            ['KPIs',     renderKPIs],
+            ['Targets',  renderTargets],
+            ['Cash',     renderCash],
+            ['Trend',    renderTrendForecast],
+            ['Channel',  renderChannel],
+            ['TopProd',  renderTopProducts],
+            ['Customers',renderCustomers],
+            ['Finance',  renderFinance],
+            ['Alerts',   renderAlerts],
+        ];
+        const results = await Promise.allSettled(tasks.map(([n,fn]) => guarded(n, fn)));
+        const failed = results.filter(r => r.status === 'rejected').length;
+        $('#last-refresh-at').innerHTML = failed
+            ? `<span class="text-amber-600">${fmtTime()} · ${failed} error${failed>1?'es':''}</span>`
+            : fmtTime();
     };
 
     const startTimer = () => {

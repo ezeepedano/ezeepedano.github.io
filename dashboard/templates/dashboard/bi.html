@@ -412,16 +412,20 @@
     };
 
     // ─── Refresh ──────────────────────────────────────────────
+    const guarded = (label, fn) => fn().catch(e => { console.error('['+label+']', e); throw e; });
+
     const refreshAll = async () => {
-        try {
-            await Promise.all([
-                renderGMROI(), renderABC(),
-                renderCCC(), renderCashForecast(),
-                renderCLV(), renderSegments(),
-                renderStockAlerts(), renderRunway(),
-            ]);
-            $('#last-refresh-at').textContent = fmtTime();
-        } catch (e) { console.error(e); $('#last-refresh-at').innerHTML = `<span class="text-red-500">error · ${fmtTime()}</span>`; }
+        const tasks = [
+            ['GMROI', renderGMROI], ['ABC', renderABC],
+            ['CCC', renderCCC], ['Cash90', renderCashForecast],
+            ['CLV', renderCLV], ['Segments', renderSegments],
+            ['StockAlerts', renderStockAlerts], ['Runway', renderRunway],
+        ];
+        const results = await Promise.allSettled(tasks.map(([n,fn]) => guarded(n, fn)));
+        const failed = results.filter(r => r.status === 'rejected').length;
+        $('#last-refresh-at').innerHTML = failed
+            ? `<span class="text-amber-600">${fmtTime()} · ${failed} error${failed>1?'es':''}</span>`
+            : fmtTime();
     };
 
     document.addEventListener('DOMContentLoaded', () => {
