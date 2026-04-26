@@ -69,6 +69,7 @@
             <h3 class="font-semibold text-slate-900 text-base">Ciclo de conversión de efectivo (CCC)</h3>
             <p class="text-xs text-slate-500 mt-0.5 mb-4">DIO + DSO − DPO = días de capital atrapado. Ideal &lt; 30 días.</p>
             <div id="ccc-bullets" class="grid grid-cols-1 md:grid-cols-4 gap-3"></div>
+            <div id="ccc-narrative" class="hidden mt-4 p-3 rounded-md border bg-slate-50 border-slate-200 text-xs text-slate-700"></div>
         </div>
         <div class="card-soft p-6">
             <div class="flex items-start justify-between mb-4 gap-3">
@@ -150,10 +151,10 @@
         if (!items.length) { $('#gmroi-list').innerHTML = `<p class="text-xs text-slate-400 text-center py-3">Sin datos</p>`; return; }
         const max = Math.max(1, ...items.map(p => p.gmroi));
         const tone = (cls) => ({
-            'ESTRELLA':     'bg-emerald-100 text-emerald-700 border-emerald-200',
-            'VACA LECHERA': 'bg-sky-100 text-sky-700 border-sky-200',
-            'INTERROGANTE': 'bg-amber-100 text-amber-700 border-amber-200',
-            'PERRO':        'bg-red-100 text-red-700 border-red-200',
+            'Estrella':    'bg-emerald-100 text-emerald-700 border-emerald-200',
+            'Rentable':    'bg-sky-100 text-sky-700 border-sky-200',
+            'Crecimiento': 'bg-amber-100 text-amber-700 border-amber-200',
+            'Revisar':     'bg-rose-100 text-rose-700 border-rose-200',
         }[cls] || 'bg-slate-100 text-slate-600');
         $('#gmroi-list').innerHTML = items.map(p => {
             const w = Math.min(100, (p.gmroi / max) * 100);
@@ -176,26 +177,20 @@
 
     const renderABC = async () => {
         const data = await fetchJSON('/api/abc/');
-        let items = [];
-        if (Array.isArray(data?.products)) items = data.products;
-        else if (Array.isArray(data?.items)) items = data.items;
-        else if (data?.a || data?.b || data?.c) items = [...(data.a||[]), ...(data.b||[]), ...(data.c||[])];
-        else if (Array.isArray(data)) items = data;
-
-        items = items.map(p => ({
-            name: p.product_name || p.name || '—',
-            revenue: Number(p.revenue || p.total_revenue || 0),
-            class: p.class || p.category || p.abc_class || null,
+        const items = (data?.products || []).map(p => ({
+            name:    p.product_name || p.name || '—',
+            revenue: Number(p.revenue || 0),
+            class:   p.category || p.class || null,
+            cum:     Number(p.cumulative_percent || 0),
         })).filter(p => p.revenue > 0).sort((a,b) => b.revenue - a.revenue);
 
         if (!items.length) { $('#abc-summary').innerHTML = `<p class="col-span-3 text-xs text-slate-400 text-center py-3">Sin datos</p>`; return; }
 
-        const total = items.reduce((s,p)=>s+p.revenue, 0);
-        let cumulative = 0;
+        const summary = data?.summary || {};
         const top = items.slice(0, 30);
         const labels = top.map((p,i) => `#${i+1}`);
-        const bars = top.map(p => p.revenue);
-        const cumPct = top.map(p => { cumulative += p.revenue; return (cumulative/total)*100; });
+        const bars   = top.map(p => p.revenue);
+        const cumPct = top.map(p => p.cum);
 
         const ctx = $('#abcChart').getContext('2d');
         if (state.abcChart) state.abcChart.destroy();
@@ -217,12 +212,12 @@
                 }}
         });
 
-        const aSum = items.filter(p=>p.class==='A').length || items.filter((_,i)=>i<Math.ceil(items.length*0.2)).length;
-        const bSum = items.filter(p=>p.class==='B').length || Math.ceil(items.length*0.3);
-        const cSum = items.filter(p=>p.class==='C').length || (items.length - aSum - bSum);
+        const aSum = Number(summary.category_a_count || items.filter(p=>p.class==='A').length || 0);
+        const bSum = Number(summary.category_b_count || items.filter(p=>p.class==='B').length || 0);
+        const cSum = Number(summary.category_c_count || items.filter(p=>p.class==='C').length || 0);
         $('#abc-summary').innerHTML = `
             <div class="px-3 py-2 rounded-md bg-emerald-50 border border-emerald-100 text-center">
-                <p class="text-[0.65rem] font-semibold text-emerald-700 uppercase tracking-wide">A · Top</p>
+                <p class="text-[0.65rem] font-semibold text-emerald-700 uppercase tracking-wide">A · Estrella</p>
                 <p class="text-lg font-bold text-emerald-900 tracking-tight leading-none mt-1">${aSum}</p>
                 <p class="text-[0.65rem] text-emerald-600">~80% del ingreso</p>
             </div>
@@ -265,6 +260,24 @@
                 card('DSO', dso.toFixed(0)+'d', 'Días de cobranza') +
                 card('DPO', dpo.toFixed(0)+'d', 'Días de pago') +
                 card('CCC', ccc.toFixed(0)+'d', 'Capital atrapado', cccTone);
+
+            // Narrative panel — interpretation + recommendation from backend
+            const narr = $('#ccc-narrative');
+            const interpretation = data.interpretation || '';
+            const recommendation = data.recommendation || '';
+            if (interpretation || recommendation) {
+                narr.classList.remove('hidden');
+                const tones = { success:'bg-emerald-50 border-emerald-200 text-emerald-900',
+                                warning:'bg-amber-50 border-amber-200 text-amber-900',
+                                danger: 'bg-rose-50 border-rose-200 text-rose-900' };
+                narr.className = 'mt-4 p-3 rounded-md border text-xs ' + (tones[cccTone] || 'bg-slate-50 border-slate-200 text-slate-700');
+                narr.innerHTML = `
+                    ${interpretation ? `<p><strong>Diagnóstico:</strong> ${interpretation}</p>` : ''}
+                    ${recommendation ? `<p class="mt-1.5"><strong>Recomendación:</strong> ${recommendation}</p>` : ''}
+                `;
+            } else {
+                narr.classList.add('hidden');
+            }
         } catch (e) {
             $('#ccc-bullets').innerHTML = `<p class="col-span-4 text-xs text-slate-400 text-center py-3">CCC no disponible</p>`;
         }
@@ -323,28 +336,42 @@
         const data = await fetchJSON('/api/clv/');
         const items = (data.customers || []).slice(0, 20);
         if (!items.length) { $('#clv-list').innerHTML = `<p class="text-xs text-slate-400 text-center py-3">Sin datos</p>`; return; }
-        const max = Math.max(1, ...items.map(c => Number(c.clv || c.lifetime_value || 0)));
+        // Backend exposes clv_adjusted (retention-weighted) and clv_raw. Prefer adjusted.
+        const valOf = c => Number(c.clv_adjusted || c.clv_raw || c.total_spent || 0);
+        const max = Math.max(1, ...items.map(valOf));
         $('#clv-list').innerHTML = items.map((c, i) => {
-            const clv = Number(c.clv || c.lifetime_value || 0);
+            const clv = valOf(c);
             const w = (clv/max)*100;
+            const orders = c.total_orders || 0;
+            const ticket = c.avg_ticket || (orders ? clv/orders : 0);
             return `<div>
                 <div class="flex items-center justify-between text-xs mb-1 gap-2">
-                    <span class="font-medium text-slate-700 truncate">${i+1}. ${c.customer_name || c.name || '—'}</span>
+                    <span class="font-medium text-slate-700 truncate">${i+1}. ${c.customer_name || '—'}</span>
                     <span class="font-bold text-slate-900 tabular-nums whitespace-nowrap pl-3">${money(clv, true)}</span>
                 </div>
                 <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                     <div class="h-full bg-gradient-to-r from-violet-500 to-violet-700 rounded-full transition-all duration-700 ease-soft" style="width:${w}%"></div>
                 </div>
-                ${c.total_orders ? `<p class="text-[0.65rem] text-slate-400 mt-0.5">${c.total_orders} pedidos · ticket prom. ${money(c.avg_ticket || (clv/(c.total_orders||1)))}</p>` : ''}
+                <p class="text-[0.65rem] text-slate-400 mt-0.5">
+                    ${orders} pedido${orders!==1?'s':''} · ticket prom. ${money(ticket, true)}
+                    ${c.segment ? `· <span class="font-medium text-slate-600">${c.segment}</span>` : ''}
+                </p>
             </div>`;
         }).join('');
     };
 
     const renderSegments = async () => {
-        const data = await fetchJSON('/api/customers/');
-        const items = data || [];
+        const raw = await fetchJSON('/api/customers/');
+        // Backend may return entries with segment === null. Relabel rather than drop.
+        const items = (raw || []).map(r => ({
+            segment: r.segment || 'Sin segmentar',
+            count:   Number(r.count || 0),
+        })).filter(r => r.count > 0).sort((a,b) => b.count - a.count);
         if (!items.length) return;
-        const SEGCOLORS = { 'VIP':'#7C3AED','Fiel':'#10B981','Recurrente':'#0EA5E9','Nuevo':'#3B82F6','En riesgo':'#F59E0B','Dormido':'#94A3B8' };
+        const SEGCOLORS = {
+            'VIP':'#7C3AED','Fiel':'#10B981','Recurrente':'#0EA5E9','Nuevo':'#3B82F6',
+            'En riesgo':'#F59E0B','Dormido':'#94A3B8','ACTIVE':'#10B981','Sin segmentar':'#CBD5E1',
+        };
         const ctx = $('#segmentChart').getContext('2d');
         if (state.segmentChart) state.segmentChart.destroy();
         state.segmentChart = new Chart(ctx, {

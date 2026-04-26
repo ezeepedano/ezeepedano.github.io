@@ -75,15 +75,15 @@ class AdvancedKPICalculator:
             # Calcular rotación de inventario
             turnover = (item['units_sold'] / Decimal(stock)) if stock > 0 else Decimal('0')
             
-            # Clasificación
+            # Clasificación accionable (BCG-style, etiquetas amigables)
             if gmroi > Decimal('3') and turnover > Decimal('2'):
-                classification = "ESTRELLA"  # Alta rentabilidad, alta rotación
+                classification = "Estrella"      # Alta rentabilidad + alta rotación
             elif gmroi > Decimal('3'):
-                classification = "VACA LECHERA"  # Alta rentabilidad, baja rotación
+                classification = "Rentable"      # Alta rentabilidad, baja rotación
             elif turnover > Decimal('2'):
-                classification = "INTERROGANTE"  # Baja rentabilidad, alta rotación
+                classification = "Crecimiento"   # Buena rotación, falta margen
             else:
-                classification = "PERRO"  # Baja rentabilidad, baja rotación
+                classification = "Revisar"       # Bajo margen y baja rotación
             
             gmroi_data.append({
                 'product_id': item['product__id'],

@@ -418,23 +418,28 @@
     };
 
     const SEGMENT_TONES = {
-        'VIP':       'bg-violet-100 text-violet-700 border-violet-200',
-        'Fiel':      'bg-emerald-100 text-emerald-700 border-emerald-200',
-        'Recurrente':'bg-sky-100 text-sky-700 border-sky-200',
-        'Nuevo':     'bg-blue-100 text-blue-700 border-blue-200',
-        'En riesgo': 'bg-amber-100 text-amber-700 border-amber-200',
-        'Dormido':   'bg-slate-200 text-slate-700 border-slate-300',
+        'VIP':           'bg-violet-100 text-violet-700 border-violet-200',
+        'Fiel':          'bg-emerald-100 text-emerald-700 border-emerald-200',
+        'ACTIVE':        'bg-emerald-100 text-emerald-700 border-emerald-200',
+        'Recurrente':    'bg-sky-100 text-sky-700 border-sky-200',
+        'Nuevo':         'bg-blue-100 text-blue-700 border-blue-200',
+        'En riesgo':     'bg-amber-100 text-amber-700 border-amber-200',
+        'Dormido':       'bg-slate-200 text-slate-700 border-slate-300',
+        'Sin segmentar': 'bg-slate-100 text-slate-600 border-slate-200',
     };
     const renderCustomers = async () => {
         const q = buildQuery();
-        const data = await fetchJSON(`/api/customers/?${q}`);
-        const total = data.reduce((s,r)=>s+Number(r.count||0),0);
+        const raw = await fetchJSON(`/api/customers/?${q}`);
+        const data = (raw || []).map(r => ({
+            segment: r.segment || 'Sin segmentar',
+            count:   Number(r.count || 0),
+        })).filter(r => r.count > 0).sort((a,b) => b.count - a.count);
+        const total = data.reduce((s,r)=>s+r.count, 0);
         $('#customer-segments').innerHTML = data.map(r => {
-            const seg = r.segment || 'Otro';
-            const tone = SEGMENT_TONES[seg] || 'bg-slate-100 text-slate-600 border-slate-200';
+            const tone = SEGMENT_TONES[r.segment] || 'bg-slate-100 text-slate-600 border-slate-200';
             const p = total>0 ? (r.count/total*100) : 0;
             return `<div class="flex items-center justify-between px-3 py-2 rounded-md bg-slate-50 border border-slate-100">
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[0.7rem] font-semibold border ${tone}">${seg}</span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[0.7rem] font-semibold border ${tone}">${r.segment}</span>
                 <div class="text-right">
                     <p class="text-xs font-bold text-slate-900">${num(r.count)}</p>
                     <p class="text-[0.65rem] text-slate-400">${p.toFixed(1)}%</p>
