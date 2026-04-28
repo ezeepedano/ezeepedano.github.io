@@ -2,6 +2,21 @@ from django import forms
 from .models import Product, Recipe, ProductionOrder, Batch, Ingredient, Category
 
 class ProductForm(forms.ModelForm):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # min_stock has a model default of 10. Mark it optional so users
+        # who don't tweak the threshold can still save the form. Empty
+        # POSTs are coerced to the default in clean_min_stock.
+        if 'min_stock' in self.fields:
+            self.fields['min_stock'].required = False
+            if not self.instance.pk:
+                self.fields['min_stock'].initial = 10
+
+    def clean_min_stock(self):
+        v = self.cleaned_data.get('min_stock')
+        return 10 if v in (None, '') else v
+
     class Meta:
         model = Product
         fields = ['sku', 'name', 'description', 'category', 'net_weight', 'unit_measure', 'cost_price', 'sale_price', 'stock_quantity', 'min_stock']
