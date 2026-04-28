@@ -5,7 +5,7 @@ from .views import (
     product_list, product_create, product_edit, product_delete,
     ingredient_list, ingredient_create, ingredient_edit,
     product_recipe, produce_product, dashboard, import_inventory,
-    quick_stock_adjust,
+    quick_stock_adjust, bulk_product_action,
 )
 
 router = DefaultRouter()
@@ -24,6 +24,7 @@ urlpatterns = [
     path('products/<int:pk>/recipe/', product_recipe, name='product_recipe'),
     path('products/<int:pk>/delete/', product_delete, name='product_delete'),
     path('products/<int:pk>/stock-adjust/', quick_stock_adjust, name='quick_stock_adjust'),
+    path('products/bulk/', bulk_product_action, name='bulk_product_action'),
     
     path('ingredients/', ingredient_list, name='ingredient_list'),
     path('ingredients/new/', ingredient_create, name='ingredient_create'),

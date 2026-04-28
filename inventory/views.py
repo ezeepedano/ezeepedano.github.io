@@ -205,6 +205,105 @@ def product_list(request):
 
 
 @login_required
+def bulk_product_action(request):
+    """
+    Bulk action endpoint for the product list.
+
+    POST body (JSON):
+        action: "price_pct" | "price_set" | "category_set" | "delete"
+        pks:    [int, ...]   product PKs (all must belong to current user)
+        params: dict (per action):
+            price_pct:    {"value": <float>, "field": "sale" | "cost"}
+            price_set:    {"value": <float>, "field": "sale" | "cost"}
+            category_set: {"category_id": <int|null>}
+            delete:       {}
+
+    All operations are atomic and tenant-scoped. Returns
+    {ok, affected, action} on success, {ok: false, error} on failure.
+    """
+    import json
+    from decimal import Decimal, InvalidOperation
+    from django.http import JsonResponse, HttpResponseBadRequest
+    from django.db import transaction
+
+    if request.method != 'POST':
+        return HttpResponseBadRequest('POST only')
+
+    try:
+        body = json.loads(request.body or b'{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'ok': False, 'error': 'JSON inválido'}, status=400)
+
+    action = (body.get('action') or '').strip()
+    pks = body.get('pks') or []
+    params = body.get('params') or {}
+
+    if action not in {'price_pct', 'price_set', 'category_set', 'delete'}:
+        return JsonResponse({'ok': False, 'error': f'acción desconocida: {action}'}, status=400)
+    if not isinstance(pks, list) or not pks:
+        return JsonResponse({'ok': False, 'error': 'sin productos seleccionados'}, status=400)
+    try:
+        pks = [int(x) for x in pks]
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'pks inválidos'}, status=400)
+
+    # Tenant scope: every product must belong to the current user.
+    qs = Product.objects.filter(user=request.user, pk__in=pks)
+    if qs.count() != len(set(pks)):
+        return JsonResponse({'ok': False, 'error': 'algunos productos no son tuyos'}, status=403)
+
+    affected = 0
+
+    try:
+        with transaction.atomic():
+            if action == 'delete':
+                affected, _ = qs.delete()
+
+            elif action in ('price_pct', 'price_set'):
+                field = params.get('field') or 'sale'
+                if field not in {'sale', 'cost'}:
+                    return JsonResponse({'ok': False, 'error': 'field debe ser sale o cost'}, status=400)
+                col = 'sale_price' if field == 'sale' else 'cost_price'
+                try:
+                    value = Decimal(str(params.get('value', '0')))
+                except (TypeError, InvalidOperation):
+                    return JsonResponse({'ok': False, 'error': 'value inválido'}, status=400)
+
+                if action == 'price_set':
+                    if value < 0:
+                        return JsonResponse({'ok': False, 'error': 'el precio no puede ser negativo'}, status=400)
+                    affected = qs.update(**{col: value})
+                else:  # price_pct
+                    # Apply per-row: new = round(current * (1 + value/100), 2)
+                    factor = Decimal('1') + (value / Decimal('100'))
+                    if factor < 0:
+                        return JsonResponse({'ok': False, 'error': 'el porcentaje deja precios negativos'}, status=400)
+                    for p in qs:
+                        current = getattr(p, col) or Decimal('0')
+                        new_val = (current * factor).quantize(Decimal('0.01'))
+                        setattr(p, col, new_val)
+                        p.save(update_fields=[col, 'updated_at'])
+                        affected += 1
+
+            elif action == 'category_set':
+                cat_id = params.get('category_id')
+                if cat_id in (None, '', 0):
+                    affected = qs.update(category=None)
+                else:
+                    try:
+                        cat_id = int(cat_id)
+                    except (TypeError, ValueError):
+                        return JsonResponse({'ok': False, 'error': 'category_id inválido'}, status=400)
+                    if not Category.objects.filter(pk=cat_id, user=request.user).exists():
+                        return JsonResponse({'ok': False, 'error': 'categoría no encontrada'}, status=404)
+                    affected = qs.update(category_id=cat_id)
+    except Exception as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=500)
+
+    return JsonResponse({'ok': True, 'action': action, 'affected': affected})
+
+
+@login_required
 def quick_stock_adjust(request, pk):
     """
     Quick +/- stock adjustment from the product list.
