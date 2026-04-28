@@ -324,8 +324,8 @@ class Ingredient(models.Model):
     )
     code = models.CharField(
         max_length=10,
-        unique=True,
-        help_text="Unique code for lot identification (e.g., MGS, CIT, VITC)"
+        help_text="Unique-per-user code for lot identification (e.g., MGS, CIT, VITC). "
+                  "Uniqueness is enforced via Meta.constraints, scoped to the owning user."
     )
     type = models.CharField(
         max_length=20,
@@ -362,6 +362,9 @@ class Ingredient(models.Model):
         verbose_name = "Ingredient"
         verbose_name_plural = "Ingredients"
         ordering = ['code', 'name']
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'code'], name='uniq_ingredient_user_code'),
+        ]
         indexes = [
             models.Index(fields=['code']),
             models.Index(fields=['type']),

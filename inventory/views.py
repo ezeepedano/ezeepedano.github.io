@@ -388,19 +388,95 @@ def product_delete(request, pk):
 # Ingredient Views
 @login_required
 def ingredient_list(request):
-    search_query = request.GET.get('q', '')
-    ingredients = Ingredient.objects.filter(user=request.user).order_by('name')
+    """
+    Ingredient list with runway intelligence + KPIs.
 
+    Annotates each ingredient with:
+        - daily_usage (computed from recipes + recent sales)
+        - runway_days
+        - severity (red/amber/green/idle)
+    Aggregates stats up top: totals, low-stock count, out-of-stock count,
+    inventory value at cost.
+    """
+    from decimal import Decimal
+    from .services_intelligence import StockIntelligenceService
+
+    search_query = request.GET.get('q', '').strip()
+    type_filter = request.GET.get('type', 'all')   # all | raw | supply | low_stock | out_of_stock
+    ingredients_qs = Ingredient.objects.filter(user=request.user)
+
+    # Stats over the FULL collection (before search/type filter narrowing)
+    total_count = ingredients_qs.count()
+    out_of_stock_count = ingredients_qs.filter(stock_quantity__lte=0).count()
+    low_stock_count = ingredients_qs.filter(
+        stock_quantity__gt=0, min_stock__gt=0, stock_quantity__lte=models.F('min_stock')
+    ).count()
+    raw_count = ingredients_qs.filter(type='raw_material').count()
+    supply_count = ingredients_qs.filter(type='supply').count()
+    inventory_value = ingredients_qs.aggregate(
+        v=models.Sum(models.F('stock_quantity') * models.F('cost_per_unit'))
+    )['v'] or 0
+
+    # Apply search + type filters
+    qs = ingredients_qs
     if search_query:
-        ingredients = ingredients.filter(name__icontains=search_query)
+        qs = qs.filter(
+            models.Q(name__icontains=search_query) | models.Q(code__icontains=search_query)
+        )
+    if type_filter == 'raw':
+        qs = qs.filter(type='raw_material')
+    elif type_filter == 'supply':
+        qs = qs.filter(type='supply')
+    elif type_filter == 'low_stock':
+        qs = qs.filter(stock_quantity__gt=0, min_stock__gt=0, stock_quantity__lte=models.F('min_stock'))
+    elif type_filter == 'out_of_stock':
+        qs = qs.filter(stock_quantity__lte=0)
+    qs = qs.order_by('-stock_quantity').order_by('name')
 
-    raw_materials = ingredients.filter(type='raw_material')
-    supplies = ingredients.filter(type='supply')
+    # Annotate runway in Python (StockIntelligenceService already does it)
+    svc = StockIntelligenceService(user=request.user, days_history=30)
+    raw_materials = []
+    supplies = []
+    for ing in qs:
+        if ing.type == 'raw_material':
+            forecast = svc.calculate_ingredient_runway(ing)
+            ing.daily_usage = float(forecast['daily_usage'])
+            ing.runway_days = float(forecast['runway_days'])
+            ing.depletion_date = forecast['depletion_date']
+        else:
+            ing.daily_usage = 0.0
+            ing.runway_days = 9999
+            ing.depletion_date = None
+
+        # Visual severity (per-row badge)
+        threshold = ing.min_stock or Decimal('0')
+        if (ing.stock_quantity or 0) <= 0:
+            ing.severity = 'red'
+        elif threshold > 0 and ing.stock_quantity <= threshold:
+            ing.severity = 'amber'
+        elif ing.runway_days <= 7:
+            ing.severity = 'red'
+        elif ing.runway_days <= 21:
+            ing.severity = 'amber'
+        else:
+            ing.severity = 'green'
+
+        if ing.type == 'raw_material':
+            raw_materials.append(ing)
+        else:
+            supplies.append(ing)
 
     return render(request, 'inventory/ingredient_list.html', {
         'raw_materials': raw_materials,
         'supplies': supplies,
-        'search_query': search_query
+        'search_query': search_query,
+        'type_filter': type_filter,
+        'total_count': total_count,
+        'low_stock_count': low_stock_count,
+        'out_of_stock_count': out_of_stock_count,
+        'raw_count': raw_count,
+        'supply_count': supply_count,
+        'inventory_value': inventory_value,
     })
 
 @login_required
@@ -429,15 +505,107 @@ def ingredient_edit(request, pk):
         form = IngredientForm(request.POST, instance=ingredient, user=request.user)
         if form.is_valid():
             form.save()
+            messages.success(request, f"Ingrediente '{ingredient.name}' actualizado.")
             return redirect('ingredient_list')
     else:
         form = IngredientForm(instance=ingredient, user=request.user)
-        
+
     existing_ingredients = list(Ingredient.objects.filter(user=request.user).exclude(pk=pk).values_list('name', flat=True))
     return render(request, 'inventory/ingredient_form.html', {
-        'form': form, 
+        'form': form,
         'title': 'Editar Insumo / Materia Prima',
         'existing_ingredients': existing_ingredients
+    })
+
+
+@login_required
+def ingredient_delete(request, pk):
+    """
+    Delete an ingredient after confirming there is no production
+    dependency (recipes / BOMs / lots) referencing it.
+    """
+    ingredient = get_object_or_404(Ingredient, pk=pk, user=request.user)
+
+    # Detect blockers before deletion
+    blockers = []
+    try:
+        recipes_using = Recipe.objects.filter(ingredient=ingredient).count()
+        if recipes_using:
+            blockers.append(f"{recipes_using} receta(s) lo usan")
+    except Exception:
+        pass
+    try:
+        from production.models import BomLine
+        boms_using = BomLine.objects.filter(ingredient=ingredient).count()
+        if boms_using:
+            blockers.append(f"{boms_using} fórmula(s) BOM lo usan")
+    except Exception:
+        pass
+    try:
+        from traceability.models import IngredientLot
+        lots = IngredientLot.objects.filter(ingredient=ingredient).count()
+        if lots:
+            blockers.append(f"{lots} lote(s) registrados (trazabilidad)")
+    except Exception:
+        pass
+
+    if request.method == 'POST':
+        if blockers:
+            messages.error(request, f"No se puede eliminar: {', '.join(blockers)}.")
+            return redirect('ingredient_list')
+        name = ingredient.name
+        ingredient.delete()
+        messages.success(request, f"Ingrediente '{name}' eliminado.")
+        return redirect('ingredient_list')
+
+    return render(request, 'inventory/ingredient_confirm_delete.html', {
+        'ingredient': ingredient,
+        'blockers': blockers,
+    })
+
+
+@login_required
+def ingredient_quick_stock_adjust(request, pk):
+    """
+    Quick +/- adjustment for ingredient stock. Same contract as
+    quick_stock_adjust(Product) but uses Decimal because Ingredient
+    stock is fractional (g, ml, kg…).
+    """
+    from django.http import JsonResponse, HttpResponseBadRequest
+    from decimal import Decimal, InvalidOperation
+
+    if request.method != 'POST':
+        return HttpResponseBadRequest('POST only')
+
+    ingredient = get_object_or_404(Ingredient, pk=pk, user=request.user)
+    try:
+        delta = Decimal(request.POST.get('delta', '0'))
+    except (TypeError, InvalidOperation):
+        return JsonResponse({'ok': False, 'error': 'delta inválido'}, status=400)
+    if delta == 0:
+        return JsonResponse({'ok': False, 'error': 'delta=0'}, status=400)
+
+    new_stock = (ingredient.stock_quantity or Decimal('0')) + delta
+    if new_stock < 0:
+        return JsonResponse({'ok': False, 'error': 'el stock no puede quedar negativo'}, status=400)
+
+    ingredient.stock_quantity = new_stock
+    ingredient.save(update_fields=['stock_quantity'])
+
+    threshold = ingredient.min_stock or Decimal('0')
+    if new_stock <= 0:
+        severity = 'red'
+    elif threshold > 0 and new_stock <= threshold:
+        severity = 'amber'
+    else:
+        severity = 'green'
+
+    return JsonResponse({
+        'ok': True,
+        'new_stock': float(new_stock),
+        'severity': severity,
+        'name': ingredient.name,
+        'unit': ingredient.unit,
     })
 
 @login_required
