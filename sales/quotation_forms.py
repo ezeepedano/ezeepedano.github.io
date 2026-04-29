@@ -18,8 +18,8 @@ class QuotationForm(forms.ModelForm):
             'notes', 'status',
         ]
         widgets = {
-            'date': forms.DateInput(attrs={'type': 'date'}),
-            'valid_until': forms.DateInput(attrs={'type': 'date'}),
+            'date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'valid_until': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'customer': forms.Select(),
             'sale_type': forms.Select(),
             'sale_condition': forms.Select(),
@@ -31,8 +31,23 @@ class QuotationForm(forms.ModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
+        # Customer is required at the form level even though the model
+        # allows null — printing a quotation without a client breaks the
+        # PDF and produces meaningless documents.
+        self.fields['customer'].required = True
         if user:
             self.fields['customer'].queryset = Customer.objects.filter(user=user).order_by('name')
+
+    def clean(self):
+        cleaned = super().clean()
+        date = cleaned.get('date')
+        valid_until = cleaned.get('valid_until')
+        if date and valid_until and valid_until < date:
+            self.add_error(
+                'valid_until',
+                "La fecha de validez no puede ser anterior a la fecha de emisión.",
+            )
+        return cleaned
 
 
 class QuotationItemForm(forms.ModelForm):

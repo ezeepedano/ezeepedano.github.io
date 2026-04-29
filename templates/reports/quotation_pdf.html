@@ -8,7 +8,7 @@
             margin: 1.2cm 1.5cm 1.2cm 1.5cm;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; }
 
         body {
             font-family: Helvetica, Arial, sans-serif;
@@ -164,7 +164,7 @@
     <tr>
         <td style="width: 50%; vertical-align: top;">
             {% if logo_path %}
-            <img src="file://{{ logo_path }}" style="max-height: 65px; max-width: 160px;" />
+            <img src="file://{{ logo_path }}" width="65" height="65" />
             {% else %}
             <div style="background-color: #424141; color: white; width: 100px; height: 80px; text-align: center; font-size: 14px; font-weight: bold; padding-top: 20px;">
                 {{ company_name }}
@@ -201,16 +201,22 @@
     <tr>
         <td style="width: 50%; padding-right: 12px;">
             <div class="color-gold" style="padding-bottom: 4px;">CLIENTE</div>
+            {% if customer %}
             <div class="client-name">{{ customer.name }}</div>
             <div class="client-detail">Razon Social | {{ customer.billing_name|default:customer.name }}</div>
             <div class="client-detail">CUIT: {{ customer.document_number|default:"—" }}</div>
             <div class="client-detail">Condicion de IVA: {{ customer.tax_condition|default:"—" }}</div>
             <div class="client-detail">Domicilio: {{ customer.billing_address|default:"—" }}</div>
+            {% else %}
+            <div class="client-name">— Sin cliente asignado —</div>
+            {% endif %}
         </td>
         <td style="width: 50%; padding-left: 12px; text-align: right; vertical-align: bottom;">
             <div class="client-detail">Condici&oacute;n de venta: {{ quotation.get_sale_condition_display }}</div>
             <div class="client-detail">Tipo: {{ quotation.get_sale_type_display }}</div>
+            {% if customer %}
             <div class="client-detail">Domicilio entrega: {{ customer.shipping_address|default:customer.billing_address|default:"—" }}</div>
+            {% endif %}
         </td>
     </tr>
 </table>
@@ -222,12 +228,17 @@
     <tr>
         <td style="width: 50%; padding-right: 12px;">
             <div class="color-gold" style="padding-bottom: 3px;">PERSONA DE CONTACTO</div>
+            {% if customer %}
             <div class="client-detail">Tel&eacute;fono: {{ customer.phone|default:"—" }}</div>
             <div class="client-detail">Email: {{ customer.email|default:"—" }}</div>
+            {% else %}
+            <div class="client-detail">—</div>
+            {% endif %}
         </td>
         <td style="width: 50%; padding-left: 12px; text-align: right;">
             <div class="color-gold" style="padding-bottom: 3px;">DATOS DE PAGO</div>
-            <div class="client-detail">Cuenta: {{ quotation.payment_terms|default:"A convenir" }}</div>
+            <div class="client-detail">Modo de pago: {{ quotation.get_sale_condition_display }}</div>
+            <div class="client-detail">Plazo: {{ quotation.payment_terms|default:"0" }} d&iacute;as</div>
             <div class="client-detail">{{ company_name }}</div>
         </td>
     </tr>

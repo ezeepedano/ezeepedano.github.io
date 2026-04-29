@@ -11,6 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib import messages
 from django.conf import settings
+from django.db import models
 
 from core_erp.pdf_utils import render_to_pdf
 
@@ -28,19 +29,41 @@ logger = logging.getLogger(__name__)
 
 @login_required
 def quotation_list(request):
-    """List all quotations for the current user."""
-    quotations = Quotation.objects.filter(
-        user=request.user
-    ).select_related('customer').order_by('-date', '-pk')
+    """List quotations for the current user with KPIs and search."""
+    base = Quotation.objects.filter(user=request.user).select_related('customer')
 
-    # Filter by status
+    # Filters
     status_filter = request.GET.get('status', '')
+    search_query = request.GET.get('q', '').strip()
+
+    qs = base.order_by('-date', '-pk')
     if status_filter:
-        quotations = quotations.filter(status=status_filter)
+        qs = qs.filter(status=status_filter)
+    if search_query:
+        from django.db.models import Q as Qf
+        qs = qs.filter(
+            Qf(number__icontains=search_query)
+            | Qf(customer__name__icontains=search_query)
+            | Qf(notes__icontains=search_query)
+        )
+
+    # KPIs over the FULL collection (before filters)
+    counts = {row['status']: row['n'] for row in base.values('status').annotate(n=models.Count('id'))}
+    total_count = sum(counts.values())
+    accepted_total = sum(
+        q.total for q in base.filter(status='ACCEPTED')
+    )
 
     return render(request, 'sales/quotation_list.html', {
-        'quotations': quotations,
+        'quotations': qs,
         'status_filter': status_filter,
+        'search_query': search_query,
+        'total_count': total_count,
+        'draft_count': counts.get('DRAFT', 0),
+        'sent_count': counts.get('SENT', 0),
+        'accepted_count': counts.get('ACCEPTED', 0),
+        'rejected_count': counts.get('REJECTED', 0),
+        'accepted_total': accepted_total,
     })
 
 
@@ -50,17 +73,28 @@ def quotation_create(request):
     if request.method == 'POST':
         form = QuotationForm(request.POST, user=request.user)
         formset = QuotationItemFormSet(request.POST, prefix='items')
+        # Restrict every formset row's product dropdown to the current
+        # user's products before validation, so cross-tenant pks cause a
+        # validation error rather than a silent leak.
+        for f in formset.forms:
+            f.fields['product'].queryset = Product.objects.filter(user=request.user)
+
+        # Refuse empty quotations: at least one non-deleted line with
+        # quantity > 0. is_valid() must run first so each form has
+        # cleaned_data populated, otherwise _count_filled_items reads
+        # missing attributes and always returns 0.
         if form.is_valid() and formset.is_valid():
-            quotation = form.save(commit=False)
-            quotation.user = request.user
-            quotation.save()
-            formset.instance = quotation
-            # Set user for product queryset on each form
-            for f in formset.forms:
-                f.fields['product'].queryset = Product.objects.filter(user=request.user)
-            formset.save()
-            messages.success(request, f'Presupuesto {quotation.number} creado exitosamente.')
-            return redirect('quotation_list')
+            item_count = _count_filled_items(formset)
+            if item_count > 0:
+                quotation = form.save(commit=False)
+                quotation.user = request.user
+                quotation.save()
+                formset.instance = quotation
+                formset.save()
+                messages.success(request, f'Presupuesto {quotation.number} creado exitosamente.')
+                return redirect('quotation_list')
+            else:
+                form.add_error(None, "El presupuesto debe tener al menos un producto.")
     else:
         initial = {
             'date': date.today(),
@@ -80,6 +114,23 @@ def quotation_create(request):
     })
 
 
+def _count_filled_items(formset):
+    """Count formset rows that are NOT marked for deletion and have qty > 0."""
+    n = 0
+    for f in formset.forms:
+        if not getattr(f, 'cleaned_data', None):
+            continue
+        if f.cleaned_data.get('DELETE'):
+            continue
+        qty = f.cleaned_data.get('quantity') or 0
+        if qty <= 0:
+            continue
+        # Need either a product link or a free-text description
+        if f.cleaned_data.get('product') or (f.cleaned_data.get('description') or '').strip():
+            n += 1
+    return n
+
+
 @login_required
 def quotation_edit(request, pk):
     """Edit an existing quotation."""
@@ -92,10 +143,14 @@ def quotation_edit(request, pk):
         for f in formset.forms:
             f.fields['product'].queryset = Product.objects.filter(user=request.user)
         if form.is_valid() and formset.is_valid():
-            form.save()
-            formset.save()
-            messages.success(request, f'Presupuesto {quotation.number} actualizado.')
-            return redirect('quotation_list')
+            item_count = _count_filled_items(formset)
+            if item_count == 0:
+                form.add_error(None, "El presupuesto debe tener al menos un producto.")
+            else:
+                form.save()
+                formset.save()
+                messages.success(request, f'Presupuesto {quotation.number} actualizado.')
+                return redirect('quotation_list')
     else:
         form = QuotationForm(instance=quotation, user=request.user)
         formset = QuotationItemFormSet(instance=quotation, prefix='items')
@@ -146,6 +201,74 @@ def quotation_duplicate(request, pk):
 
     messages.success(request, f'Presupuesto duplicado como {original.number}.')
     return redirect('quotation_edit', pk=original.pk)
+
+
+# ============================================================================
+# QUOTATION → SALE CONVERSION
+# ============================================================================
+
+@login_required
+def quotation_to_sale(request, pk):
+    """Convert an accepted quotation into a Sale with all its items."""
+    from django.utils import timezone
+    from .models import Sale, SaleItem
+
+    quotation = get_object_or_404(
+        Quotation.objects.select_related('customer').prefetch_related('items__product'),
+        pk=pk, user=request.user
+    )
+
+    # Generate order ID
+    today_str = timezone.now().strftime('%Y%m%d')
+    prefix = f"PRE-{today_str}-"
+    last_sale = Sale.objects.filter(user=request.user, order_id__startswith=prefix).order_by('order_id').last()
+    if last_sale:
+        try:
+            last_seq = int(last_sale.order_id.split('-')[-1])
+            new_seq = last_seq + 1
+        except ValueError:
+            new_seq = 1
+    else:
+        new_seq = 1
+
+    # Create Sale from Quotation
+    sale = Sale.objects.create(
+        user=request.user,
+        channel='WHOLESALE',
+        order_id=f"{prefix}{new_seq:02d}",
+        date=timezone.now(),
+        status='COMPLETED',
+        customer=quotation.customer,
+        total=quotation.total,
+        product_revenue=quotation.net_gravado,
+        shipping_cost=0,
+        payment_status='PENDING',
+        paid_amount=0,
+        buyer_address=quotation.customer.billing_address if quotation.customer else '',
+        city=quotation.customer.city if quotation.customer else '',
+        province=quotation.customer.state if quotation.customer else '',
+        recipient_name=quotation.customer.name if quotation.customer else '',
+        buyer_dni=quotation.customer.document_number if quotation.customer else '',
+    )
+
+    # Create SaleItems from QuotationItems
+    for qi in quotation.items.all():
+        SaleItem.objects.create(
+            sale=sale,
+            product=qi.product,
+            product_title=qi.description or (qi.product.name if qi.product else ''),
+            sku=qi.product.sku if qi.product else '',
+            quantity=qi.quantity,
+            unit_price=qi.unit_price,
+        )
+
+    # Mark quotation as accepted if not already
+    if quotation.status != 'ACCEPTED':
+        quotation.status = 'ACCEPTED'
+        quotation.save(update_fields=['status'])
+
+    messages.success(request, f'Venta #{sale.order_id} generada desde Presupuesto {quotation.number}. Completá los datos financieros.')
+    return redirect('sale_edit', pk=sale.pk)
 
 
 # ============================================================================

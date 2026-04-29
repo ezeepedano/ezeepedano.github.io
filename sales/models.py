@@ -291,7 +291,9 @@ class Quotation(models.Model):
     Supports wholesale and retail pricing with IVA and discounts.
     """
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    number = models.CharField(max_length=20, unique=True, editable=False, help_text="Nro de presupuesto auto-generado")
+    # Per-user uniqueness (see Meta.constraints). The number sequence is
+    # generated per-tenant in save() so other tenants' counters don't leak.
+    number = models.CharField(max_length=20, editable=False, help_text="Nro de presupuesto auto-generado")
     date = models.DateField(help_text="Fecha de emisión")
     valid_until = models.DateField(help_text="Válido hasta")
     customer = models.ForeignKey(
@@ -327,6 +329,9 @@ class Quotation(models.Model):
 
     class Meta:
         ordering = ['-date', '-pk']
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'number'], name='uniq_quotation_user_number'),
+        ]
 
     def __str__(self):
         customer_name = self.customer.name if self.customer else "Sin cliente"
@@ -334,14 +339,19 @@ class Quotation(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.number:
-            last = Quotation.objects.filter(user=self.user).order_by('-pk').first()
-            if last and last.number:
+            # Per-user sequence so each tenant gets P00001..P99999 of their
+            # own. Without the user filter, Max(number) would return the
+            # global max and silently leak that another tenant has more
+            # quotations than the current user.
+            from django.db.models import Max
+            qs = Quotation.objects.filter(user=self.user) if self.user_id else Quotation.objects.all()
+            max_number = qs.aggregate(Max('number'))['number__max']
+            seq = 1
+            if max_number:
                 try:
-                    seq = int(last.number.replace('P', '')) + 1
+                    seq = int(max_number.replace('P', '')) + 1
                 except ValueError:
                     seq = 1
-            else:
-                seq = 1
             self.number = f"P{seq:05d}"
         super().save(*args, **kwargs)
 
