@@ -562,25 +562,29 @@ def customer_detail(request, pk):
         pk=pk
     )
 
-    # Get customer's sales history with pagination
-    sales_qs = Sale.objects.filter(customer=customer).order_by('-date')
+    # Defense in depth: customer is already user-scoped above, but pin the
+    # related queries to user= as well so any future refactor doesn't leak.
+    sales_qs = Sale.objects.filter(customer=customer, user=request.user).order_by('-date')
     paginator = Paginator(sales_qs, 20)
     page_number = request.GET.get('page')
     sales = paginator.get_page(page_number)
 
-    # Get top products (most frequently bought)
+    # Top products (qty) + revenue, dedup by product (when linked) or by title.
     top_products = (
         SaleItem.objects
-        .filter(sale__customer=customer)
+        .filter(sale__customer=customer, sale__user=request.user)
         .values('product_title', 'sku')
-        .annotate(total_qty=Sum('quantity'))
-        .order_by('-total_qty')[:5]
+        .annotate(
+            total_qty=Sum('quantity'),
+            total_revenue=Sum(F('quantity') * F('unit_price'), output_field=DecimalField()),
+        )
+        .order_by('-total_qty')[:8]
     )
 
     # Monthly purchases for chart (last 12 months)
     import django.db.models as django_models
     monthly_purchases = list(
-        Sale.objects.filter(customer=customer)
+        Sale.objects.filter(customer=customer, user=request.user)
         .annotate(month=TruncMonth('date'))
         .values('month')
         .annotate(

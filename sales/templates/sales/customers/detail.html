@@ -1,334 +1,397 @@
 {% extends 'base.html' %}
 {% load humanize %}
 
-{% block title %}{{ customer.name }} - Cliente{% endblock %}
+{% block title %}{{ customer.name }} — Cliente{% endblock %}
+{% block header_title %}Cliente{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto">
-    <!-- Header -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-        <div class="flex items-center gap-4">
-            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/80 to-indigo-500 text-white flex items-center justify-center text-xl font-bold shadow-lg shadow-purple-200">
-                {{ customer.name|truncatechars:2 }}
+
+    {# ────────── Header ────────── #}
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 animate__animated animate__fadeIn">
+        <div class="flex items-center gap-4 min-w-0">
+            <div class="w-14 h-14 rounded-md bg-gradient-to-br from-primary-500 to-primary-700 text-white flex items-center justify-center text-lg font-bold shadow-glow flex-shrink-0">
+                {{ customer.name|first|upper }}
             </div>
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <div class="min-w-0">
+                <a href="{% url 'customer_list' %}"
+                   class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary transition-colors mb-1">
+                    <i class="fas fa-arrow-left text-[0.7rem]"></i><span>Volver al listado</span>
+                </a>
+                <h1 class="text-xl md:text-2xl font-bold text-slate-900 tracking-tight leading-tight truncate flex items-center gap-2">
                     {{ customer.name }}
-                    {% if customer.vip %}
-                    <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">
-                        <i class="fas fa-star"></i> VIP
+                    {% if stats and stats.segment %}
+                    <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold border
+                        {% if stats.segment == 'VIP' %}bg-violet-50 text-violet-700 border-violet-200
+                        {% elif stats.segment == 'Fiel' %}bg-emerald-50 text-emerald-700 border-emerald-200
+                        {% elif stats.segment == 'Recurrente' %}bg-sky-50 text-sky-700 border-sky-200
+                        {% elif stats.segment == 'Nuevo' %}bg-blue-50 text-blue-700 border-blue-200
+                        {% elif stats.segment == 'En riesgo' %}bg-amber-50 text-amber-700 border-amber-200
+                        {% elif stats.segment == 'Dormido' %}bg-slate-100 text-slate-600 border-slate-200
+                        {% else %}bg-slate-100 text-slate-600 border-slate-200{% endif %}">
+                        {{ stats.segment }}
+                    </span>
+                    {% endif %}
+                    {% if customer.has_open_claim %}
+                    <span class="inline-flex items-center gap-1 text-[0.65rem] font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-full">
+                        <i class="fas fa-triangle-exclamation text-[0.55rem]"></i>Reclamo abierto
                     </span>
                     {% endif %}
                 </h1>
-                <p class="text-secondary text-sm">{{ customer.city }}, {{ customer.state }} · Cliente desde {{ customer.first_purchase_date|date:"M Y"|default:"--" }}</p>
+                <p class="text-xs text-slate-500 mt-0.5">
+                    {{ customer.city|default:"—" }}{% if customer.state %}, {{ customer.state }}{% endif %}
+                    {% if customer.first_purchase_date %}
+                    <span class="text-slate-300 mx-1">·</span>Cliente desde {{ customer.first_purchase_date|date:"M Y" }}
+                    {% endif %}
+                </p>
             </div>
         </div>
-        <div class="flex items-center gap-3 self-start md:self-auto">
+        <div class="flex flex-wrap gap-2">
+            <a href="{% url 'sale_create' %}?customer={{ customer.pk }}"
+               class="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm font-semibold shadow-sm transition-all">
+                <i class="fas fa-plus text-xs"></i><span>Nueva venta</span>
+            </a>
+            <a href="{% url 'quotation_create' %}?customer={{ customer.pk }}"
+               class="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 rounded-md text-sm font-semibold shadow-xs hover:border-slate-300 transition-all">
+                <i class="fas fa-file-invoice-dollar text-xs"></i><span>Presupuesto</span>
+            </a>
             <a href="{% url 'customer_edit' customer.pk %}"
-                class="bg-white text-secondary hover:text-primary border border-gray-200 px-4 py-2 rounded-xl font-bold transition-all flex items-center shadow-sm">
-                <i class="fas fa-pen mr-2"></i> Editar
+               class="inline-flex items-center gap-2 px-3.5 py-2 bg-slate-100 text-slate-700 hover:bg-slate-900 hover:text-white rounded-md text-sm font-semibold transition-all">
+                <i class="fas fa-pen text-xs"></i><span>Editar</span>
             </a>
             <a href="{% url 'customer_delete' customer.pk %}"
-                onclick="return confirm('¿Estás seguro de que deseas eliminar a este cliente?\n\nEsta acción no se puede deshacer y se perderán todos los datos asociados.')"
-                class="bg-white text-red-400 hover:text-red-600 border border-gray-200 px-4 py-2 rounded-xl font-bold transition-all flex items-center shadow-sm">
-                <i class="fas fa-trash mr-2"></i> Eliminar
-            </a>
-            <a href="{% url 'customer_list' %}"
-                class="bg-slate-100 text-secondary hover:text-gray-800 px-5 py-2 rounded-xl font-bold transition-all flex items-center">
-                <i class="fas fa-arrow-left mr-2"></i> Volver
+               class="inline-flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-md text-sm font-semibold transition-all"
+               onclick="return confirm('¿Eliminar este cliente? Esta acción no se puede deshacer.')">
+                <i class="fas fa-trash text-xs"></i>
             </a>
         </div>
     </div>
 
-    <!-- Contact Info -->
-    <div class="bg-white rounded-3xl shadow-sm p-6 mb-6 flex flex-wrap gap-6">
-        {% if customer.email %}
-        <div class="flex items-center gap-2 text-sm">
-            <i class="fas fa-envelope text-gray-400"></i>
-            <a href="mailto:{{ customer.email }}" class="text-primary hover:underline">{{ customer.email }}</a>
+    {# ────────── Contact strip ────────── #}
+    <div class="card-soft p-4 mb-5">
+        <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            {% if customer.email %}
+            <a href="mailto:{{ customer.email }}" class="inline-flex items-center gap-2 text-primary-700 hover:underline">
+                <i class="fas fa-envelope text-slate-400 text-xs"></i>{{ customer.email }}
+            </a>
+            {% endif %}
+            {% if customer.phone %}
+            <span class="inline-flex items-center gap-2 text-slate-700">
+                <i class="fas fa-phone text-slate-400 text-xs"></i>{{ customer.phone }}
+            </span>
+            {% endif %}
+            {% if customer.billing_address %}
+            <span class="inline-flex items-center gap-2 text-slate-700">
+                <i class="fas fa-map-marker-alt text-slate-400 text-xs"></i>{{ customer.billing_address }}
+            </span>
+            {% endif %}
+            {% if customer.document_number %}
+            <span class="inline-flex items-center gap-2 text-slate-700">
+                <i class="fas fa-id-card text-slate-400 text-xs"></i>{{ customer.document_type|default:"DNI" }}: {{ customer.document_number }}
+            </span>
+            {% endif %}
+            {% if customer.is_wholesaler %}
+            <span class="inline-flex items-center gap-2 text-amber-700">
+                <i class="fas fa-warehouse text-amber-400 text-xs"></i>Mayorista
+            </span>
+            {% endif %}
         </div>
-        {% endif %}
-        {% if customer.phone %}
-        <div class="flex items-center gap-2 text-sm">
-            <i class="fas fa-phone text-gray-400"></i>
-            <span class="text-gray-700">{{ customer.phone }}</span>
+    </div>
+
+    {# ────────── KPI tiles ────────── #}
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+        {% if stats %}
+        <div class="card-soft p-5">
+            <div class="flex items-start justify-between mb-3">
+                <div class="w-9 h-9 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="fas fa-dollar-sign"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Total gastado</p>
+            <h3 class="text-2xl font-bold text-emerald-700 tracking-tight leading-none">${{ stats.total_spent|floatformat:0|intcomma }}</h3>
         </div>
-        {% endif %}
-        {% if customer.address %}
-        <div class="flex items-center gap-2 text-sm">
-            <i class="fas fa-map-marker-alt text-gray-400"></i>
-            <span class="text-gray-700">{{ customer.address }}</span>
+        <div class="card-soft p-5">
+            <div class="flex items-start justify-between mb-3">
+                <div class="w-9 h-9 rounded-md bg-primary-50 text-primary-600 flex items-center justify-center"><i class="fas fa-shopping-bag"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Pedidos</p>
+            <h3 class="text-2xl font-bold text-slate-900 tracking-tight leading-none">{{ stats.total_orders }}</h3>
+            <p class="text-[0.65rem] text-slate-400 mt-1">{{ stats.total_units }} unidades</p>
         </div>
-        {% endif %}
-        {% if customer.doc_number %}
-        <div class="flex items-center gap-2 text-sm">
-            <i class="fas fa-id-card text-gray-400"></i>
-            <span class="text-gray-700">{{ customer.doc_type }}: {{ customer.doc_number }}</span>
+        <div class="card-soft p-5">
+            <div class="flex items-start justify-between mb-3">
+                <div class="w-9 h-9 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fas fa-receipt"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Ticket prom.</p>
+            <h3 class="text-2xl font-bold text-slate-900 tracking-tight leading-none">${{ stats.avg_ticket|floatformat:0|intcomma }}</h3>
+            <p class="text-[0.65rem] text-slate-400 mt-1">máx ${{ stats.max_ticket|floatformat:0|intcomma }}</p>
         </div>
+        <div class="card-soft p-5">
+            <div class="flex items-start justify-between mb-3">
+                <div class="w-9 h-9 rounded-md
+                    {% if stats.days_since_last_order <= 30 %}bg-emerald-50 text-emerald-600
+                    {% elif stats.days_since_last_order <= 90 %}bg-sky-50 text-sky-600
+                    {% elif stats.days_since_last_order <= 180 %}bg-amber-50 text-amber-600
+                    {% else %}bg-rose-50 text-rose-600{% endif %} flex items-center justify-center"><i class="far fa-clock"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Última compra</p>
+            <h3 class="text-2xl font-bold tracking-tight leading-none
+                {% if stats.days_since_last_order <= 30 %}text-emerald-700
+                {% elif stats.days_since_last_order <= 90 %}text-sky-700
+                {% elif stats.days_since_last_order <= 180 %}text-amber-700
+                {% else %}text-rose-700{% endif %}">
+                {% if stats.days_since_last_order >= 999 %}—{% else %}{{ stats.days_since_last_order }}d{% endif %}
+            </h3>
+            <p class="text-[0.65rem] text-slate-400 mt-1">{{ stats.last_order_date|date:"d M Y"|default:"sin compras" }}</p>
+        </div>
+        {% else %}
+        <div class="card-soft p-5 col-span-2 lg:col-span-4 text-sm text-slate-500">Sin datos de actividad aún.</div>
         {% endif %}
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Main Content -->
-        <div class="lg:col-span-2 space-y-6">
-            <!-- Monthly Purchases Chart -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+        {# ────────── Main column ────────── #}
+        <div class="lg:col-span-2 space-y-5">
+
+            {# Monthly chart #}
             {% if monthly_chart_data and monthly_chart_data != '[]' %}
-            <div class="bg-white rounded-3xl shadow-sm p-6">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Compras por Mes</h2>
-                <div class="h-48">
-                    <canvas id="monthlyChart"></canvas>
-                </div>
+            <div class="card-soft p-6">
+                <h2 class="font-semibold text-slate-900 text-base mb-1">Compras por mes</h2>
+                <p class="text-xs text-slate-500 mb-4">Últimos 12 meses con actividad</p>
+                <div class="h-56 relative"><canvas id="monthlyChart"></canvas></div>
             </div>
             {% endif %}
 
-            <!-- Order History -->
-            <div class="bg-white rounded-3xl shadow-sm p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-bold text-gray-800">Historial de Pedidos</h2>
-                    <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{{ sales.paginator.count }} pedidos</span>
+            {# Order history #}
+            <div class="card-soft p-0 overflow-hidden">
+                <div class="flex justify-between items-center px-6 py-4 border-b border-slate-100">
+                    <h2 class="font-semibold text-slate-900 text-base">Historial de pedidos</h2>
+                    <span class="text-[0.7rem] font-bold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full">{{ sales.paginator.count }} pedidos</span>
                 </div>
                 {% if sales %}
                 <div class="overflow-x-auto">
                     <table class="w-full text-left">
-                        <thead class="text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
-                            <tr>
-                                <th class="pb-3">Fecha</th>
-                                <th class="pb-3">N° Orden</th>
-                                <th class="pb-3 text-center">Estado</th>
-                                <th class="pb-3 text-right">Total</th>
+                        <thead class="bg-slate-50/60 border-b border-slate-100">
+                            <tr class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">
+                                <th class="px-5 py-3">Fecha</th>
+                                <th class="px-5 py-3">Nº Orden</th>
+                                <th class="px-5 py-3 text-center">Canal</th>
+                                <th class="px-5 py-3 text-center">Estado</th>
+                                <th class="px-5 py-3 text-right">Total</th>
                             </tr>
                         </thead>
-                        <tbody class="text-sm divide-y divide-gray-50">
+                        <tbody class="text-sm divide-y divide-slate-100 text-slate-700">
                             {% for sale in sales %}
-                            <tr class="hover:bg-gray-50 cursor-pointer"
-                                data-url="{% url 'sale_detail' sale.pk %}"
-                                onclick="window.location=this.dataset.url;">
-                                <td class="py-3">{{ sale.date|date:"d/m/Y" }}</td>
-                                <td class="py-3 font-mono text-xs text-gray-600">#{{ sale.order_id }}</td>
-                                <td class="py-3 text-center">
-                                    <span class="px-2 py-1 rounded-full text-xs font-bold
-                                        {% if sale.status == 'Entregado' %}bg-green-100 text-green-600
-                                        {% elif sale.status == 'Cancelado' %}bg-red-100 text-red-600
-                                        {% else %}bg-yellow-100 text-yellow-600{% endif %}">
-                                        {{ sale.status|truncatechars:15 }}
+                            <tr class="hover:bg-primary-50/40 cursor-pointer transition-colors"
+                                data-href="{% url 'sale_detail' sale.pk %}"
+                                onclick="window.location=this.dataset.href;">
+                                <td class="px-5 py-3">{{ sale.date|date:"d M Y" }}</td>
+                                <td class="px-5 py-3 font-mono text-[0.75rem] text-slate-600">#{{ sale.order_id|default:"—" }}</td>
+                                <td class="px-5 py-3 text-center">
+                                    {% if sale.channel == 'MERCADOLIBRE' %}<span class="text-[0.65rem] font-bold text-[#2D3277] bg-[#FFE600] px-2 py-0.5 rounded">MeLi</span>
+                                    {% elif sale.channel == 'TIENDANUBE' %}<span class="text-[0.65rem] font-bold text-white bg-[#2D3277] px-2 py-0.5 rounded">TN</span>
+                                    {% elif sale.channel == 'WHOLESALE' %}<span class="text-[0.65rem] font-bold text-white bg-primary-600 px-2 py-0.5 rounded">Mayor.</span>
+                                    {% else %}<span class="text-slate-300">—</span>{% endif %}
+                                </td>
+                                <td class="px-5 py-3 text-center">
+                                    <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold border
+                                        {% if sale.status == 'Entregado' or sale.status == 'COMPLETED' %}bg-emerald-50 text-emerald-700 border-emerald-200
+                                        {% elif sale.status == 'Cancelado' or sale.status == 'CANCELLED' %}bg-red-50 text-red-700 border-red-200
+                                        {% else %}bg-amber-50 text-amber-700 border-amber-200{% endif %}">
+                                        {{ sale.status|truncatechars:14 }}
                                     </span>
                                 </td>
-                                <td class="py-3 text-right font-bold">${{ sale.total|floatformat:0 }}</td>
+                                <td class="px-5 py-3 text-right font-bold text-slate-900 tabular-nums">${{ sale.total|floatformat:0|intcomma }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
-
-                <!-- Pagination -->
                 {% if sales.has_other_pages %}
-                <div class="flex items-center justify-between pt-4 mt-4 border-t border-gray-100">
-                    <div class="text-sm text-gray-500">
-                        Página {{ sales.number }} de {{ sales.paginator.num_pages }}
-                    </div>
+                <div class="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50/40 text-xs">
+                    <span class="text-slate-500">Página {{ sales.number }} de {{ sales.paginator.num_pages }}</span>
                     <div class="flex items-center gap-1">
                         {% if sales.has_previous %}
-                        <a href="?page={{ sales.previous_page_number }}"
-                           class="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors">
-                            <i class="fas fa-angle-left"></i>
-                        </a>
+                        <a href="?page={{ sales.previous_page_number }}" class="w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center hover:border-primary-300"><i class="fas fa-angle-left"></i></a>
                         {% endif %}
-                        <span class="px-4 py-1.5 rounded-lg text-sm font-bold bg-primary text-white">{{ sales.number }}</span>
+                        <span class="px-2 h-7 rounded-md bg-primary-600 text-white font-semibold flex items-center">{{ sales.number }}</span>
                         {% if sales.has_next %}
-                        <a href="?page={{ sales.next_page_number }}"
-                           class="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors">
-                            <i class="fas fa-angle-right"></i>
-                        </a>
+                        <a href="?page={{ sales.next_page_number }}" class="w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center hover:border-primary-300"><i class="fas fa-angle-right"></i></a>
                         {% endif %}
                     </div>
                 </div>
                 {% endif %}
-
                 {% else %}
-                <p class="text-gray-400 italic">No se encontraron pedidos.</p>
+                {% include "includes/ui/empty_state.html" with icon="fa-shopping-bag" title="Sin pedidos" hint="Este cliente todavía no compró." %}
+                {% endif %}
+            </div>
+
+            {# Quotation history #}
+            <div class="card-soft p-0 overflow-hidden">
+                <div class="flex justify-between items-center px-6 py-4 border-b border-slate-100">
+                    <h2 class="font-semibold text-slate-900 text-base">Presupuestos</h2>
+                    <a href="{% url 'quotation_create' %}?customer={{ customer.pk }}"
+                       class="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700">
+                        <i class="fas fa-plus text-[0.65rem]"></i> Nuevo
+                    </a>
+                </div>
+                {% if quotations %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50/60 border-b border-slate-100">
+                            <tr class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">
+                                <th class="px-5 py-3">Nº</th>
+                                <th class="px-5 py-3">Fecha</th>
+                                <th class="px-5 py-3 text-center">Estado</th>
+                                <th class="px-5 py-3 text-right">Total</th>
+                                <th class="px-5 py-3 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm divide-y divide-slate-100">
+                            {% for q in quotations %}
+                            <tr class="hover:bg-slate-50/60 transition-colors">
+                                <td class="px-5 py-3 font-bold font-mono text-primary-700 text-[0.8rem]">{{ q.number }}</td>
+                                <td class="px-5 py-3 text-slate-700">{{ q.date|date:"d M Y" }}</td>
+                                <td class="px-5 py-3 text-center">
+                                    <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold border
+                                        {% if q.status == 'ACCEPTED' %}bg-emerald-50 text-emerald-700 border-emerald-200
+                                        {% elif q.status == 'SENT' %}bg-sky-50 text-sky-700 border-sky-200
+                                        {% elif q.status == 'REJECTED' %}bg-rose-50 text-rose-700 border-rose-200
+                                        {% else %}bg-slate-100 text-slate-700 border-slate-200{% endif %}">
+                                        {{ q.get_status_display }}
+                                    </span>
+                                </td>
+                                <td class="px-5 py-3 text-right font-bold text-slate-900 tabular-nums">${{ q.total|floatformat:0|intcomma }}</td>
+                                <td class="px-5 py-3">
+                                    <div class="flex items-center justify-center gap-1">
+                                        <a href="{% url 'quotation_pdf' pk=q.pk %}" target="_blank" class="w-7 h-7 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white flex items-center justify-center transition-all"><i class="fas fa-file-pdf text-[0.7rem]"></i></a>
+                                        <a href="{% url 'quotation_edit' pk=q.pk %}" class="w-7 h-7 rounded-md bg-slate-100 text-slate-500 hover:bg-slate-900 hover:text-white flex items-center justify-center transition-all"><i class="fas fa-pen text-[0.7rem]"></i></a>
+                                        <a href="{% url 'quotation_to_sale' pk=q.pk %}" onclick="return confirm('¿Generar venta?')" class="w-7 h-7 rounded-md bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all"><i class="fas fa-shopping-cart text-[0.7rem]"></i></a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="px-6 py-6 text-center text-xs text-slate-400">Sin presupuestos para este cliente.</div>
                 {% endif %}
             </div>
         </div>
 
-        <!-- Sidebar Stats -->
-        <div class="space-y-6">
-            <!-- Key Metrics -->
-            <div class="bg-white rounded-3xl shadow-sm p-8">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Métricas Clave</h2>
-                {% if stats %}
-                <div class="space-y-4">
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                        <span class="text-gray-600">Total Gastado</span>
-                        <span class="text-xl font-bold text-primary">${{ stats.total_spent|floatformat:0 }}</span>
-                    </div>
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                        <span class="text-gray-600">Total Pedidos</span>
-                        <span class="text-xl font-bold text-gray-800">{{ stats.total_orders }}</span>
-                    </div>
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                        <span class="text-gray-600">Unidades Compradas</span>
-                        <span class="text-xl font-bold text-gray-800">{{ stats.total_units }}</span>
-                    </div>
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                        <span class="text-gray-600">Ticket Promedio</span>
-                        <span class="text-xl font-bold text-gray-800">${{ stats.avg_ticket|floatformat:0 }}</span>
-                    </div>
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                        <span class="text-gray-600">Ticket Máximo</span>
-                        <span class="text-xl font-bold text-gray-800">${{ stats.max_ticket|floatformat:0 }}</span>
-                    </div>
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                        <span class="text-gray-600">Días Última Compra</span>
-                        <span
-                            class="text-xl font-bold {% if stats.days_since_last_order > 60 %}text-yellow-600{% else %}text-green-600{% endif %}">
-                            {{ stats.days_since_last_order }}
-                        </span>
-                    </div>
-                </div>
-                {% else %}
-                <p class="text-gray-400 italic">Sin datos disponibles.</p>
-                {% endif %}
-            </div>
+        {# ────────── Sidebar ────────── #}
+        <div class="space-y-5">
 
-            <!-- RFM Score -->
+            {# RFM #}
             {% if stats %}
-            <div class="bg-white rounded-3xl shadow-sm p-8">
-                <h2 class="text-lg font-bold text-gray-800 mb-2">Puntaje RFM</h2>
-                <p class="text-xs text-gray-400 mb-4">Recencia · Frecuencia · Monto (1-5, mayor = mejor)</p>
-                <div class="grid grid-cols-3 gap-4 text-center">
-                    <div class="bg-blue-50 rounded-xl p-4 group relative">
-                        <p class="text-2xl font-bold text-blue-600">{{ stats.r_score }}</p>
-                        <p class="text-xs text-gray-500 uppercase">Recencia</p>
-                        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                            <div class="bg-gray-800 text-white text-xs rounded px-3 py-2 whitespace-nowrap shadow-lg">
-                                Qué tan reciente fue la última compra
-                            </div>
-                        </div>
+            <div class="card-soft p-6">
+                <h2 class="font-semibold text-slate-900 text-base">Puntaje RFM</h2>
+                <p class="text-xs text-slate-500 mt-0.5 mb-4">Recencia · Frecuencia · Monto (1–5)</p>
+                <div class="grid grid-cols-3 gap-3 text-center">
+                    <div class="p-3 rounded-md bg-sky-50 border border-sky-100">
+                        <p class="text-2xl font-bold text-sky-700 leading-none">{{ stats.r_score }}</p>
+                        <p class="text-[0.65rem] text-slate-500 uppercase tracking-wide mt-1">Recencia</p>
                     </div>
-                    <div class="bg-green-50 rounded-xl p-4 group relative">
-                        <p class="text-2xl font-bold text-green-600">{{ stats.f_score }}</p>
-                        <p class="text-xs text-gray-500 uppercase">Frecuencia</p>
-                        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                            <div class="bg-gray-800 text-white text-xs rounded px-3 py-2 whitespace-nowrap shadow-lg">
-                                Con qué frecuencia compra
-                            </div>
-                        </div>
+                    <div class="p-3 rounded-md bg-emerald-50 border border-emerald-100">
+                        <p class="text-2xl font-bold text-emerald-700 leading-none">{{ stats.f_score }}</p>
+                        <p class="text-[0.65rem] text-slate-500 uppercase tracking-wide mt-1">Frecuencia</p>
                     </div>
-                    <div class="bg-purple-50 rounded-xl p-4 group relative">
-                        <p class="text-2xl font-bold text-purple-600">{{ stats.m_score }}</p>
-                        <p class="text-xs text-gray-500 uppercase">Monto</p>
-                        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                            <div class="bg-gray-800 text-white text-xs rounded px-3 py-2 whitespace-nowrap shadow-lg">
-                                Cuánto gasta en total
-                            </div>
-                        </div>
+                    <div class="p-3 rounded-md bg-violet-50 border border-violet-100">
+                        <p class="text-2xl font-bold text-violet-700 leading-none">{{ stats.m_score }}</p>
+                        <p class="text-[0.65rem] text-slate-500 uppercase tracking-wide mt-1">Monto</p>
                     </div>
                 </div>
+                <p class="text-[0.7rem] text-slate-500 mt-4 leading-relaxed">
+                    Mayor puntaje = mejor cliente. RFM total: <strong class="text-slate-900">{{ stats.r_score }}{{ stats.f_score }}{{ stats.m_score }}</strong>
+                </p>
             </div>
             {% endif %}
 
-            <!-- Top Products -->
-            {% if top_products %}
-            <div class="bg-white rounded-3xl shadow-sm p-8">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Productos Favoritos</h2>
-                <div class="space-y-3">
-                    {% for prod in top_products %}
-                    <div class="flex justify-between items-center">
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-medium text-gray-800 truncate">{{ prod.product_title|truncatechars:35 }}</p>
-                            <p class="text-xs text-gray-400">{{ prod.sku|default:"Sin SKU" }}</p>
+            {# Top products #}
+            <div class="card-soft p-6">
+                <h2 class="font-semibold text-slate-900 text-base">Top productos</h2>
+                <p class="text-xs text-slate-500 mt-0.5 mb-4">Más comprados por este cliente</p>
+                {% if top_products %}
+                <div class="space-y-2.5">
+                    {% for p in top_products %}
+                    <div>
+                        <div class="flex items-center justify-between text-xs mb-1 gap-2">
+                            <span class="font-medium text-slate-700 truncate">{{ p.product_title|truncatechars:42 }}</span>
+                            <span class="font-bold text-slate-900 tabular-nums whitespace-nowrap pl-3">{{ p.total_qty }}u</span>
                         </div>
-                        <span class="ml-2 px-2 py-1 bg-indigo-100 text-indigo-600 rounded-lg text-sm font-bold">
-                            x{{ prod.total_qty }}
-                        </span>
+                        <p class="text-[0.65rem] text-slate-400">{{ p.sku|default:"—" }} · ${{ p.total_revenue|floatformat:0|intcomma }}</p>
                     </div>
                     {% endfor %}
                 </div>
+                {% else %}
+                <p class="text-xs text-slate-400 italic">Sin compras aún.</p>
+                {% endif %}
+            </div>
+
+            {# Tax info #}
+            {% if customer.tax_condition or customer.billing_name %}
+            <div class="card-soft p-6">
+                <h2 class="font-semibold text-slate-900 text-base">Datos fiscales</h2>
+                <dl class="text-sm mt-3 space-y-1.5">
+                    {% if customer.billing_name %}<div class="flex gap-2"><dt class="text-slate-500 w-24 shrink-0">Razón social:</dt><dd class="text-slate-800">{{ customer.billing_name }}</dd></div>{% endif %}
+                    {% if customer.tax_condition %}<div class="flex gap-2"><dt class="text-slate-500 w-24 shrink-0">Condición:</dt><dd class="text-slate-800">{{ customer.tax_condition }}</dd></div>{% endif %}
+                    {% if customer.shipping_address %}<div class="flex gap-2"><dt class="text-slate-500 w-24 shrink-0">Envío:</dt><dd class="text-slate-800">{{ customer.shipping_address }}</dd></div>{% endif %}
+                </dl>
             </div>
             {% endif %}
 
-            <!-- Claims/Returns -->
-            {% if stats and stats.total_return_units > 0 or stats and stats.open_claims_count > 0 %}
-            <div class="bg-white rounded-3xl shadow-sm p-8">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Incidencias</h2>
-                <div class="space-y-3">
-                    {% if stats and stats.total_return_units > 0 %}
-                    <div class="flex justify-between items-center p-3 bg-red-50 rounded-xl">
-                        <span class="text-red-600">Devoluciones</span>
-                        <span class="font-bold text-red-600">{{ stats.total_return_units }} uds ({{ stats.return_rate|floatformat:1 }}%)</span>
-                    </div>
-                    {% endif %}
-                    {% if stats and stats.open_claims_count > 0 %}
-                    <div class="flex justify-between items-center p-3 bg-yellow-50 rounded-xl">
-                        <span class="text-yellow-600">Reclamos Abiertos</span>
-                        <span class="font-bold text-yellow-600">{{ stats.open_claims_count }}</span>
-                    </div>
-                    {% endif %}
-                    {% if stats and stats.closed_claims_count > 0 %}
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                        <span class="text-gray-600">Reclamos Cerrados</span>
-                        <span class="font-bold text-gray-600">{{ stats.closed_claims_count }}</span>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Monthly Chart -->
+{% block extra_js %}
 {% if monthly_chart_data and monthly_chart_data != '[]' %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function(){
     const data = {{ monthly_chart_data|safe }};
-    if (!data.length) return;
-
     const ctx = document.getElementById('monthlyChart').getContext('2d');
+    const grad = ctx.createLinearGradient(0,0,0,200);
+    grad.addColorStop(0,'rgba(79,70,229,.22)');
+    grad.addColorStop(1,'rgba(79,70,229,0)');
     new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: data.map(d => {
-                const [y, m] = d.month.split('-');
-                const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-                return months[parseInt(m)-1] + ' ' + y.slice(2);
-            }),
-            datasets: [{
-                label: 'Ingresos',
-                data: data.map(d => d.revenue),
-                backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                borderColor: 'rgba(99, 102, 241, 1)',
-                borderWidth: 2,
-                borderRadius: 6,
+        type:'line',
+        data:{
+            labels: data.map(d=>d.month),
+            datasets:[{
+                label:'Ingresos',
+                data: data.map(d=>d.revenue),
+                borderColor:'#4F46E5',
+                backgroundColor: grad,
+                borderWidth:2.5, tension:.3, fill:true,
+                pointRadius:3, pointBackgroundColor:'#fff',
+                pointBorderColor:'#4F46E5', pointBorderWidth:2,
             }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function(ctx) {
-                            return '$' + ctx.parsed.y.toLocaleString('es-AR') + ' (' + data[ctx.dataIndex].orders + ' pedidos)';
+        options:{
+            responsive:true, maintainAspectRatio:false,
+            plugins:{
+                legend:{display:false},
+                tooltip:{
+                    backgroundColor:'#1E1B4B', cornerRadius:8, padding:10,
+                    titleFont:{family:'Plus Jakarta Sans', size:12, weight:'600'},
+                    bodyFont:{family:'Plus Jakarta Sans', size:12},
+                    callbacks:{
+                        label:c=>'$'+Number(c.parsed.y||0).toLocaleString('es-AR'),
+                        afterLabel:c=>{
+                            const o = data[c.dataIndex];
+                            return o ? `${o.orders} pedido${o.orders!==1?'s':''}` : '';
                         }
                     }
                 }
             },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0) + 'K' : v)
-                    },
-                    grid: { color: 'rgba(0,0,0,0.04)' }
-                },
-                x: { grid: { display: false } }
+            scales:{
+                y:{grid:{color:'#EEF2F7'}, ticks:{font:{family:'Plus Jakarta Sans',size:10}, color:'#94A3B8', callback:v=>'$'+(v/1000).toFixed(0)+'K'}},
+                x:{grid:{display:false}, ticks:{font:{family:'Plus Jakarta Sans',size:10}, color:'#94A3B8'}}
             }
         }
     });
 });
 </script>
 {% endif %}
+{% endblock %}
 {% endblock %}
