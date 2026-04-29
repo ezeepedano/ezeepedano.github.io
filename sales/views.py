@@ -314,13 +314,30 @@ def upload_sales(request):
             if 'error' in result:
                 messages.error(request, result['error'])
             else:
-                msg = f"Processed! New Sales: {result['new_sales']}, Updated: {result['existing_sales']}, Errors: {result['errors']}"
+                # Top-level success summary
+                bits = [
+                    f"{result.get('new_sales', 0)} ventas nuevas",
+                    f"{result.get('existing_sales', 0)} actualizadas",
+                ]
                 if result.get('customers_created'):
-                    msg += f", Customers: {result['customers_created']}"
-                if result['products_not_found']:
-                    msg += f", Products not found: {len(result['products_not_found'])}"
-                messages.success(request, msg)
-                
+                    bits.append(f"{result['customers_created']} clientes nuevos")
+                if result.get('errors'):
+                    bits.append(f"{result['errors']} errores")
+                messages.success(request, "Importación OK: " + " · ".join(bits))
+
+                # Per-issue warning so the user knows which SKUs to load
+                missing = result.get('products_not_found') or []
+                if missing:
+                    preview = ", ".join(sorted(set(missing))[:5])
+                    suffix = "" if len(missing) <= 5 else f" (+{len(missing)-5} más)"
+                    messages.warning(
+                        request,
+                        f"{len(missing)} SKUs del Excel no existen en tu inventario y "
+                        f"quedaron sin link a producto: {preview}{suffix}. "
+                        f"Cargalos en /inventory/ para que las próximas importaciones "
+                        f"los liguen automáticamente."
+                    )
+
             return redirect('sales_dashboard')
     else:
         form = UploadFileForm()
