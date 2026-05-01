@@ -100,6 +100,15 @@ def quotation_create(request):
             'date': date.today(),
             'valid_until': date.today() + timedelta(days=15),
         }
+        # Pre-select customer if linked from /sales/customers/<pk>/
+        prefilled_customer = request.GET.get('customer')
+        if prefilled_customer:
+            try:
+                cust = Customer.objects.filter(pk=prefilled_customer, user=request.user).first()
+                if cust:
+                    initial['customer'] = cust
+            except (ValueError, TypeError):
+                pass
         form = QuotationForm(initial=initial, user=request.user)
         formset = QuotationItemFormSet(prefix='items')
         # Set product queryset for each form in formset

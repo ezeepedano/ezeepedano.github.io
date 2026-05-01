@@ -1,10 +1,11 @@
+from datetime import date
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic import ListView, CreateView, DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.urls import reverse_lazy
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Sum, Count, F
 from django.utils import timezone
 from decimal import Decimal
 
@@ -44,27 +45,107 @@ class StockListView(LoginRequiredMixin, ListView):
 
 
 class PurchaseListView(LoginRequiredMixin, ListView):
-    """Vista para ver historial de compras (Finanzas + Stock)."""
+    """Unified Purchases hub.
+
+    Single page to monitor every Purchase in the system: stock, assets-as-purchases
+    (mirrored when the asset signal fires) and general expenses. Provides KPIs,
+    multi-axis filtering (provider, status, search, date range) and inline
+    actions (edit / delete / quick-pay).
+    """
     model = Purchase
     template_name = 'traceability/purchase_list.html'
     context_object_name = 'purchases'
-    paginate_by = 20
-    
-    def get_queryset(self):
-        queryset = Purchase.objects.filter(user=self.request.user).select_related(
+    paginate_by = 25
+
+    def _base_qs(self):
+        return Purchase.objects.filter(user=self.request.user).select_related(
             'provider', 'category'
-        ).order_by('-date')
-        
-        # Filtros opcionales
+        )
+
+    def get_queryset(self):
+        qs = self._base_qs()
+
         provider_id = self.request.GET.get('provider')
-        if provider_id:
-            queryset = queryset.filter(provider_id=provider_id)
-            
-        return queryset
-    
+        if provider_id and provider_id.isdigit():
+            qs = qs.filter(provider_id=int(provider_id))
+
+        category_id = self.request.GET.get('category')
+        if category_id and category_id.isdigit():
+            qs = qs.filter(category_id=int(category_id))
+
+        status = self.request.GET.get('status')
+        if status == 'OVERDUE':
+            qs = qs.filter(payment_status__in=['PENDING', 'PARTIAL'], due_date__lt=date.today())
+        elif status in ('PENDING', 'PARTIAL', 'PAID'):
+            qs = qs.filter(payment_status=status)
+
+        date_from = self.request.GET.get('date_from')
+        date_to = self.request.GET.get('date_to')
+        if date_from:
+            qs = qs.filter(date__gte=date_from)
+        if date_to:
+            qs = qs.filter(date__lte=date_to)
+
+        search = (self.request.GET.get('q') or '').strip()
+        if search:
+            qs = qs.filter(
+                Q(code__icontains=search)
+                | Q(description__icontains=search)
+                | Q(provider__name__icontains=search)
+                | Q(category__name__icontains=search)
+            )
+
+        return qs.order_by('-date', '-id')
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['providers'] = Provider.objects.filter(user=self.request.user)
+        base = self._base_qs()
+        today = date.today()
+        month_start = today.replace(day=1)
+
+        # KPIs are computed on the unfiltered scope so users always see their
+        # full financial picture, regardless of which filter they applied.
+        agg = base.aggregate(
+            total_amount=Sum('amount'),
+            total_paid=Sum('paid_amount'),
+            total_count=Count('id'),
+        )
+        total_amount = agg['total_amount'] or 0
+        total_paid = agg['total_paid'] or 0
+        total_balance = total_amount - total_paid
+
+        pending_qs = base.filter(payment_status__in=['PENDING', 'PARTIAL'])
+        pending_count = pending_qs.count()
+        pending_amount = pending_qs.aggregate(s=Sum(F('amount') - F('paid_amount')))['s'] or 0
+
+        overdue_qs = pending_qs.filter(due_date__lt=today)
+        overdue_count = overdue_qs.count()
+        overdue_amount = overdue_qs.aggregate(s=Sum(F('amount') - F('paid_amount')))['s'] or 0
+
+        month_qs = base.filter(date__gte=month_start)
+        month_count = month_qs.count()
+        month_amount = month_qs.aggregate(s=Sum('amount'))['s'] or 0
+
+        context.update({
+            'providers': Provider.objects.filter(user=self.request.user).order_by('name'),
+            'categories': PurchaseCategory.objects.filter(user=self.request.user).order_by('name'),
+            'kpi_total_count': agg['total_count'] or 0,
+            'kpi_total_amount': total_amount,
+            'kpi_total_balance': total_balance,
+            'kpi_pending_count': pending_count,
+            'kpi_pending_amount': pending_amount,
+            'kpi_overdue_count': overdue_count,
+            'kpi_overdue_amount': overdue_amount,
+            'kpi_month_count': month_count,
+            'kpi_month_amount': month_amount,
+            'filter_provider': self.request.GET.get('provider', ''),
+            'filter_category': self.request.GET.get('category', ''),
+            'filter_status': self.request.GET.get('status', ''),
+            'filter_date_from': self.request.GET.get('date_from', ''),
+            'filter_date_to': self.request.GET.get('date_to', ''),
+            'search_query': self.request.GET.get('q', ''),
+            'today': today,
+        })
         return context
 
 

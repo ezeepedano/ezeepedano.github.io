@@ -1,44 +1,188 @@
 {% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Importar Transacciones — Propel{% endblock %}
+{% block header_title %}Importar Transacciones{% endblock %}
 
 {% block content %}
-<div class="max-w-xl mx-auto mt-10">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl p-8 shadow-xl border border-slate-200 dark:border-slate-700">
-        <h2 class="text-2xl font-bold text-slate-800 dark:text-white mb-2">Importar Transacciones</h2>
-        <p class="text-slate-500 mb-6 text-sm">Sube tu archivo de liquidación (Mercado Pago / Banco) para generar movimientos automáticamente.</p>
+<div class="max-w-4xl mx-auto">
 
-        <form method="post" enctype="multipart/form-data" class="space-y-6">
-            {% csrf_token %}
-            
-            {% if form.non_field_errors %}
-            <div class="bg-red-50 text-red-600 p-4 rounded-xl text-sm">
-                {{ form.non_field_errors }}
+    <div class="mb-5">
+        <a href="{% url 'cashflow_dashboard' %}"
+           class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary-600 transition-colors">
+            <i class="fas fa-arrow-left text-[0.7rem]"></i><span>Volver a caja real</span>
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {# ────────── Form ────────── #}
+        <div class="lg:col-span-2 card-soft p-6 md:p-8">
+            <div class="flex items-start justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">Importar liquidación</h1>
+                    <p class="text-sm text-slate-500 mt-1">CSV o Excel de Mercado Pago / banco. Detección automática de duplicados por ID externo.</p>
+                </div>
+                <div class="hidden md:flex w-12 h-12 rounded-xl bg-primary-50 text-primary-600 items-center justify-center text-lg shrink-0">
+                    <i class="fas fa-file-import"></i>
+                </div>
+            </div>
+
+            {% if last_stats %}
+            <div class="mb-6 rounded-lg border {% if last_stats.error %}border-rose-200 bg-rose-50{% else %}border-emerald-200 bg-emerald-50{% endif %} p-4">
+                {% if last_stats.error %}
+                <p class="text-sm font-semibold text-rose-800"><i class="fas fa-triangle-exclamation mr-1"></i> Error</p>
+                <p class="text-xs text-rose-700 mt-1">{{ last_stats.error }}</p>
+                {% else %}
+                <p class="text-sm font-semibold text-emerald-800"><i class="fas fa-circle-check mr-1"></i> Última importación{% if last_stats.filename %} · {{ last_stats.filename }}{% endif %}</p>
+                <div class="grid grid-cols-3 gap-2 mt-3 text-center">
+                    <div class="bg-white/70 rounded-md p-2 border border-emerald-100">
+                        <p class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">Creados</p>
+                        <p class="text-xl font-bold text-emerald-700">{{ last_stats.created }}</p>
+                    </div>
+                    <div class="bg-white/70 rounded-md p-2 border border-emerald-100">
+                        <p class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">Duplicados</p>
+                        <p class="text-xl font-bold text-amber-700">{{ last_stats.duplicates }}</p>
+                    </div>
+                    <div class="bg-white/70 rounded-md p-2 border border-emerald-100">
+                        <p class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">Errores</p>
+                        <p class="text-xl font-bold text-rose-700">{{ last_stats.errors }}</p>
+                    </div>
+                </div>
+                {% endif %}
             </div>
             {% endif %}
 
-            <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ form.account.label }}</label>
-                {{ form.account }}
-                {% if form.account.errors %}
-                <p class="text-red-500 text-xs mt-1">{{ form.account.errors.0 }}</p>
+            {% if accounts_count == 0 %}
+            <div class="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <p class="text-sm font-semibold text-amber-800"><i class="fas fa-circle-info mr-1"></i> Sin cuentas activas</p>
+                <p class="text-xs text-amber-700 mt-1">Antes de importar, dá de alta al menos una cuenta.</p>
+            </div>
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data" class="space-y-5">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                <div class="rounded-md bg-rose-50 border border-rose-200 text-rose-700 p-3 text-sm">{{ form.non_field_errors }}</div>
                 {% endif %}
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase tracking-[0.1em] mb-1.5">{{ form.account.label }}</label>
+                    {{ form.account }}
+                    {% if form.account.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.account.errors.0 }}</p>{% endif %}
+                </div>
+
+                {# Drag-drop file zone — falls back to a regular file input. #}
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase tracking-[0.1em] mb-1.5">{{ form.file.label }}</label>
+                    <label id="dropzone" for="id_file"
+                           class="block cursor-pointer rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 hover:border-primary-400 hover:bg-primary-50/40 transition-colors px-6 py-10 text-center">
+                        <i class="fas fa-cloud-arrow-up text-3xl text-slate-400 mb-3"></i>
+                        <p class="text-sm font-semibold text-slate-700"><span id="dropzone-text">Arrastrá tu CSV / Excel aquí o hacé click para elegir</span></p>
+                        <p class="text-[0.7rem] text-slate-500 mt-1">Formatos: <strong>.csv</strong> · <strong>.xlsx</strong> · <strong>.xls</strong>. Detección de duplicados por ID externo.</p>
+                        <div class="hidden">{{ form.file }}</div>
+                    </label>
+                    {% if form.file.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.file.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
+                    <a href="{% url 'cashflow_dashboard' %}"
+                       class="px-4 py-2 rounded-md text-slate-500 text-sm font-semibold hover:bg-slate-50 hover:text-slate-700 transition-colors">
+                        Cancelar
+                    </a>
+                    <button type="submit"
+                            class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-semibold shadow-sm hover:shadow-md transition-all">
+                        <i class="fas fa-bolt mr-1.5 text-xs"></i> Importar y procesar
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        {# ────────── Side panel ────────── #}
+        <aside class="space-y-4">
+            <div class="card-soft p-5">
+                <h3 class="text-sm font-bold text-slate-900 mb-3">Cómo funciona</h3>
+                <ul class="space-y-2 text-xs text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fas fa-circle-check text-emerald-500 mt-0.5"></i><span>Subí el CSV/Excel exportado de tu medio de pago.</span></li>
+                    <li class="flex gap-2"><i class="fas fa-circle-check text-emerald-500 mt-0.5"></i><span>Se crean movimientos IN/OUT automáticamente.</span></li>
+                    <li class="flex gap-2"><i class="fas fa-circle-check text-emerald-500 mt-0.5"></i><span>Los IDs externos evitan importar lo mismo dos veces.</span></li>
+                    <li class="flex gap-2"><i class="fas fa-circle-check text-emerald-500 mt-0.5"></i><span>Después aparecen en Caja real con saldo y categoría.</span></li>
+                </ul>
             </div>
 
-            <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ form.file.label }}</label>
-                {{ form.file }}
-                {% if form.file.errors %}
-                <p class="text-red-500 text-xs mt-1">{{ form.file.errors.0 }}</p>
+            <div class="card-soft p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-bold text-slate-900">Movimientos recientes importados</h3>
+                </div>
+                {% if recent_imports %}
+                <ul class="space-y-2.5">
+                    {% for mov in recent_imports %}
+                    <li class="flex items-start gap-2 pb-2 border-b border-slate-100 last:border-0 last:pb-0">
+                        <div class="w-7 h-7 rounded-md flex items-center justify-center shrink-0
+                            {% if mov.type == 'IN' %}bg-emerald-50 text-emerald-600{% else %}bg-rose-50 text-rose-600{% endif %}">
+                            <i class="fas {% if mov.type == 'IN' %}fa-arrow-down{% else %}fa-arrow-up{% endif %} text-[0.65rem]"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs font-semibold text-slate-800 truncate">{{ mov.description|default:"Movimiento"|truncatechars:32 }}</p>
+                            <p class="text-[0.65rem] text-slate-500">{{ mov.date|date:"d M H:i" }} · {{ mov.account.name }}</p>
+                        </div>
+                        <span class="text-xs font-bold whitespace-nowrap font-mono {% if mov.type == 'IN' %}text-emerald-700{% else %}text-rose-700{% endif %}">
+                            {% if mov.type == 'IN' %}+{% else %}−{% endif %}${{ mov.amount|floatformat:0|intcomma }}
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-xs text-slate-500">Sin importaciones previas.</p>
                 {% endif %}
-                <p class="text-xs text-slate-400 mt-2">Formatos soportados: CSV, Excel. Se detectarán duplicados automáticamente.</p>
             </div>
-
-            <div class="pt-4 flex justify-end gap-3">
-                <a href="{% url 'cashflow_dashboard' %}" class="px-4 py-2 text-slate-500 hover:text-slate-700 transition-colors">Cancelar</a>
-                <button type="submit" class="px-6 py-2 bg-primary text-white rounded-xl shadow-lg hover:bg-primary-dark transition-all">
-                    Importar y Procesar
-                </button>
-            </div>
-        </form>
+        </aside>
     </div>
 </div>
+
+<script>
+(function () {
+    // Style Django-rendered widgets to match the rest of the form. The
+    // Account select / File input come without classes since the form
+    // doesn't define widgets.
+    const inputClass = 'w-full px-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm transition-all';
+    const accountSel = document.getElementById('id_account');
+    if (accountSel) accountSel.className = inputClass;
+
+    // Drag-drop wiring around the hidden <input type="file">.
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('id_file');
+    const label = document.getElementById('dropzone-text');
+    if (!dropzone || !fileInput) return;
+
+    fileInput.addEventListener('change', function () {
+        if (fileInput.files && fileInput.files.length) {
+            label.textContent = fileInput.files[0].name;
+            dropzone.classList.add('border-primary-500', 'bg-primary-50/60');
+        }
+    });
+
+    ['dragenter', 'dragover'].forEach(function (ev) {
+        dropzone.addEventListener(ev, function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add('border-primary-500', 'bg-primary-50/60');
+        });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+        dropzone.addEventListener(ev, function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('border-primary-500', 'bg-primary-50/60');
+        });
+    });
+    dropzone.addEventListener('drop', function (e) {
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            label.textContent = e.dataTransfer.files[0].name;
+            dropzone.classList.add('border-primary-500', 'bg-primary-50/60');
+        }
+    });
+})();
+</script>
 {% endblock %}

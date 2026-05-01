@@ -1,127 +1,328 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
-{% block title %}Historial de Compras - Propel{% endblock %}
+{% block title %}Compras — Propel{% endblock %}
+{% block header_title %}Compras{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-3xl shadow-sm gap-4 border border-gray-100">
+<div class="max-w-7xl mx-auto">
+
+    {# ────────── Header ────────── #}
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 animate__animated animate__fadeIn">
         <div>
-            <h2 class="text-2xl font-bold text-gray-800">Historial de Compras</h2>
-            <p class="text-secondary text-sm">Registro unificado de Finanzas y Stock</p>
-        </div>
-        <div class="flex gap-3">
-            <a href="{% url 'traceability:stock_list' %}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors">
-                <i class="fas fa-boxes mr-2"></i> Ver Stock
+            <a href="{% url 'executive_dashboard' %}"
+               class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary-600 transition-colors mb-2">
+                <i class="fas fa-arrow-left text-[0.7rem]"></i><span>Volver al tablero</span>
             </a>
-            <a href="{% url 'traceability:purchase_create' %}" class="px-4 py-2 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-shadow shadow-lg">
-                <i class="fas fa-plus mr-2"></i> Nueva Compra
-            </a>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight leading-tight">Compras</h1>
+            <p class="text-sm text-slate-500 mt-1.5">Stock, activos y gastos generales — registro unificado con pagos y vencimientos.</p>
         </div>
-    </div>
+        <div class="flex flex-wrap gap-2 md:justify-end items-end">
+            <form method="get" class="relative">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" name="q" value="{{ search_query }}"
+                       placeholder="Buscar código, proveedor, descripción…"
+                       class="pl-9 pr-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm w-72 transition-all">
+                {% if filter_status %}<input type="hidden" name="status" value="{{ filter_status }}">{% endif %}
+                {% if filter_provider %}<input type="hidden" name="provider" value="{{ filter_provider }}">{% endif %}
+            </form>
 
-    <!-- Filters -->
-    <div class="bg-white rounded-3xl shadow-sm p-4 border border-gray-100">
-        <form method="get" class="flex flex-wrap gap-4 items-end">
-            <div class="w-full md:w-64">
-                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Filtrar por Proveedor</label>
-                <select name="provider" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary" onchange="this.form.submit()">
-                    <option value="">-- Todos --</option>
-                    {% for p in providers %}
-                    <option value="{{ p.id }}" {% if request.GET.provider|add:"0" == p.id %}selected{% endif %}>{{ p.name }}</option>
-                    {% endfor %}
-                </select>
+            {# Nueva Compra dropdown — replaces former /purchases/hub/ chooser #}
+            <div class="relative" id="newPurchaseWrap">
+                <button type="button" id="newPurchaseBtn"
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-semibold shadow-sm hover:shadow-md transition-all">
+                    <i class="fas fa-plus text-xs"></i><span>Nueva compra</span>
+                    <i class="fas fa-chevron-down text-[0.65rem] opacity-80"></i>
+                </button>
+                <div id="newPurchaseMenu"
+                     class="hidden absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-100 z-40 overflow-hidden ring-1 ring-black/5">
+                    <a href="{% url 'traceability:purchase_create' %}"
+                       class="flex items-start gap-3 px-4 py-3 hover:bg-emerald-50/60 transition-colors border-b border-slate-50">
+                        <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm shrink-0"><i class="fas fa-cubes"></i></div>
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold text-slate-900">Materia prima / insumos</p>
+                            <p class="text-[0.7rem] text-slate-500 leading-snug">Genera lote y trazabilidad. Ingresa stock físico.</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'asset_create' %}"
+                       class="flex items-start gap-3 px-4 py-3 hover:bg-sky-50/60 transition-colors border-b border-slate-50">
+                        <div class="w-9 h-9 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center text-sm shrink-0"><i class="fas fa-truck"></i></div>
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold text-slate-900">Activo fijo</p>
+                            <p class="text-[0.7rem] text-slate-500 leading-snug">Maquinaria, mobiliario, rodados o equipos durables.</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'general_purchase_create' %}"
+                       class="flex items-start gap-3 px-4 py-3 hover:bg-violet-50/60 transition-colors">
+                        <div class="w-9 h-9 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center text-sm shrink-0"><i class="fas fa-file-invoice-dollar"></i></div>
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold text-slate-900">Gasto general</p>
+                            <p class="text-[0.7rem] text-slate-500 leading-snug">Servicios, alquileres, reparaciones, librería.</p>
+                        </div>
+                    </a>
+                </div>
             </div>
-        </form>
+        </div>
     </div>
 
-    <!-- Table -->
-    <div class="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100">
+    {# ────────── KPI tiles ────────── #}
+    <div class="grid grid-cols-2 xl:grid-cols-5 gap-3 mb-5">
+        <a href="{% url 'traceability:purchase_list' %}" class="block group">
+            <div class="card-soft p-5 h-full {% if not filter_status %}ring-2 ring-primary-600/40 border-primary-200{% else %}hover:-translate-y-0.5 hover:border-primary-200{% endif %} transition-all">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-primary-50 text-primary-600 flex items-center justify-center"><i class="fas fa-shopping-bag"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Total compras</p>
+                <h3 class="text-2xl font-bold text-slate-900 tracking-tight leading-none">{{ kpi_total_count }}</h3>
+                <p class="text-[0.7rem] text-slate-500 mt-1.5">${{ kpi_total_amount|floatformat:0|intcomma }}</p>
+            </div>
+        </a>
+
+        <a href="?status=PENDING" class="block group">
+            <div class="card-soft p-5 h-full {% if filter_status == 'PENDING' %}ring-2 ring-amber-500/40 border-amber-200{% else %}hover:-translate-y-0.5 hover:border-amber-200{% endif %} transition-all">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fas fa-hourglass-half"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Pendientes</p>
+                <h3 class="text-2xl font-bold text-amber-700 tracking-tight leading-none">{{ kpi_pending_count }}</h3>
+                <p class="text-[0.7rem] text-slate-500 mt-1.5">Saldo ${{ kpi_pending_amount|floatformat:0|intcomma }}</p>
+            </div>
+        </a>
+
+        <a href="?status=OVERDUE" class="block group">
+            <div class="card-soft p-5 h-full {% if filter_status == 'OVERDUE' %}ring-2 ring-rose-500/40 border-rose-200{% else %}hover:-translate-y-0.5 hover:border-rose-200{% endif %} transition-all">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center"><i class="fas fa-triangle-exclamation"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Vencidas</p>
+                <h3 class="text-2xl font-bold text-rose-700 tracking-tight leading-none">{{ kpi_overdue_count }}</h3>
+                <p class="text-[0.7rem] text-slate-500 mt-1.5">Saldo ${{ kpi_overdue_amount|floatformat:0|intcomma }}</p>
+            </div>
+        </a>
+
+        <a href="?status=PAID" class="block group">
+            <div class="card-soft p-5 h-full {% if filter_status == 'PAID' %}ring-2 ring-emerald-500/40 border-emerald-200{% else %}hover:-translate-y-0.5 hover:border-emerald-200{% endif %} transition-all">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="fas fa-check-double"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Pagadas</p>
+                <h3 class="text-2xl font-bold text-emerald-700 tracking-tight leading-none">{{ kpi_total_count|add:"-"|add:kpi_pending_count }}</h3>
+                <p class="text-[0.7rem] text-slate-500 mt-1.5">de {{ kpi_total_count }} compras</p>
+            </div>
+        </a>
+
+        <div class="card-soft p-5 h-full">
+            <div class="flex items-start justify-between mb-4">
+                <div class="w-10 h-10 rounded-md bg-sky-50 text-sky-600 flex items-center justify-center"><i class="fas fa-calendar-day"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Este mes</p>
+            <h3 class="text-2xl font-bold text-sky-700 tracking-tight leading-none">{{ kpi_month_count }}</h3>
+            <p class="text-[0.7rem] text-slate-500 mt-1.5">${{ kpi_month_amount|floatformat:0|intcomma }}</p>
+        </div>
+    </div>
+
+    {# ────────── Filters bar ────────── #}
+    <form method="get" class="card-soft p-4 mb-4 flex flex-wrap items-end gap-3">
+        {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+        {% if filter_status %}<input type="hidden" name="status" value="{{ filter_status }}">{% endif %}
+
+        <div class="flex flex-col">
+            <label class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Proveedor</label>
+            <select name="provider" onchange="this.form.submit()"
+                    class="px-3 py-1.5 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm transition-all min-w-[180px]">
+                <option value="">— Todos —</option>
+                {% for p in providers %}
+                <option value="{{ p.id }}" {% if filter_provider|add:"0" == p.id %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="flex flex-col">
+            <label class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Categoría</label>
+            <select name="category" onchange="this.form.submit()"
+                    class="px-3 py-1.5 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm transition-all min-w-[160px]">
+                <option value="">— Todas —</option>
+                {% for c in categories %}
+                <option value="{{ c.id }}" {% if filter_category|add:"0" == c.id %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="flex flex-col">
+            <label class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Desde</label>
+            <input type="date" name="date_from" value="{{ filter_date_from }}"
+                   class="px-3 py-1.5 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm transition-all">
+        </div>
+
+        <div class="flex flex-col">
+            <label class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Hasta</label>
+            <input type="date" name="date_to" value="{{ filter_date_to }}"
+                   class="px-3 py-1.5 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm transition-all">
+        </div>
+
+        <button type="submit"
+                class="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-md text-sm font-semibold transition-all">
+            <i class="fas fa-filter text-[0.7rem] mr-1"></i> Aplicar
+        </button>
+
+        {% if filter_provider or filter_category or filter_date_from or filter_date_to or search_query or filter_status %}
+        <a href="{% url 'traceability:purchase_list' %}"
+           class="px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-rose-600 transition-colors">
+            <i class="fas fa-times mr-1"></i> Limpiar
+        </a>
+        {% endif %}
+    </form>
+
+    {# ────────── Table ────────── #}
+    <div class="card-soft overflow-hidden p-0">
+        {% if purchases %}
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="text-secondary text-xs font-bold uppercase border-b border-gray-50 bg-gray-50/50">
-                        <th class="px-6 py-4">Fecha</th>
-                        <th class="px-6 py-4">Lote / Código</th>
-                        <th class="px-6 py-4">Proveedor</th>
-                        <th class="px-6 py-4">Detalle</th>
-                        <th class="px-6 py-4 text-center">Estado Pago</th>
-                        <th class="px-6 py-4 text-right">Monto</th>
+                <thead class="bg-slate-50/60 border-b border-slate-100">
+                    <tr class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">
+                        <th class="px-4 py-3.5">Fecha</th>
+                        <th class="px-4 py-3.5">Código</th>
+                        <th class="px-4 py-3.5">Proveedor</th>
+                        <th class="px-4 py-3.5">Detalle</th>
+                        <th class="px-4 py-3.5 text-center">Vencimiento</th>
+                        <th class="px-4 py-3.5 text-right">Monto</th>
+                        <th class="px-4 py-3.5 text-right">Saldo</th>
+                        <th class="px-4 py-3.5 text-center">Estado</th>
+                        <th class="px-4 py-3.5 text-center">Acciones</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody class="text-sm text-slate-700 divide-y divide-slate-100">
                     {% for purchase in purchases %}
-                    <tr class="hover:bg-gray-50 transition-colors group">
-                        <td class="px-6 py-4 text-sm text-gray-600 font-medium whitespace-nowrap">
-                            {{ purchase.date|date:"d M Y" }}
-                        </td>
-                        <td class="px-6 py-4">
+                    {% with balance=purchase.balance %}
+                    <tr class="hover:bg-primary-50/40 transition-colors group">
+                        <td class="px-4 py-3.5 whitespace-nowrap text-slate-700">{{ purchase.date|date:"d M Y" }}</td>
+                        <td class="px-4 py-3.5">
                             {% if purchase.code %}
-                            <span class="bg-purple-50 text-purple-700 px-2 py-1 rounded text-xs font-mono font-bold border border-purple-100">{{ purchase.code }}</span>
+                            <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[0.7rem] font-mono font-bold border border-slate-200">{{ purchase.code }}</span>
                             {% else %}
-                            <span class="text-gray-300">-</span>
+                            <span class="text-slate-300">—</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 text-sm font-bold text-gray-800">
-                            {{ purchase.provider.name|default:"-" }}
+                        <td class="px-4 py-3.5">
+                            <p class="font-semibold text-slate-900 truncate max-w-[160px]">{{ purchase.provider.name|default:"— Sin proveedor —" }}</p>
                         </td>
-                        <td class="px-6 py-4">
-                            <div class="flex flex-col">
-                                <span class="text-sm text-gray-700">{{ purchase.description|truncatechars:50 }}</span>
-                                {% if purchase.category %}
-                                <span class="text-xs text-gray-400 mt-1">{{ purchase.category.name }}</span>
+                        <td class="px-4 py-3.5">
+                            <p class="text-slate-700 truncate max-w-[260px]">{{ purchase.description|default:"—"|truncatechars:60 }}</p>
+                            {% if purchase.category %}
+                            <p class="text-[0.65rem] text-slate-400 mt-0.5">{{ purchase.category.name }}</p>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3.5 text-center text-slate-600 whitespace-nowrap">
+                            {% if purchase.due_date %}
+                                {% if purchase.payment_status != 'PAID' and purchase.due_date < today %}
+                                <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-rose-50 text-rose-700 border border-rose-200" title="Vencida">{{ purchase.due_date|date:"d M Y" }}</span>
+                                {% else %}
+                                {{ purchase.due_date|date:"d M Y" }}
                                 {% endif %}
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 text-center">
-                            {% if purchase.payment_status == 'PAID' %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Pagado
-                            </span>
-                            {% elif purchase.payment_status == 'PARTIAL' %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                Parcial
-                            </span>
                             {% else %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                Pendiente
-                            </span>
+                            <span class="text-slate-300">—</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 text-right font-bold text-gray-800">
-                            ${{ purchase.amount|floatformat:2 }}
+                        <td class="px-4 py-3.5 text-right font-bold text-slate-900 whitespace-nowrap">${{ purchase.amount|floatformat:2|intcomma }}</td>
+                        <td class="px-4 py-3.5 text-right font-bold whitespace-nowrap {% if balance > 0 %}text-amber-700{% else %}text-emerald-700{% endif %}">
+                            ${{ balance|floatformat:2|intcomma }}
                         </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="px-6 py-12 text-center text-gray-400">
-                            <div class="flex flex-col items-center justify-center">
-                                <i class="fas fa-shopping-cart text-4xl mb-3 text-gray-200"></i>
-                                <p>No hay compras registradas aún.</p>
+                        <td class="px-4 py-3.5 text-center">
+                            {% if purchase.payment_status == 'PAID' %}
+                            <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Pagado</span>
+                            {% elif purchase.payment_status == 'PARTIAL' %}
+                            <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-amber-50 text-amber-700 border border-amber-200">Parcial</span>
+                            {% else %}
+                            <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-slate-100 text-slate-700 border border-slate-200">Pendiente</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3.5 text-center whitespace-nowrap">
+                            <div class="inline-flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                {% if purchase.payment_status != 'PAID' %}
+                                <form method="post" action="{% url 'purchase_pay' purchase.pk %}" class="inline"
+                                      onsubmit="return confirm('Marcar como pagado el saldo de ${{ balance|floatformat:2|intcomma }}?');">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            class="w-7 h-7 rounded-md bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-colors flex items-center justify-center"
+                                            title="Marcar pagado">
+                                        <i class="fas fa-check text-[0.7rem]"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                <a href="{% url 'purchase_edit' purchase.pk %}"
+                                   class="w-7 h-7 rounded-md bg-sky-50 text-sky-600 hover:bg-sky-600 hover:text-white transition-colors flex items-center justify-center"
+                                   title="Editar">
+                                    <i class="fas fa-pen text-[0.7rem]"></i>
+                                </a>
+                                <a href="{% url 'purchase_delete' purchase.pk %}"
+                                   class="w-7 h-7 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors flex items-center justify-center"
+                                   title="Eliminar">
+                                    <i class="fas fa-trash text-[0.7rem]"></i>
+                                </a>
                             </div>
                         </td>
                     </tr>
+                    {% endwith %}
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        
-        <!-- Pagination -->
+
         {% if is_paginated %}
-        <div class="px-6 py-4 border-t border-gray-100 flex justify-center">
+        <div class="px-6 py-4 border-t border-slate-100 flex justify-between items-center text-sm">
+            <span class="text-slate-500">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} — {{ page_obj.paginator.count }} compras</span>
             <div class="flex gap-2">
                 {% if page_obj.has_previous %}
-                <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm">Anterior</a>
+                <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}"
+                   class="px-3 py-1 rounded-md border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold">
+                    <i class="fas fa-chevron-left text-[0.7rem] mr-1"></i> Anterior
+                </a>
                 {% endif %}
-                
-                <span class="px-3 py-1 text-sm text-gray-500">Pág {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
-                
                 {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm">Siguiente</a>
+                <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.next_page_number }}"
+                   class="px-3 py-1 rounded-md border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold">
+                    Siguiente <i class="fas fa-chevron-right text-[0.7rem] ml-1"></i>
+                </a>
                 {% endif %}
             </div>
         </div>
         {% endif %}
+
+        {% else %}
+        <div class="px-6 py-16 text-center">
+            <div class="inline-flex w-16 h-16 rounded-full bg-slate-100 text-slate-400 items-center justify-center mb-3">
+                <i class="fas fa-shopping-cart text-2xl"></i>
+            </div>
+            <p class="text-slate-700 font-semibold">Sin compras registradas</p>
+            <p class="text-xs text-slate-500 mt-1 mb-5">{% if search_query or filter_status or filter_provider %}Probá limpiar los filtros{% else %}Registrá tu primera compra para comenzar{% endif %}.</p>
+            {% if not search_query and not filter_status and not filter_provider %}
+            <a href="{% url 'general_purchase_create' %}"
+               class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-semibold shadow-sm transition-all">
+                <i class="fas fa-plus text-xs"></i> Registrar compra
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 </div>
+
+<script>
+(function () {
+    const wrap = document.getElementById('newPurchaseWrap');
+    const btn = document.getElementById('newPurchaseBtn');
+    const menu = document.getElementById('newPurchaseMenu');
+    if (!btn || !menu) return;
+
+    btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        menu.classList.toggle('hidden');
+    });
+    document.addEventListener('click', function (e) {
+        if (!wrap.contains(e.target)) menu.classList.add('hidden');
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') menu.classList.add('hidden');
+    });
+})();
+</script>
 {% endblock %}

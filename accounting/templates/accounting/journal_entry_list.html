@@ -1,105 +1,276 @@
 {% extends 'base.html' %}
 {% load humanize %}
 
-{% block title %}Libro Diario{% endblock %}
+{% block title %}Libro Diario — Propel{% endblock %}
+{% block header_title %}Libro Diario{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center">
+<div class="max-w-7xl mx-auto">
+
+    {# ────────── Header ────────── #}
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 animate__animated animate__fadeIn">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">Libro Diario</h1>
-            <p class="text-sm text-gray-500">Registro cronológico de movimientos contables</p>
+            <a href="{% url 'executive_dashboard' %}"
+               class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary-600 transition-colors mb-2">
+                <i class="fas fa-arrow-left text-[0.7rem]"></i><span>Volver al tablero</span>
+            </a>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight leading-tight">Libro Diario</h1>
+            <p class="text-sm text-slate-500 mt-1.5">Registro cronológico de asientos. Auto-generados por el sistema y manuales.</p>
         </div>
-        <div class="flex space-x-3">
-            <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                Nuevo Asiento Manual
-            </button>
+
+        <div class="flex flex-wrap gap-2 md:justify-end items-end">
+            <form method="get" class="relative">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" name="q" value="{{ search_query }}"
+                       placeholder="Buscar concepto, ref, cuenta…"
+                       class="pl-9 pr-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm w-72 transition-all">
+                {% if filter_status %}<input type="hidden" name="status" value="{{ filter_status }}">{% endif %}
+                {% if filter_account %}<input type="hidden" name="account" value="{{ filter_account }}">{% endif %}
+            </form>
+            <a href="{% url 'accounting_ledger_export' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}"
+               class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:border-primary-300 hover:text-primary-700 text-slate-700 rounded-md text-sm font-semibold shadow-sm transition-all">
+                <i class="fas fa-file-csv text-xs"></i><span>Exportar CSV</span>
+            </a>
+            <a href="{% url 'accounting_trial_balance' %}"
+               class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:border-primary-300 hover:text-primary-700 text-slate-700 rounded-md text-sm font-semibold shadow-sm transition-all">
+                <i class="fas fa-scale-balanced text-xs"></i><span>Balance de sumas</span>
+            </a>
+            <a href="{% url 'accounting_ledger_create' %}"
+               class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-semibold shadow-sm hover:shadow-md transition-all">
+                <i class="fas fa-plus text-xs"></i><span>Nuevo asiento</span>
+            </a>
         </div>
     </div>
 
-    <!-- Ledger Table -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    {# ────────── KPI tiles ────────── #}
+    <div class="grid grid-cols-2 xl:grid-cols-5 gap-3 mb-5">
+        <a href="{% url 'accounting_ledger' %}" class="block group">
+            <div class="card-soft p-5 h-full {% if not filter_status %}ring-2 ring-primary-600/40 border-primary-200{% else %}hover:-translate-y-0.5 hover:border-primary-200{% endif %} transition-all">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-primary-50 text-primary-600 flex items-center justify-center"><i class="fas fa-book"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Asientos</p>
+                <h3 class="text-2xl font-bold text-slate-900 tracking-tight leading-none">{{ kpi_total_count }}</h3>
+                <p class="text-[0.7rem] text-slate-500 mt-1.5">{{ kpi_month_count }} este mes</p>
+            </div>
+        </a>
+
+        <a href="?status=POSTED" class="block group">
+            <div class="card-soft p-5 h-full {% if filter_status == 'POSTED' %}ring-2 ring-emerald-500/40 border-emerald-200{% else %}hover:-translate-y-0.5 hover:border-emerald-200{% endif %} transition-all">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="fas fa-check-double"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Contabilizados</p>
+                <h3 class="text-2xl font-bold text-emerald-700 tracking-tight leading-none">{{ kpi_posted_count }}</h3>
+                <p class="text-[0.7rem] text-slate-500 mt-1.5">de {{ kpi_total_count }}</p>
+            </div>
+        </a>
+
+        <a href="?status=DRAFT" class="block group">
+            <div class="card-soft p-5 h-full {% if filter_status == 'DRAFT' %}ring-2 ring-slate-500/40 border-slate-300{% else %}hover:-translate-y-0.5 hover:border-slate-300{% endif %} transition-all">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-pencil"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Borradores</p>
+                <h3 class="text-2xl font-bold text-slate-700 tracking-tight leading-none">{{ kpi_draft_count }}</h3>
+            </div>
+        </a>
+
+        <a href="?status=UNBALANCED" class="block group">
+            <div class="card-soft p-5 h-full {% if filter_status == 'UNBALANCED' %}ring-2 ring-rose-500/40 border-rose-200{% else %}hover:-translate-y-0.5 hover:border-rose-200{% endif %} transition-all">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center"><i class="fas fa-triangle-exclamation"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Desbalanceados</p>
+                <h3 class="text-2xl font-bold text-rose-700 tracking-tight leading-none">{{ kpi_unbalanced_count }}</h3>
+                <p class="text-[0.7rem] text-slate-500 mt-1.5">requieren revisión</p>
+            </div>
+        </a>
+
+        <div class="card-soft p-5 h-full">
+            <div class="flex items-start justify-between mb-4">
+                <div class="w-10 h-10 rounded-md bg-sky-50 text-sky-600 flex items-center justify-center"><i class="fas fa-scale-balanced"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Total Debe / Haber</p>
+            <h3 class="text-base font-bold text-slate-900 tracking-tight leading-tight">${{ kpi_total_debit|floatformat:0|intcomma }}</h3>
+            <p class="text-[0.7rem] {% if kpi_total_debit == kpi_total_credit %}text-emerald-600{% else %}text-rose-600{% endif %} font-semibold mt-1">
+                {% if kpi_total_debit == kpi_total_credit %}<i class="fas fa-check"></i> Cuadrado{% else %}<i class="fas fa-times"></i> Diferencia ${{ kpi_total_credit|floatformat:0|intcomma }}{% endif %}
+            </p>
+        </div>
+    </div>
+
+    {# ────────── Filters bar ────────── #}
+    <form method="get" class="card-soft p-4 mb-4 flex flex-wrap items-end gap-3">
+        {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+        {% if filter_status %}<input type="hidden" name="status" value="{{ filter_status }}">{% endif %}
+
+        <div class="flex flex-col">
+            <label class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Cuenta</label>
+            <select name="account" onchange="this.form.submit()"
+                    class="px-3 py-1.5 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm transition-all min-w-[220px]">
+                <option value="">— Todas —</option>
+                {% for a in accounts %}
+                <option value="{{ a.id }}" {% if filter_account|add:"0" == a.id %}selected{% endif %}>{{ a.code }} · {{ a.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="flex flex-col">
+            <label class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Desde</label>
+            <input type="date" name="date_from" value="{{ filter_date_from }}"
+                   class="px-3 py-1.5 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm transition-all">
+        </div>
+
+        <div class="flex flex-col">
+            <label class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Hasta</label>
+            <input type="date" name="date_to" value="{{ filter_date_to }}"
+                   class="px-3 py-1.5 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm transition-all">
+        </div>
+
+        <button type="submit"
+                class="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-md text-sm font-semibold transition-all">
+            <i class="fas fa-filter text-[0.7rem] mr-1"></i> Aplicar
+        </button>
+
+        {% if filter_account or filter_date_from or filter_date_to or search_query or filter_status %}
+        <a href="{% url 'accounting_ledger' %}"
+           class="px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-rose-600 transition-colors">
+            <i class="fas fa-times mr-1"></i> Limpiar
+        </a>
+        {% endif %}
+    </form>
+
+    {# ────────── Ledger ────────── #}
+    <div class="card-soft overflow-hidden p-0">
+        {% if entries %}
         <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left">
-                <thead class="bg-gray-50 text-gray-600 font-medium border-b border-gray-200">
-                    <tr>
-                        <th class="px-6 py-3">Fecha</th>
-                        <th class="px-6 py-3">Asiento</th>
-                        <th class="px-6 py-3">Cuenta (Debe / Haber)</th>
-                        <th class="px-6 py-3 text-right">Debe</th>
-                        <th class="px-6 py-3 text-right">Haber</th>
+            <table class="w-full text-sm text-left border-collapse">
+                <thead class="bg-slate-50/60 border-b border-slate-100">
+                    <tr class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">
+                        <th class="px-4 py-3.5">Fecha</th>
+                        <th class="px-4 py-3.5">Asiento</th>
+                        <th class="px-4 py-3.5">Cuenta</th>
+                        <th class="px-4 py-3.5 text-right">Debe</th>
+                        <th class="px-4 py-3.5 text-right">Haber</th>
+                        <th class="px-4 py-3.5 text-center">Estado</th>
+                        <th class="px-4 py-3.5 text-center">Acciones</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody class="divide-y divide-slate-100">
                     {% for entry in entries %}
-                        <!-- Entry Header Row -->
-                        <tr class="bg-gray-50/50">
-                            <td class="px-6 py-3 font-medium text-gray-900 align-top" rowspan="{{ entry.items.all|length|add:'1' }}">
-                                {{ entry.date|date:"d/m/Y" }}
-                            </td>
-                            <td class="px-6 py-3 font-medium text-gray-900 align-top" rowspan="{{ entry.items.all|length|add:'1' }}">
-                                <div class="flex flex-col">
-                                    <span>#{{ entry.id }} {{ entry.description }}</span>
-                                    {% if entry.reference %}
-                                        <span class="text-xs text-gray-500">Ref: {{ entry.reference }}</span>
-                                    {% endif %}
-                                </div>
-                            </td>
-                        </tr>
-                        
-                        <!-- Items Rows -->
-                        {% for item in entry.items.all %}
-                        <tr class="hover:bg-gray-50 transition-colors">
-                             <!-- Cells hidden due to rowspan defined above -->
-                            <td class="px-6 py-2 border-l border-gray-100">
-                                <span class="font-mono text-xs text-gray-500 mr-2">{{ item.account.code }}</span>
-                                <span class="text-gray-700">{{ item.account.name }}</span>
-                            </td>
-                            <td class="px-6 py-2 text-right font-mono text-gray-600">
-                                {% if item.debit > 0 %}
-                                    ${{ item.debit|intcomma }}
-                                {% else %}
-                                    -
+                    {% with span=entry.line_count|add:"1" %}
+                    <tr class="bg-slate-50/30 group">
+                        <td rowspan="{{ span }}" class="px-4 py-3.5 align-top text-slate-700 font-semibold whitespace-nowrap border-r border-slate-100">
+                            {{ entry.date|date:"d M Y" }}
+                        </td>
+                        <td rowspan="{{ span }}" class="px-4 py-3.5 align-top border-r border-slate-100">
+                            <a href="{% url 'accounting_ledger_detail' entry.pk %}" class="block hover:text-primary-700 transition-colors">
+                                <span class="font-mono text-[0.7rem] font-bold text-primary-700">#{{ entry.id }}</span>
+                                <p class="font-semibold text-slate-900 mt-0.5 truncate max-w-[260px]">{{ entry.description }}</p>
+                                {% if entry.reference %}
+                                <p class="text-[0.7rem] text-slate-400 mt-0.5">Ref: {{ entry.reference }}</p>
                                 {% endif %}
-                            </td>
-                            <td class="px-6 py-2 text-right font-mono text-gray-600">
-                                {% if item.credit > 0 %}
-                                    ${{ item.credit|intcomma }}
-                                {% else %}
-                                    -
+                            </a>
+                        </td>
+                        <td colspan="3" class="px-4 py-2 text-[0.7rem] text-slate-400 italic">
+                            {{ entry.line_count }} línea{{ entry.line_count|pluralize:"s" }}
+                            {% if not entry.balanced %}
+                            <span class="ml-2 inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-rose-50 text-rose-700 border border-rose-200">Desbalanceado</span>
+                            {% endif %}
+                        </td>
+                        <td rowspan="{{ span }}" class="px-4 py-3.5 align-top text-center border-l border-slate-100">
+                            {% if entry.posted %}
+                            <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Contabilizado</span>
+                            {% else %}
+                            <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-slate-100 text-slate-700 border border-slate-200">Borrador</span>
+                            {% endif %}
+                        </td>
+                        <td rowspan="{{ span }}" class="px-4 py-3.5 align-top text-center border-l border-slate-100 whitespace-nowrap">
+                            <div class="inline-flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                <a href="{% url 'accounting_ledger_detail' entry.pk %}"
+                                   class="w-7 h-7 rounded-md bg-primary-50 text-primary-600 hover:bg-primary-600 hover:text-white transition-colors flex items-center justify-center"
+                                   title="Ver">
+                                    <i class="fas fa-eye text-[0.7rem]"></i>
+                                </a>
+                                {% if entry.balanced %}
+                                <form method="post" action="{% url 'accounting_ledger_toggle_post' entry.pk %}" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            class="w-7 h-7 rounded-md {% if entry.posted %}bg-amber-50 text-amber-600 hover:bg-amber-600{% else %}bg-emerald-50 text-emerald-600 hover:bg-emerald-600{% endif %} hover:text-white transition-colors flex items-center justify-center"
+                                            title="{% if entry.posted %}Reabrir{% else %}Contabilizar{% endif %}">
+                                        <i class="fas {% if entry.posted %}fa-rotate-left{% else %}fa-check{% endif %} text-[0.7rem]"></i>
+                                    </button>
+                                </form>
                                 {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    {% empty %}
-                        <tr>
-                            <td colspan="5" class="px-6 py-12 text-center text-gray-500">
-                                No hay asientos contables registrados aún.
-                            </td>
-                        </tr>
+                                {% if not entry.posted %}
+                                <a href="{% url 'accounting_ledger_edit' entry.pk %}"
+                                   class="w-7 h-7 rounded-md bg-sky-50 text-sky-600 hover:bg-sky-600 hover:text-white transition-colors flex items-center justify-center"
+                                   title="Editar">
+                                    <i class="fas fa-pen text-[0.7rem]"></i>
+                                </a>
+                                <a href="{% url 'accounting_ledger_delete' entry.pk %}"
+                                   class="w-7 h-7 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors flex items-center justify-center"
+                                   title="Eliminar">
+                                    <i class="fas fa-trash text-[0.7rem]"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+
+                    {% for item in entry.items.all %}
+                    <tr class="hover:bg-primary-50/30 transition-colors">
+                        <td class="px-4 py-2">
+                            <span class="font-mono text-[0.7rem] text-slate-500 mr-2">{{ item.account.code }}</span>
+                            <span class="text-slate-700">{{ item.account.name }}</span>
+                            {% if item.partner %}<span class="ml-2 text-[0.7rem] text-slate-400">· {{ item.partner.name }}</span>{% endif %}
+                        </td>
+                        <td class="px-4 py-2 text-right font-mono {% if item.debit > 0 %}text-slate-900 font-semibold{% else %}text-slate-300{% endif %}">
+                            {% if item.debit > 0 %}${{ item.debit|floatformat:2|intcomma }}{% else %}—{% endif %}
+                        </td>
+                        <td class="px-4 py-2 text-right font-mono {% if item.credit > 0 %}text-slate-900 font-semibold{% else %}text-slate-300{% endif %}">
+                            {% if item.credit > 0 %}${{ item.credit|floatformat:2|intcomma }}{% else %}—{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endwith %}
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        
-        <!-- Pagination -->
+
         {% if is_paginated %}
-        <div class="bg-gray-50 px-6 py-3 border-t border-gray-200 flex justify-between items-center">
-            {% if page_obj.has_previous %}
-                <a href="?page={{ page_obj.previous_page_number }}" class="text-indigo-600 hover:text-indigo-900 font-medium">Anterior</a>
-            {% else %}
-                <span class="text-gray-400">Anterior</span>
-            {% endif %}
+        <div class="px-6 py-4 border-t border-slate-100 flex justify-between items-center text-sm">
+            <span class="text-slate-500">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} — {{ page_obj.paginator.count }} asientos</span>
+            <div class="flex gap-2">
+                {% if page_obj.has_previous %}
+                <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}"
+                   class="px-3 py-1 rounded-md border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold">
+                    <i class="fas fa-chevron-left text-[0.7rem] mr-1"></i> Anterior
+                </a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.next_page_number }}"
+                   class="px-3 py-1 rounded-md border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold">
+                    Siguiente <i class="fas fa-chevron-right text-[0.7rem] ml-1"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
 
-            <span class="text-gray-600">
-                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
-            </span>
-
-            {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}" class="text-indigo-600 hover:text-indigo-900 font-medium">Siguiente</a>
-            {% else %}
-                <span class="text-gray-400">Siguiente</span>
+        {% else %}
+        <div class="px-6 py-16 text-center">
+            <div class="inline-flex w-16 h-16 rounded-full bg-slate-100 text-slate-400 items-center justify-center mb-3">
+                <i class="fas fa-book text-2xl"></i>
+            </div>
+            <p class="text-slate-700 font-semibold">Sin asientos</p>
+            <p class="text-xs text-slate-500 mt-1 mb-5">{% if search_query or filter_status or filter_account %}Probá limpiar los filtros{% else %}Las ventas, compras y producción generan asientos automáticamente{% endif %}.</p>
+            {% if not search_query and not filter_status and not filter_account %}
+            <a href="{% url 'accounting_ledger_create' %}"
+               class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-semibold shadow-sm transition-all">
+                <i class="fas fa-plus text-xs"></i> Crear asiento manual
+            </a>
             {% endif %}
         </div>
         {% endif %}

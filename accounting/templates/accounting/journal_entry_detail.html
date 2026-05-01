@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Asiento #{{ entry.id }} — Propel{% endblock %}
+{% block header_title %}Asiento Contable{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+
+    <div class="mb-5 flex items-center justify-between">
+        <a href="{% url 'accounting_ledger' %}"
+           class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary-600 transition-colors">
+            <i class="fas fa-arrow-left text-[0.7rem]"></i><span>Volver al libro diario</span>
+        </a>
+        <div class="flex items-center gap-2">
+            {% if is_balanced %}
+                <form method="post" action="{% url 'accounting_ledger_toggle_post' entry.pk %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-md transition-all
+                                   {% if entry.posted %}bg-amber-50 text-amber-700 hover:bg-amber-600 hover:text-white{% else %}bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white{% endif %}">
+                        <i class="fas {% if entry.posted %}fa-rotate-left{% else %}fa-check{% endif %}"></i>
+                        {% if entry.posted %}Reabrir{% else %}Contabilizar{% endif %}
+                    </button>
+                </form>
+            {% endif %}
+            {% if not entry.posted %}
+                <a href="{% url 'accounting_ledger_edit' entry.pk %}"
+                   class="inline-flex items-center gap-2 px-3 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-600 hover:text-white rounded-md text-xs font-semibold transition-all">
+                    <i class="fas fa-pen"></i> Editar
+                </a>
+                <a href="{% url 'accounting_ledger_delete' entry.pk %}"
+                   class="inline-flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-600 hover:text-white rounded-md text-xs font-semibold transition-all">
+                    <i class="fas fa-trash"></i> Eliminar
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card-soft p-6 md:p-8">
+        <div class="flex items-start justify-between mb-6">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="font-mono text-xs font-bold text-primary-700">#{{ entry.id }}</span>
+                    {% if entry.posted %}
+                    <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Contabilizado</span>
+                    {% else %}
+                    <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-slate-100 text-slate-700 border border-slate-200">Borrador</span>
+                    {% endif %}
+                    {% if not is_balanced %}
+                    <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-rose-50 text-rose-700 border border-rose-200">Desbalanceado</span>
+                    {% endif %}
+                </div>
+                <h1 class="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">{{ entry.description }}</h1>
+                <div class="mt-2 text-sm text-slate-500 flex flex-wrap items-center gap-3">
+                    <span><i class="fas fa-calendar-day text-[0.7rem] mr-1"></i>{{ entry.date|date:"d M Y" }}</span>
+                    {% if entry.reference %}<span>· Ref: <strong class="text-slate-700">{{ entry.reference }}</strong></span>{% endif %}
+                    {% if entry.created_by %}<span>· por {{ entry.created_by.username }}</span>{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto rounded-lg border border-slate-100">
+            <table class="w-full text-sm text-left border-collapse">
+                <thead class="bg-slate-50/60 border-b border-slate-100">
+                    <tr class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">
+                        <th class="px-4 py-3">Cuenta</th>
+                        <th class="px-4 py-3">Detalle</th>
+                        <th class="px-4 py-3 text-right">Debe</th>
+                        <th class="px-4 py-3 text-right">Haber</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for item in entry.items.all %}
+                    <tr>
+                        <td class="px-4 py-3">
+                            <span class="font-mono text-[0.7rem] text-slate-500 mr-2">{{ item.account.code }}</span>
+                            <span class="font-semibold text-slate-800">{{ item.account.name }}</span>
+                            {% if item.partner %}<p class="text-[0.7rem] text-slate-400 mt-0.5">{{ item.partner.name }}</p>{% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-slate-600">{{ item.description|default:"—" }}</td>
+                        <td class="px-4 py-3 text-right font-mono {% if item.debit > 0 %}text-slate-900 font-semibold{% else %}text-slate-300{% endif %}">
+                            {% if item.debit > 0 %}${{ item.debit|floatformat:2|intcomma }}{% else %}—{% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono {% if item.credit > 0 %}text-slate-900 font-semibold{% else %}text-slate-300{% endif %}">
+                            {% if item.credit > 0 %}${{ item.credit|floatformat:2|intcomma }}{% else %}—{% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">Sin líneas en este asiento.</td></tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-slate-50/60 border-t-2 border-slate-200">
+                    <tr class="font-bold text-slate-900">
+                        <td colspan="2" class="px-4 py-3 text-right text-[0.7rem] uppercase tracking-[0.1em] text-slate-500">Totales</td>
+                        <td class="px-4 py-3 text-right font-mono">${{ total_debit|floatformat:2|intcomma }}</td>
+                        <td class="px-4 py-3 text-right font-mono">${{ total_credit|floatformat:2|intcomma }}</td>
+                    </tr>
+                    {% if not is_balanced %}
+                    <tr>
+                        <td colspan="4" class="px-4 py-2.5 text-center text-xs font-semibold bg-rose-50 text-rose-700">
+                            <i class="fas fa-triangle-exclamation mr-1"></i> Diferencia: ${{ total_debit|floatformat:2|intcomma }} − ${{ total_credit|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
