@@ -160,7 +160,7 @@ class TiendaNubeImporter(BaseImporter):
             # sale.listing_fee = 0 (default)
             # sale.taxes = 0 (default)
             
-            sale.payment_status = self._clean_str(row.get('Estado del pago'))
+            sale.external_payment_status = self._clean_str(row.get('Estado del pago'))
             sale.shipping_status = self._clean_str(row.get('Estado del envío'))
             sale.currency = self._clean_str(row.get('Moneda', 'ARS'))
             sale.payment_method = self._clean_str(row.get('Medio de pago'))

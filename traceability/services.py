@@ -79,12 +79,7 @@ class StockService:
         
         # Check for alerts
         AlertService.check_new_lot_alerts(lot)
-        
-        
-        
-        # Check for alerts
-        AlertService.check_new_lot_alerts(lot)
-        
+
         # --- FINANCE INTEGRATION ---
         # Create corresponding Finance Purchase record if cost is provided
         if cost_per_kg and cost_per_kg > 0:
@@ -115,6 +110,54 @@ class StockService:
         wrapper para AlertService.check_all_alerts()
         """
         AlertService.check_all_alerts(user)
+
+    @staticmethod
+    def resolve_stale_alerts(user):
+        """
+        Cierra automáticamente las alertas cuyo motivo ya no aplica:
+
+        - LOW_STOCK: ingrediente con stock por encima del umbral.
+        - NEAR_EXPIRY / EXPIRY: lote ya no activo (consumido o descartado).
+        - EXPIRED: lote marcado como merma o ya descartado (is_active=False).
+
+        Marca ``is_resolved=True`` y completa ``resolved_at``.
+        """
+        from django.utils import timezone as _tz
+        config = TraceabilityConfig.get_config()
+        threshold = config.low_stock_threshold_kg or Decimal('0')
+        now = _tz.now()
+
+        active_qs = StockAlert.objects.filter(
+            Q(ingredient__user=user) | Q(ingredient_lot__user=user),
+            is_resolved=False,
+        ).select_related('ingredient', 'ingredient_lot', 'ingredient_lot__ingredient')
+
+        ids_to_resolve = []
+        for alert in active_qs:
+            should_resolve = False
+            if alert.alert_type == 'LOW_STOCK':
+                ing = alert.ingredient or (alert.ingredient_lot.ingredient if alert.ingredient_lot else None)
+                if ing is not None:
+                    current_stock = ing.stock_quantity or Decimal('0')
+                    if current_stock > threshold:
+                        should_resolve = True
+            elif alert.alert_type in ('NEAR_EXPIRY', 'EXPIRY'):
+                lot = alert.ingredient_lot
+                if lot is None or not lot.is_active:
+                    should_resolve = True
+            elif alert.alert_type == 'EXPIRED':
+                lot = alert.ingredient_lot
+                if lot is None or lot.is_wasted or not lot.is_active:
+                    should_resolve = True
+
+            if should_resolve:
+                ids_to_resolve.append(alert.pk)
+
+        if ids_to_resolve:
+            StockAlert.objects.filter(pk__in=ids_to_resolve).update(
+                is_resolved=True, resolved_at=now
+            )
+        return len(ids_to_resolve)
 
     @staticmethod
     def get_stock_summary(user):
@@ -292,7 +335,20 @@ class ProductionService:
         """
         if production_date is None:
             production_date = date.today()
-        
+
+        # Idempotency: if a batch already exists for this production_order
+        # and internal_lot_code, return it instead of creating a duplicate.
+        # Lock the production_order row to serialize concurrent finalize calls.
+        if production_order is not None:
+            from production.models import ProductionOrder as _PO
+            _PO.objects.select_for_update().filter(pk=production_order.pk).first()
+            existing = ProductionBatch.objects.filter(
+                production_order=production_order,
+                internal_lot_code=internal_lot_code,
+            ).first()
+            if existing:
+                return existing
+
         # Step 1: Check stock availability
         stock_check = ProductionService.check_stock_availability(bom, quantity_produced)
         if not stock_check['available']:

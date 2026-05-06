@@ -19,16 +19,40 @@
             <h2 class="text-lg font-bold text-gray-800 mb-6">Información del Cliente</h2>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="col-span-1 md:col-span-2">
+                <div>
                     {{ form.name.label_tag }}
                     {{ form.name }}
                     {{ form.name.errors }}
+                </div>
+
+                <div>
+                    {{ form.billing_name.label_tag }}
+                    {{ form.billing_name }}
+                    {{ form.billing_name.errors }}
+                </div>
+                
+                <div>
+                    {{ form.email.label_tag }}
+                    {{ form.email }}
+                    {{ form.email.errors }}
+                </div>
+
+                <div>
+                    {{ form.phone.label_tag }}
+                    {{ form.phone }}
+                    {{ form.phone.errors }}
                 </div>
                 
                 <div>
                     {{ form.document_number.label_tag }}
                     {{ form.document_number }}
                     {{ form.document_number.errors }}
+                </div>
+
+                <div>
+                    {{ form.tax_condition.label_tag }}
+                    {{ form.tax_condition }}
+                    {{ form.tax_condition.errors }}
                 </div>
                 
                 <div class="flex items-center pt-8">
@@ -61,12 +85,14 @@
                     {{ form.billing_address }}
                     {{ form.billing_address.errors }}
                 </div>
-                
+
                 <div class="col-span-1 md:col-span-2">
-                    {{ form.billing_name.label_tag }}
-                    {{ form.billing_name }}
-                    {{ form.billing_name.errors }}
+                    {{ form.shipping_address.label_tag }}
+                    {{ form.shipping_address }}
+                    {{ form.shipping_address.errors }}
                 </div>
+                
+
                 
                 <div>
                     {{ form.city.label_tag }}

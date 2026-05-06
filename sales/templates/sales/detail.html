@@ -3,6 +3,7 @@
 {% load sales_extras %}
 
 {% block title %}Sale #{{ sale.order_id }} - Propel{% endblock %}
+{% block header_title %}Detalle de Venta{% endblock %}
 
 {% block content %}
 <div class="max-w-6xl mx-auto">
@@ -10,7 +11,7 @@
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
             <div class="flex items-center gap-3 mb-2">
-                <h1 class="text-3xl font-bold text-gray-900">Sale #{{ sale.order_id }}</h1>
+                <h1 class="text-3xl font-bold text-gray-900">Venta #{{ sale.order_id }}</h1>
                 <!-- Channel Badge -->
                 {% if sale.channel == 'MERCADOLIBRE' %}
                     <span class="px-3 py-1 rounded-full text-xs font-bold bg-[#FFE600] text-[#2D3277] border border-[#d9c400]">
@@ -26,14 +27,14 @@
                     </span>
                 {% endif %}
             </div>
-            <p class="text-gray-500">Placed on {{ sale.date|date:"F j, Y \a\t g:i a" }}</p>
+            <p class="text-gray-500">Registrada el {{ sale.date|date:"d/m/Y H:i" }}</p>
         </div>
         
         <div class="flex flex-wrap gap-2">
             {% if sale.get_mercadolibre_url and sale.channel == 'MERCADOLIBRE' %}
             <a href="{{ sale.get_mercadolibre_url }}" target="_blank"
                 class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center">
-                <i class="fas fa-external-link-alt mr-2"></i> View on Site
+                <i class="fas fa-external-link-alt mr-2"></i> Ver en Sitio
             </a>
             {% endif %}
             
@@ -41,6 +42,16 @@
                 class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm flex items-center">
                 <i class="fas fa-edit mr-2"></i> Editar Venta
             </a>
+
+            {# Production: show "Crear orden de producción" if any linked product is below the sold qty. #}
+            {% for item in sale.items.all %}
+                {% if item.product and item.product.stock_quantity < item.quantity and forloop.first %}
+                    <a href="{% url 'production_order_create' %}?product={{ item.product.pk }}&origin=SO-{{ sale.pk }}"
+                       class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm flex items-center" title="Stock insuficiente para {{ item.product.name }}">
+                        <i class="fas fa-industry mr-2"></i> Crear orden de producción
+                    </a>
+                {% endif %}
+            {% endfor %}
 
             <a href="{% url 'sales_dashboard' %}"
                 class="bg-white border text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg font-medium transition-colors flex items-center">
@@ -56,8 +67,8 @@
             <!-- Items Section -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                    <h2 class="font-bold text-gray-800">Order Items</h2>
-                    <span class="text-xs font-medium text-gray-500 bg-white border px-2 py-1 rounded">{{ sale.items.count }} items</span>
+                    <h2 class="font-bold text-gray-800">Productos</h2>
+                    <span class="text-xs font-medium text-gray-500 bg-white border px-2 py-1 rounded">{{ sale.items.count }} ítems</span>
                 </div>
                 <div class="divide-y divide-gray-50">
                     {% for item in sale.items.all %}
@@ -70,15 +81,15 @@
                             <div class="flex flex-wrap gap-2 mt-2">
                                 <span class="text-xs font-mono bg-gray-100 text-gray-600 px-2 py-1 rounded">SKU: {{ item.sku|default:"-" }}</span>
                                 {% if item.product %}
-                                    <span class="text-xs bg-green-50 text-green-700 px-2 py-1 rounded border border-green-100">Linked to Inventory</span>
+                                    <span class="text-xs bg-green-50 text-green-700 px-2 py-1 rounded border border-green-100">Vinculado a Inventario</span>
                                 {% else %}
-                                    <span class="text-xs bg-red-50 text-red-700 px-2 py-1 rounded border border-red-100">Not Linked</span>
+                                    <span class="text-xs bg-red-50 text-red-700 px-2 py-1 rounded border border-red-100">Sin Vincular</span>
                                 {% endif %}
                             </div>
                         </div>
                         <div class="text-right">
                             <div class="font-bold text-gray-900">${{ item.unit_price }}</div>
-                            <div class="text-sm text-gray-500">Qty: {{ item.quantity }}</div>
+                            <div class="text-sm text-gray-500">Cant: {{ item.quantity }}</div>
                         </div>
                     </div>
                     {% endfor %}
@@ -89,46 +100,46 @@
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
                     <h2 class="font-bold text-gray-800 flex items-center gap-2">
-                        <i class="fas fa-truck text-gray-400"></i> Shipping Details
+                        <i class="fas fa-truck text-gray-400"></i> Datos de Envío
                     </h2>
                 </div>
                 <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div class="space-y-4">
                         <div>
-                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Status</p>
+                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Estado</p>
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                {{ sale.shipping_status|default:sale.shipping_option|default:"Pending" }}
+                                {{ sale.shipping_status|default:sale.shipping_option|default:"Pendiente" }}
                             </span>
                              {% if sale.shipping_date %}
-                                <p class="text-xs text-gray-500 mt-1">Shipped: {{ sale.shipping_date|date:"M j, Y" }}</p>
+                                <p class="text-xs text-gray-500 mt-1">Enviado: {{ sale.shipping_date|date:"d/m/Y" }}</p>
                             {% endif %}
                         </div>
                         <div>
-                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Method</p>
+                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Método</p>
                             <p class="font-medium text-gray-800">{{ sale.shipping_option|default:"-" }}</p>
                         </div>
                         <div>
-                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Tracking</p>
+                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Seguimiento</p>
                             {% if sale.tracking_number and sale.tracking_number != "nan" %}
                                 <div class="flex items-center gap-2">
                                     <code id="tracking-code" class="bg-gray-100 px-2 py-1 rounded text-sm">{{ sale.tracking_number }}</code>
                                     <button id="copy-tracking-btn" class="text-gray-400 hover:text-gray-600 transition-colors" title="Copiar"><i class="far fa-copy"></i></button>
                                 </div>
                             {% else %}
-                                <p class="text-sm text-gray-400 italic">No tracking info</p>
+                                <p class="text-sm text-gray-400 italic">Sin info de seguimiento</p>
                             {% endif %}
                         </div>
                     </div>
                     <div class="space-y-4">
                         <div>
-                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Recipient</p>
+                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Destinatario</p>
                             <p class="font-medium text-gray-800">{{ sale.recipient_name|default:sale.customer.name|default:"-" }}</p>
                             {% if sale.recipient_phone and sale.recipient_phone != "nan" %}
                                 <p class="text-sm text-gray-600"><i class="fas fa-phone-alt text-xs mr-1 opacity-50"></i>{{ sale.recipient_phone }}</p>
                             {% endif %}
                         </div>
                         <div>
-                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Delivery Address</p>
+                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Dirección de Entrega</p>
                             <div class="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-100">
                                 {{ sale.buyer_address|default:"-"|linebreaksbr }}
                                 <div class="mt-1 text-gray-500">{{ sale.city|default:"" }} {{ sale.province|default:"" }} {{ sale.zip_code|default:"" }}</div>
@@ -142,35 +153,36 @@
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
                     <h2 class="font-bold text-gray-800 flex items-center gap-2">
-                        <i class="fas fa-credit-card text-gray-400"></i> Payment Details
+                        <i class="fas fa-credit-card text-gray-400"></i> Datos de Pago
                     </h2>
                 </div>
                 <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
                      <div class="space-y-4">
                         <div>
-                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Status</p>
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                                {% if sale.payment_status == 'Paid' or sale.payment_status == 'Aprobado' %}bg-green-100 text-green-800
-                                {% elif sale.payment_status == 'Pending' %}bg-yellow-100 text-yellow-800
+                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Estado</p>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                {% if sale.payment_status == 'PAID' %}bg-green-100 text-green-800
+                                {% elif sale.payment_status == 'PENDING' %}bg-yellow-100 text-yellow-800
+                                {% elif sale.payment_status == 'PARTIAL' %}bg-orange-100 text-orange-800
                                 {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                {{ sale.payment_status|default:sale.status|default:"Unknown" }}
+                                {{ sale.get_payment_status_display|default:sale.status|default:"Desconocido" }}
                             </span>
                             {% if sale.payment_date %}
-                                <p class="text-xs text-gray-500 mt-1">Paid: {{ sale.payment_date|date:"M j, Y H:i" }}</p>
+                                <p class="text-xs text-gray-500 mt-1">Pagado: {{ sale.payment_date|date:"d/m/Y H:i" }}</p>
                             {% endif %}
                         </div>
                         <div>
-                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Method</p>
+                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Medio de Pago</p>
                             <p class="font-medium text-gray-800">{{ sale.payment_method|default:"-" }}</p>
                         </div>
                     </div>
                     <div class="space-y-4">
                         <div>
-                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Transaction ID</p>
+                            <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">ID Transacción</p>
                             <p class="font-mono text-sm text-gray-600">{{ sale.transaction_id|default:"-" }}</p>
                         </div>
                         <div>
-                             <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Currency</p>
+                             <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Moneda</p>
                              <p class="font-medium text-gray-800">{{ sale.currency }}</p>
                         </div>
                     </div>
@@ -182,19 +194,19 @@
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
                     <h2 class="font-bold text-gray-800 flex items-center gap-2">
-                        <i class="fas fa-sticky-note text-gray-400"></i> Notes
+                        <i class="fas fa-sticky-note text-gray-400"></i> Notas
                     </h2>
                 </div>
                 <div class="p-6 space-y-4">
                     {% if sale.buyer_notes %}
                     <div>
-                        <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Buyer Notes</p>
+                        <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Notas del Comprador</p>
                         <p class="text-sm text-gray-700 bg-yellow-50 p-3 rounded-lg border border-yellow-100 italic">"{{ sale.buyer_notes }}"</p>
                     </div>
                     {% endif %}
                     {% if sale.seller_notes %}
                     <div>
-                        <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Seller Notes</p>
+                        <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Notas del Vendedor</p>
                         <p class="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-100">{{ sale.seller_notes }}</p>
                     </div>
                     {% endif %}
@@ -209,7 +221,7 @@
             
             <!-- Financial Summary -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                <h2 class="font-bold text-gray-800 mb-6">Order Summary</h2>
+                <h2 class="font-bold text-gray-800 mb-6">Resumen del Pedido</h2>
                 <div class="space-y-3">
                     <div class="flex justify-between text-sm">
                         <span class="text-gray-500">Subtotal</span>
@@ -217,21 +229,21 @@
                     </div>
                         {% if sale.shipping_income > 0 %}
                     <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">Shipping</span>
+                        <span class="text-gray-500">Envío</span>
                         <span class="font-medium text-gray-900">+${{ sale.shipping_income }}</span>
                     </div>
                     {% endif %}
                     
                     {% if sale.discounts != 0 %}
                     <div class="flex justify-between text-sm text-green-600">
-                        <span>Discount</span>
+                        <span>Descuento</span>
                         <span class="font-medium">-${{ sale.discounts|abs_value }}</span>
                     </div>
                     {% endif %}
 
                     {% if sale.taxes > 0 %}
                     <div class="flex justify-between text-sm text-gray-500">
-                        <span>Taxes</span>
+                        <span>Impuestos</span>
                         <span class="font-medium">${{ sale.taxes }}</span>
                     </div>
                     {% endif %}
@@ -248,7 +260,7 @@
 
             <!-- Customer -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                <h2 class="font-bold text-gray-800 mb-4">Customer</h2>
+                <h2 class="font-bold text-gray-800 mb-4">Cliente</h2>
                 <div class="flex items-center gap-3 mb-4">
                     <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
                         {{ sale.customer.name|first|upper|default:"?" }}
@@ -284,7 +296,7 @@
                 
                 {% if sale.invoice_data %}
                 <div class="bg-gray-50 rounded-lg p-3 text-sm">
-                    <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Billing Info</p>
+                    <p class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Datos de Facturación</p>
                     <p class="text-gray-700 whitespace-pre-wrap">{{ sale.invoice_data }}</p>
                 </div>
                 {% endif %}
@@ -300,9 +312,9 @@
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                 <h2 class="font-bold text-gray-800 mb-4">Acciones</h2>
                 <div class="space-y-2">
-                    <button onclick="window.print()" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium py-2 rounded-lg transition-colors text-sm">
+                    <a href="{% url 'sale_pdf' sale.pk %}" target="_blank" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium py-2 rounded-lg transition-colors text-sm flex justify-center items-center">
                         <i class="fas fa-print mr-2"></i> Imprimir Orden
-                    </button>
+                    </a>
                     <button onclick="if(confirm('¿Cancelar esta venta? Esta acción restaurará el stock.')){window.location='{% url 'sale_edit' sale.pk %}'}" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-medium py-2 rounded-lg transition-colors text-sm">
                         <i class="fas fa-ban mr-2"></i> Cancelar Venta
                     </button>

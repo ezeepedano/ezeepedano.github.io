@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 0.8cm 1cm 0.8cm 1cm;
+        }
+
+        * { margin: 0; padding: 0; }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 9px;
+            color: #424141;
+            line-height: 1.35;
+            background: white;
+        }
+
+        /* ── UTILITY ── */
+        table { width: 100%; border-collapse: collapse; }
+        td, th { padding: 0; vertical-align: top; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .text-left { text-align: left; }
+        .bold { font-weight: bold; }
+
+        /* ── COLORS ── */
+        .color-primary { color: #2D3277; font-weight: bold; font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; }
+        .color-dark { color: #424141; }
+        .bg-dark { background-color: #424141; color: #FFFFFF; }
+        .bg-gray { background-color: #f1f1f0; }
+
+        /* ── HEADER ── */
+        .header-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #424141;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .header-subtitle {
+            font-size: 13px;
+            color: #424141;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding-top: 3px;
+        }
+
+        /* ── CLIENT NAME ── */
+        .client-name {
+            font-size: 16px;
+            font-weight: bold;
+            padding: 3px 0;
+        }
+        .client-detail {
+            font-size: 9px;
+            line-height: 1.5;
+        }
+
+        /* ── PRODUCT TABLE ── */
+        .prod-table {
+            margin-top: 6px;
+            margin-bottom: 0;
+        }
+        .prod-table th {
+            background-color: #424141;
+            color: #f1f1f0;
+            font-size: 8px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 4px 5px;
+        }
+        .prod-table td {
+            font-size: 8px;
+            font-weight: bold;
+            color: #424141;
+            padding: 4px 5px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .prod-table tbody tr:nth-child(even) td {
+            background-color: #f9f9f9;
+        }
+
+        /* ── FOOTER SECTION ── */
+        .footer-section {
+            margin-top: 10px;
+        }
+        .sig-box {
+            border: 1px solid #424141;
+            border-radius: 4px;
+            padding: 5px;
+            height: 45px;
+            text-align: center;
+            vertical-align: bottom;
+        }
+        .sig-text {
+            border-top: 1px dashed #424141;
+            margin-top: 25px;
+            padding-top: 3px;
+            font-size: 8px;
+            color: #424141;
+        }
+
+        /* ── BOTTOM BAR ── */
+        .contact-info {
+            font-size: 9px;
+            color: #424141;
+            line-height: 1.6;
+            text-align: right;
+            margin-top: 15px;
+        }
+        .dark-bar {
+            background-color: #424141;
+            height: 18px;
+            width: 110%;
+            margin-left: -5%;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<table style="margin-bottom: 8px;">
+    <tr>
+        <td style="width: 50%; vertical-align: top;">
+            {% if logo_path %}
+            <img src="file://{{ logo_path }}" width="65" height="65" />
+            {% else %}
+            <div style="background-color: #424141; color: white; width: 100px; height: 80px; text-align: center; font-size: 14px; font-weight: bold; padding-top: 20px;">
+                {{ company_name }}
+            </div>
+            {% endif %}
+        </td>
+        <td style="width: 50%; text-align: right; vertical-align: middle;">
+            <div class="header-title">REMITO</div>
+            <div class="header-subtitle">N&deg; {{ sale.order_id }}</div>
+            <div class="client-detail" style="margin-top: 5px;">Fecha: {{ sale.date|date:"d/m/Y" }}</div>
+        </td>
+    </tr>
+</table>
+
+<!-- COMPANY INFO -->
+<table style="margin-bottom: 8px; border-bottom: 1px solid #e0e0e0; padding-bottom: 6px;">
+    <tr>
+        <td style="width: 50%; vertical-align: top;">
+            <div style="font-size: 12px; font-weight: bold; color: #424141;">{{ company_name }}</div>
+            <div class="client-detail">{{ config.company_iva_condition }}</div>
+            <div class="client-detail">CUIT: {{ config.company_cuit }}</div>
+            <div class="client-detail">{{ config.company_address }}</div>
+        </td>
+        <td style="width: 50%; text-align: right; vertical-align: top;">
+            <div class="client-detail">Canal: {{ sale.get_channel_display }}</div>
+            <div class="client-detail">Documento No Válido como Factura</div>
+        </td>
+    </tr>
+</table>
+
+<!-- CLIENT INFO -->
+<table style="margin-bottom: 8px;">
+    <tr>
+        <td style="width: 50%; padding-right: 12px;">
+            <div class="color-primary" style="padding-bottom: 4px;">DATOS DEL CLIENTE</div>
+            <div class="client-name">{{ sale.customer.name|default:"Consumidor Final" }}</div>
+            <div class="client-detail">DNI/CUIT: {{ sale.buyer_dni|default:"—" }}</div>
+            <div class="client-detail">Email: {{ sale.customer.email|default:"—" }}</div>
+            <div class="client-detail">Tel&eacute;fono: {{ sale.customer.phone|default:"—" }}</div>
+        </td>
+        <td style="width: 50%; padding-left: 12px; text-align: right; vertical-align: bottom;">
+            <div class="color-primary" style="padding-bottom: 4px;">DATOS DE ENTREGA</div>
+            <div class="client-detail">Destinatario: {{ sale.recipient_name|default:sale.customer.name|default:"—" }}</div>
+            <div class="client-detail">Domicilio: {{ sale.buyer_address|default:"—" }}</div>
+            <div class="client-detail">{{ sale.city|default:"" }} {{ sale.province|default:"" }}</div>
+        </td>
+    </tr>
+</table>
+
+<!-- SHIPPING / NOTES -->
+{% if sale.shipping_option or sale.seller_notes or sale.buyer_notes %}
+<table style="margin-bottom: 6px; background-color: #f9f9f9; padding: 6px;">
+    <tr>
+        <td style="width: 100%;">
+            <div class="client-detail"><b>Opciones de Envío/Entrega:</b> {{ sale.shipping_option|default:"—" }}</div>
+            {% if sale.buyer_notes %}
+            <div class="client-detail" style="margin-top: 4px;"><b>Notas (Cliente):</b> {{ sale.buyer_notes }}</div>
+            {% endif %}
+            {% if sale.seller_notes %}
+            <div class="client-detail" style="margin-top: 4px;"><b>Notas (Internas):</b> {{ sale.seller_notes }}</div>
+            {% endif %}
+        </td>
+    </tr>
+</table>
+{% endif %}
+
+<!-- PRODUCTS TABLE -->
+<table class="prod-table">
+    <thead>
+        <tr>
+            <th class="text-center" style="width: 15%;">SKU</th>
+            <th class="text-left" style="width: 70%;">DESCRIPCI&Oacute;N</th>
+            <th class="text-center" style="width: 15%;">CANTIDAD</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td class="text-center">{{ item.sku|default:"-" }}</td>
+            <td class="text-left">{{ item.product_title }}</td>
+            <td class="text-center">{{ item.quantity|floatformat:0 }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- TOTAL ITEMS COUNT -->
+<div class="client-detail" style="margin-top: 5px; font-weight: bold;">
+    Total de Bultos / Ítems: {{ total_items }}
+</div>
+
+<!-- FOOTER / SIGNATURES -->
+<table class="footer-section" style="width: 100%;">
+    <tr>
+        <td style="width: 45%; padding-right: 10px;">
+            <div style="font-size: 8px; color: #424141; margin-bottom: 15px;">
+                Firma de Conformidad. Al firmar este documento, declaro haber recibido de conformidad los artículos detallados previamente en cantidad y estado.
+            </div>
+            <div class="sig-box">
+                <div class="sig-text">Firma y Aclaración (Receptor)</div>
+            </div>
+        </td>
+        <td style="width: 10%;"></td>
+        <td style="width: 45%; padding-left: 10px; vertical-align: bottom;">
+            <div class="sig-box">
+                <div class="sig-text">Entregado por</div>
+            </div>
+        </td>
+    </tr>
+</table>
+
+<table style="width: 100%;">
+    <tr>
+        <td style="width: 100%;">
+            <div class="contact-info">
+                {% if config.company_email %}{{ config.company_email }} &nbsp;|&nbsp; {% endif %}
+                {% if config.company_phone %}{{ config.company_phone }} &nbsp;|&nbsp; {% endif %}
+                {% if config.company_website %}{{ config.company_website }}{% endif %}
+            </div>
+        </td>
+    </tr>
+</table>
+
+<!-- Dark bar -->
+<div class="dark-bar"></div>
+
+</body>
+</html>

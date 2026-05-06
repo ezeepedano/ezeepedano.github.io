@@ -702,3 +702,14 @@ def product_purchase_history_api(request, customer_id):
             })
 
     return JsonResponse({'products': products})
+
+
+# =============================================================================
+# RETURNS / RMA — placeholder list view (full CRUD pending).
+# =============================================================================
+@login_required
+def return_list(request):
+    """List sale returns (RMA). UI is intentionally minimal until full CRUD ships."""
+    from .models import SaleReturn
+    returns = SaleReturn.objects.filter(user=request.user).select_related('sale').order_by('-date', '-created_at')
+    return render(request, 'sales/return_list.html', {'returns': returns})

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% block header_title %}Orden de Producción{% endblock %}
 
 {% block content %}
 <div class="max-w-3xl mx-auto">
@@ -80,6 +81,29 @@
                         <p class="text-red-500 text-xs mt-1">{{ form.origin.errors.0 }}</p>
                     {% endif %}
                 </div>
+            </div>
+
+            <!-- Live BOM cost & stock panel -->
+            <div id="bom-preview" class="hidden border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-xs uppercase font-bold text-slate-500"><i class="fas fa-chart-pie mr-1"></i>Vista previa de fórmula</h4>
+                    <span id="bom-validation-badge" class="text-xs font-bold px-2 py-0.5 rounded-full"></span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                        <div class="text-xs text-slate-400">Costo unitario</div>
+                        <div id="bom-cost" class="font-mono font-bold text-amber-600 text-lg">-</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-400">Costo total estimado</div>
+                        <div id="bom-total-cost" class="font-mono font-bold text-rose-600 text-lg">-</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-400">Ingredientes</div>
+                        <div id="bom-ing-count" class="font-mono font-bold text-indigo-600 text-lg">-</div>
+                    </div>
+                </div>
+                <div id="bom-stock-list" class="mt-3 text-xs text-slate-500"></div>
             </div>
 
             <!-- Actions -->
@@ -178,6 +202,63 @@
             endDateInput.value = weekFromNow.toISOString().split('T')[0];
         }
         
+        // ✨ LIVE BOM cost + stock validation preview
+        const qtyInput = document.getElementById('id_quantity_to_produce');
+        const previewBox = document.getElementById('bom-preview');
+        const costEl = document.getElementById('bom-cost');
+        const totalCostEl = document.getElementById('bom-total-cost');
+        const ingCountEl = document.getElementById('bom-ing-count');
+        const stockList = document.getElementById('bom-stock-list');
+        const badge = document.getElementById('bom-validation-badge');
+
+        let lastBomData = null;
+
+        function refreshPreview() {
+            const bomId = bomSelect ? bomSelect.value : null;
+            if (!bomId) {
+                previewBox.classList.add('hidden');
+                return;
+            }
+            previewBox.classList.remove('hidden');
+            // Fetch BOM details
+            fetch(`/production/api/bom/${bomId}/`).then(r => r.json()).then(data => {
+                lastBomData = data;
+                const qty = parseFloat(qtyInput.value) || 1;
+                const totalCost = (data.total_cost || 0) * qty;
+                costEl.textContent = '$' + (data.total_cost || 0).toLocaleString('es-AR', {maximumFractionDigits: 2});
+                totalCostEl.textContent = '$' + totalCost.toLocaleString('es-AR', {maximumFractionDigits: 2});
+                ingCountEl.textContent = data.ingredient_count || 0;
+            }).catch(() => {});
+
+            // Stock validation
+            const qty = parseFloat(qtyInput.value) || 1;
+            fetch(`/production/api/bom/${bomId}/validate-stock/?quantity=${qty}`).then(r => r.json()).then(data => {
+                if (data.all_sufficient) {
+                    badge.className = 'text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700';
+                    badge.textContent = 'Stock OK';
+                } else {
+                    badge.className = 'text-xs font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700';
+                    badge.textContent = 'Stock insuficiente';
+                }
+                if (data.results && data.results.length) {
+                    let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-1 mt-2">';
+                    data.results.forEach(r => {
+                        const ok = r.sufficient;
+                        html += `<div class="flex items-center justify-between"><span class="${ok ? 'text-slate-600' : 'text-rose-600'}"><i class="fas fa-${ok ? 'check' : 'times'} mr-1"></i>${r.ingredient}</span><span class="font-mono">${r.needed.toFixed(2)} / ${r.available.toFixed(2)} ${r.unit}</span></div>`;
+                    });
+                    html += '</div>';
+                    stockList.innerHTML = html;
+                } else {
+                    stockList.innerHTML = '';
+                }
+            }).catch(() => {});
+        }
+
+        if (bomSelect) bomSelect.addEventListener('change', refreshPreview);
+        if (qtyInput) qtyInput.addEventListener('input', refreshPreview);
+        // Initial render if bom is preselected
+        refreshPreview();
+
         // Date Constraints Logic
 
         if (startDateInput && endDateInput) {

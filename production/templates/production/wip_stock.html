@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Producto en Proceso - Propel ERP{% endblock %}
+{% block header_title %}Stock en Proceso{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800">Producto en Proceso (WIP)</h2>
+            <p class="text-sm text-slate-500 mt-1">Inventario intermedio: mezclado sin envasar y envasado sin etiquetar.</p>
+            <a href="{% url 'production_hub' %}" class="inline-flex items-center text-sm text-slate-500 hover:text-primary-600 mt-2"><i class="fas fa-arrow-left mr-1"></i> Volver a Producción</a>
+        </div>
+        <button onclick="document.getElementById('add-modal').classList.remove('hidden')"
+            class="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-lg shadow-primary-500/30 flex items-center gap-2">
+            <i class="fas fa-plus"></i> Agregar Registro
+        </button>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="card-soft p-4">
+            <div class="text-xs uppercase font-bold text-slate-400">Total WIP</div>
+            <div class="text-2xl font-bold text-slate-800 mt-1 font-mono">{{ stats.total_wip|intcomma }}</div>
+        </div>
+        <div class="card-soft p-4">
+            <div class="text-xs uppercase font-bold text-slate-400">Mezclado</div>
+            <div class="text-2xl font-bold text-amber-600 mt-1 font-mono">{{ stats.mixed_count|intcomma }}</div>
+            <div class="text-xs text-slate-500 mt-1 font-mono">{{ stats.mixed_qty|floatformat:2|intcomma }}</div>
+        </div>
+        <div class="card-soft p-4">
+            <div class="text-xs uppercase font-bold text-slate-400">Envasado</div>
+            <div class="text-2xl font-bold text-indigo-600 mt-1 font-mono">{{ stats.packaged_count|intcomma }}</div>
+            <div class="text-xs text-slate-500 mt-1 font-mono">{{ stats.packaged_qty|floatformat:2|intcomma }}</div>
+        </div>
+        <div class="card-soft p-4">
+            <div class="text-xs uppercase font-bold text-slate-400">Productos distintos</div>
+            <div class="text-2xl font-bold text-slate-700 mt-1 font-mono">{{ stats.distinct_products|intcomma }}</div>
+        </div>
+        <div class="card-soft p-4">
+            <div class="text-xs uppercase font-bold text-slate-400">Estancado &gt;14d</div>
+            <div class="text-2xl font-bold {% if stats.stale_count %}text-rose-600{% else %}text-emerald-600{% endif %} mt-1 font-mono">{{ stats.stale_count|intcomma }}</div>
+        </div>
+    </div>
+
+    <!-- MIXED SECTION -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-amber-50/50">
+            <h3 class="text-lg font-bold text-amber-800 flex items-center gap-2">
+                <i class="fas fa-blender text-amber-500"></i> Mezclado
+                <span class="text-xs text-amber-600 font-normal">(polvo suelto, sin envasar)</span>
+            </h3>
+            <span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">{{ mixed_items|length }} items</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead>
+                    <tr class="text-xs font-semibold uppercase text-slate-500 bg-slate-50 border-b border-slate-100">
+                        <th class="px-6 py-3">Producto</th>
+                        <th class="px-6 py-3 text-center">Cantidad</th>
+                        <th class="px-6 py-3 text-center">Unidad</th>
+                        <th class="px-6 py-3">Notas</th>
+                        <th class="px-6 py-3 text-center">Edad</th>
+                        <th class="px-6 py-3 text-center">Actualizado</th>
+                        <th class="px-6 py-3 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for item in mixed_items %}
+                    <tr class="hover:bg-slate-50 transition-colors {% if item.is_stale %}bg-rose-50/30{% endif %}">
+                        <td class="px-6 py-4 font-semibold text-slate-800">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-500">
+                                    <i class="fas fa-blender text-xs"></i>
+                                </div>
+                                <a href="{% url 'product_edit' item.product.pk %}" class="hover:text-primary-600">{{ item.product.name }}</a>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-center font-bold text-slate-800 font-mono">{{ item.quantity|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 text-center text-slate-600">{{ item.get_unit_display }}</td>
+                        <td class="px-6 py-4 text-slate-600">{{ item.notes|default:"-" }}</td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-bold {% if item.is_stale %}bg-rose-100 text-rose-700{% elif item.age_days > 7 %}bg-amber-100 text-amber-700{% else %}bg-emerald-50 text-emerald-700{% endif %}" title="Días desde creación">{{ item.age_days }}d</span>
+                        </td>
+                        <td class="px-6 py-4 text-center text-xs text-slate-500 font-mono">{{ item.updated_at|date:"d/m/Y H:i" }}</td>
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex justify-end gap-2">
+                                <button onclick="openEditModal({{ item.pk }}, '{{ item.product.pk }}', '{{ item.stage }}', '{{ item.quantity|stringformat:'f' }}', '{{ item.unit }}', '{{ item.notes|escapejs }}')"
+                                    class="text-blue-600 hover:text-blue-800 transition-colors p-1" title="Editar">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <form method="post" action="{% url 'wip_stock_delete' item.pk %}" class="inline"
+                                    onsubmit="return confirm('¿Eliminar este registro?');">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                        class="text-red-500 hover:text-red-700 transition-colors p-1" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-8 text-center text-slate-400">
+                            <i class="fas fa-blender text-3xl mb-2 opacity-50 block"></i>
+                            No hay producto mezclado en proceso.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PACKAGED SECTION -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-indigo-50/50">
+            <h3 class="text-lg font-bold text-indigo-800 flex items-center gap-2">
+                <i class="fas fa-box text-indigo-500"></i> Envasado
+                <span class="text-xs text-indigo-600 font-normal">(sin etiquetar / sin cuchara)</span>
+            </h3>
+            <span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">{{ packaged_items|length }} items</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead>
+                    <tr class="text-xs font-semibold uppercase text-slate-500 bg-slate-50 border-b border-slate-100">
+                        <th class="px-6 py-3">Producto</th>
+                        <th class="px-6 py-3 text-center">Cantidad</th>
+                        <th class="px-6 py-3 text-center">Unidad</th>
+                        <th class="px-6 py-3">Notas</th>
+                        <th class="px-6 py-3 text-center">Edad</th>
+                        <th class="px-6 py-3 text-center">Actualizado</th>
+                        <th class="px-6 py-3 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for item in packaged_items %}
+                    <tr class="hover:bg-slate-50 transition-colors {% if item.is_stale %}bg-rose-50/30{% endif %}">
+                        <td class="px-6 py-4 font-semibold text-slate-800">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500">
+                                    <i class="fas fa-box text-xs"></i>
+                                </div>
+                                <a href="{% url 'product_edit' item.product.pk %}" class="hover:text-primary-600">{{ item.product.name }}</a>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-center font-bold text-slate-800 font-mono">{{ item.quantity|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 text-center text-slate-600">{{ item.get_unit_display }}</td>
+                        <td class="px-6 py-4 text-slate-600">{{ item.notes|default:"-" }}</td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-bold {% if item.is_stale %}bg-rose-100 text-rose-700{% elif item.age_days > 7 %}bg-amber-100 text-amber-700{% else %}bg-emerald-50 text-emerald-700{% endif %}" title="Días desde creación">{{ item.age_days }}d</span>
+                        </td>
+                        <td class="px-6 py-4 text-center text-xs text-slate-500 font-mono">{{ item.updated_at|date:"d/m/Y H:i" }}</td>
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex justify-end gap-2">
+                                <button onclick="openEditModal({{ item.pk }}, '{{ item.product.pk }}', '{{ item.stage }}', '{{ item.quantity|stringformat:'f' }}', '{{ item.unit }}', '{{ item.notes|escapejs }}')"
+                                    class="text-blue-600 hover:text-blue-800 transition-colors p-1" title="Editar">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <form method="post" action="{% url 'wip_stock_delete' item.pk %}" class="inline"
+                                    onsubmit="return confirm('¿Eliminar este registro?');">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                        class="text-red-500 hover:text-red-700 transition-colors p-1" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-8 text-center text-slate-400">
+                            <i class="fas fa-box text-3xl mb-2 opacity-50 block"></i>
+                            No hay producto envasado en proceso.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div id="add-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 relative">
+        <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+            <i class="fas fa-times text-xl"></i>
+        </button>
+        <h3 id="modal-title" class="text-xl font-bold text-slate-800 mb-6">Agregar Producto en Proceso</h3>
+        <form method="post" action="{% url 'wip_stock_save' %}" class="space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="pk" id="edit-pk" value="">
+
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Producto</label>
+                {{ form.product }}
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Etapa</label>
+                    {{ form.stage }}
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Unidad</label>
+                    {{ form.unit }}
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Cantidad</label>
+                {{ form.quantity }}
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Notas</label>
+                {{ form.notes }}
+            </div>
+            <div class="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6">
+                <button type="button" onclick="closeModal()"
+                    class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors border border-slate-200">
+                    Cancelar
+                </button>
+                <button type="submit"
+                    class="px-6 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm">
+                    Guardar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditModal(pk, productId, stage, quantity, unit, notes) {
+        document.getElementById('edit-pk').value = pk;
+        document.getElementById('modal-title').textContent = 'Editar Producto en Proceso';
+        document.getElementById('id_product').value = productId;
+        document.getElementById('id_stage').value = stage;
+        
+        // Parse the float, replace comma with dot if necessary
+        quantity = quantity.replace(',', '.');
+        document.getElementById('id_quantity').value = quantity;
+        
+        document.getElementById('id_unit').value = unit;
+        document.getElementById('id_notes').value = notes;
+        document.getElementById('add-modal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+        document.getElementById('add-modal').classList.add('hidden');
+        document.getElementById('edit-pk').value = '';
+        document.getElementById('modal-title').textContent = 'Agregar Producto en Proceso';
+        document.getElementById('id_product').selectedIndex = 0;
+        document.getElementById('id_stage').selectedIndex = 0;
+        document.getElementById('id_quantity').value = '';
+        document.getElementById('id_unit').selectedIndex = 0;
+        document.getElementById('id_notes').value = '';
+    }
+
+    // Close modal on ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeModal();
+    });
+
+    // Close modal on backdrop click
+    document.getElementById('add-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+    });
+</script>
+
+<style>
+    /* Styling select and inputs to match generic Tailwind */
+    #add-modal input[type="number"], #add-modal select, #add-modal textarea {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+    }
+    #add-modal input[type="number"]:focus, #add-modal select:focus, #add-modal textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 1px #3b82f6;
+    }
+</style>
+{% endblock %}

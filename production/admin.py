@@ -2,6 +2,7 @@ from django.contrib import admin
 from .models import (
     WorkCenter, BillOfMaterial, BomLine, ProductionOrder,
     ProductSpecification, QualityResult, CompanyConfig,
+    WorkInProcessStock,
 )
 
 class BomLineInline(admin.TabularInline):
@@ -56,3 +57,10 @@ class CompanyConfigAdmin(admin.ModelAdmin):
         if self.model.objects.count() >= 1:
             return False
         return super().has_add_permission(request)
+
+
+@admin.register(WorkInProcessStock)
+class WorkInProcessStockAdmin(admin.ModelAdmin):
+    list_display = ('product', 'stage', 'quantity', 'unit', 'notes', 'updated_at')
+    list_filter = ('stage', 'unit')
+    search_fields = ('product__name', 'notes')

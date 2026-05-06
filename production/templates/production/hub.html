@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Producción - {{ config.company_name|default:"ERP" }}{% endblock %}
+{% block header_title %}Producción{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Gradient Header -->
+    <div class="card-soft p-6 md:p-8 bg-gradient-to-br from-primary-600 via-primary-500 to-indigo-500 text-white relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <p class="text-xs uppercase tracking-widest font-bold text-white/70">{{ config.company_name|default:"Producción" }}</p>
+                <h1 class="text-2xl md:text-3xl font-bold tracking-tight mt-1">Centro de Producción</h1>
+                <p class="text-white/80 text-sm mt-1">Control total: BPM / ISO 9001 - {{ today|date:"d/m/Y" }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="{% url 'production_order_create' %}" class="bg-white/15 hover:bg-white/25 text-white border border-white/20 px-4 py-2 rounded-xl text-sm font-semibold backdrop-blur-sm transition-colors flex items-center gap-2">
+                    <i class="fas fa-plus"></i> Nueva orden
+                </a>
+                <a href="{% url 'bom_create' %}" class="bg-white/15 hover:bg-white/25 text-white border border-white/20 px-4 py-2 rounded-xl text-sm font-semibold backdrop-blur-sm transition-colors flex items-center gap-2">
+                    <i class="fas fa-flask"></i> Nueva fórmula
+                </a>
+                <a href="{% url 'reports_hub' %}" class="bg-white/15 hover:bg-white/25 text-white border border-white/20 px-4 py-2 rounded-xl text-sm font-semibold backdrop-blur-sm transition-colors flex items-center gap-2">
+                    <i class="fas fa-file-pdf"></i> Reportes
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-2 lg:grid-cols-6 gap-4">
+        <a href="{% url 'production_order_list' %}" class="card-soft p-4 hover:shadow-md transition-all">
+            <div class="text-xs uppercase font-bold text-slate-400">Órdenes</div>
+            <div class="text-2xl font-bold text-slate-800 mt-1 font-mono">{{ kpis.orders_total|intcomma }}</div>
+            <div class="text-xs text-slate-500 mt-1">{{ kpis.orders_in_progress }} en curso</div>
+        </a>
+        <a href="{% url 'production_order_list' %}?status=DRAFT" class="card-soft p-4 hover:shadow-md transition-all">
+            <div class="text-xs uppercase font-bold text-slate-400">Borradores</div>
+            <div class="text-2xl font-bold text-slate-700 mt-1 font-mono">{{ kpis.orders_draft|intcomma }}</div>
+        </a>
+        <a href="{% url 'production_order_list' %}?status=IN_PROGRESS" class="card-soft p-4 hover:shadow-md transition-all">
+            <div class="text-xs uppercase font-bold text-slate-400">En proceso</div>
+            <div class="text-2xl font-bold text-primary-600 mt-1 font-mono">{{ kpis.orders_in_progress|intcomma }}</div>
+        </a>
+        <a href="{% url 'production_order_list' %}?status=DONE" class="card-soft p-4 hover:shadow-md transition-all">
+            <div class="text-xs uppercase font-bold text-slate-400">Finalizadas</div>
+            <div class="text-2xl font-bold text-emerald-600 mt-1 font-mono">{{ kpis.orders_done|intcomma }}</div>
+        </a>
+        <a href="{% url 'bom_list' %}" class="card-soft p-4 hover:shadow-md transition-all">
+            <div class="text-xs uppercase font-bold text-slate-400">Fórmulas activas</div>
+            <div class="text-2xl font-bold text-indigo-600 mt-1 font-mono">{{ kpis.boms_active|intcomma }}</div>
+        </a>
+        <a href="{% url 'wip_stock_list' %}" class="card-soft p-4 hover:shadow-md transition-all">
+            <div class="text-xs uppercase font-bold text-slate-400">WIP</div>
+            <div class="text-2xl font-bold text-amber-600 mt-1 font-mono">{{ kpis.wip_items|intcomma }}</div>
+            <div class="text-xs text-slate-500 mt-1">{{ kpis.wip_mixed }} mez. / {{ kpis.wip_packaged }} env.</div>
+        </a>
+    </div>
+
+    <!-- 2-Col Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- MRP Suggestions (left, 2 cols) -->
+        <div class="lg:col-span-2 card-soft overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-rose-50/40">
+                <div>
+                    <h2 class="font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fas fa-bolt text-rose-500"></i> Sugerencias MRP
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Productos por debajo del stock mínimo con fórmula activa.</p>
+                </div>
+                <span class="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold">{{ kpis.mrp_count }}</span>
+            </div>
+            <div class="divide-y divide-slate-100">
+                {% for s in mrp_suggestions %}
+                <div class="p-5 flex items-center justify-between hover:bg-slate-50/60 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center">
+                            <i class="fas fa-exclamation"></i>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-slate-800">{{ s.product.name }}</div>
+                            <div class="text-xs text-slate-500 mt-0.5">
+                                Stock: <span class="font-mono">{{ s.product.stock_quantity|intcomma }}</span>
+                                / Mínimo: <span class="font-mono">{{ s.product.min_stock|intcomma }}</span>
+                                · Fórmula: <span class="text-indigo-600">{{ s.bom.name }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-xs font-bold">Faltan {{ s.gap }}</span>
+                        <a href="{% url 'production_order_create' %}?product={{ s.product.pk }}&bom={{ s.bom.pk }}"
+                           class="bg-primary-600 hover:bg-primary-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
+                            Crear orden
+                        </a>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="p-8 text-center text-slate-400">
+                    <i class="fas fa-check-circle text-3xl text-emerald-300 mb-2"></i>
+                    <p class="text-sm">Sin sugerencias. Todos los productos tienen stock suficiente.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- BPM Compliance (right) -->
+        <div class="card-soft overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-amber-50/40">
+                <h2 class="font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-shield-alt text-amber-500"></i> Cumplimiento BPM/ISO
+                </h2>
+                <a href="{% url 'production_compliance' %}" class="text-xs text-primary-600 hover:text-primary-700 font-semibold">Ver todo</a>
+            </div>
+            <div class="p-5 space-y-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-xs uppercase font-bold text-slate-400">Lotes sin calidad</div>
+                        <div class="text-xs text-slate-500 mt-0.5">Sin resultados de QA</div>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-bold {% if compliance.batches_no_quality %}bg-amber-100 text-amber-700{% else %}bg-emerald-100 text-emerald-700{% endif %}">{{ compliance.batches_no_quality }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-xs uppercase font-bold text-slate-400">Órdenes DONE sin lote</div>
+                        <div class="text-xs text-slate-500 mt-0.5">Trazabilidad rota</div>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-bold {% if compliance.orders_done_no_batch %}bg-rose-100 text-rose-700{% else %}bg-emerald-100 text-emerald-700{% endif %}">{{ compliance.orders_done_no_batch }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-xs uppercase font-bold text-slate-400">Vencen 30 días</div>
+                        <div class="text-xs text-slate-500 mt-0.5">Lotes próximos</div>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-bold {% if compliance.expiring_count %}bg-amber-100 text-amber-700{% else %}bg-emerald-100 text-emerald-700{% endif %}">{{ compliance.expiring_count }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-xs uppercase font-bold text-slate-400">Vencidos</div>
+                        <div class="text-xs text-slate-500 mt-0.5">Bloqueo BPM</div>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-bold {% if compliance.expired_count %}bg-rose-100 text-rose-700{% else %}bg-emerald-100 text-emerald-700{% endif %}">{{ compliance.expired_count }}</span>
+                </div>
+            </div>
+            {% if compliance.batches_no_quality_list or compliance.expiring_list %}
+            <div class="border-t border-slate-100 p-5 bg-slate-50/30 space-y-2">
+                {% for b in compliance.batches_no_quality_list %}
+                <div class="text-xs flex items-center justify-between">
+                    <span class="text-slate-600 truncate"><i class="fas fa-vial text-amber-400 mr-1"></i>{{ b.internal_lot_code }}</span>
+                    <a href="{% url 'traceability:production_detail' b.pk %}" class="text-primary-600 hover:underline">Resolver</a>
+                </div>
+                {% endfor %}
+                {% for b in compliance.expiring_list|slice:":3" %}
+                <div class="text-xs flex items-center justify-between">
+                    <span class="text-slate-600 truncate"><i class="far fa-calendar-times text-amber-400 mr-1"></i>{{ b.number }} - {{ b.expiration_date|date:"d/m/Y" }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <!-- Recent Activity (2-col) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Recent Orders -->
+        <div class="card-soft overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-industry text-primary-500"></i> Órdenes recientes</h3>
+                <a href="{% url 'production_order_list' %}" class="text-xs text-primary-600 hover:text-primary-700 font-semibold">Ver todas</a>
+            </div>
+            <ul class="divide-y divide-slate-100">
+                {% for o in recent_orders %}
+                <li class="px-6 py-3 flex items-center justify-between hover:bg-slate-50/40">
+                    <div class="min-w-0">
+                        <a href="{% url 'production_order_update' o.pk %}" class="font-semibold text-slate-700 hover:text-primary-600 font-mono text-sm">{{ o.code }}</a>
+                        <div class="text-xs text-slate-500 truncate">{{ o.product.name }} · {{ o.quantity_to_produce|intcomma }} u</div>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-full text-xs font-medium
+                        {% if o.status == 'DONE' %}bg-emerald-100 text-emerald-700
+                        {% elif o.status == 'IN_PROGRESS' %}bg-primary-100 text-primary-700
+                        {% elif o.status == 'DRAFT' %}bg-slate-100 text-slate-700
+                        {% else %}bg-rose-100 text-rose-700{% endif %}">
+                        {{ o.get_status_display }}
+                    </span>
+                </li>
+                {% empty %}
+                <li class="p-6 text-sm text-slate-400 text-center">Sin órdenes registradas.</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Recent Batches -->
+        <div class="card-soft overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-barcode text-emerald-500"></i> Lotes recientes</h3>
+                <a href="{% url 'traceability:production_history' %}" class="text-xs text-primary-600 hover:text-primary-700 font-semibold">Historial</a>
+            </div>
+            <ul class="divide-y divide-slate-100">
+                {% for b in recent_batches %}
+                <li class="px-6 py-3 flex items-center justify-between hover:bg-slate-50/40">
+                    <div class="min-w-0">
+                        <a href="{% url 'traceability:production_detail' b.pk %}" class="font-semibold text-slate-700 hover:text-primary-600 font-mono text-sm">{{ b.internal_lot_code }}</a>
+                        <div class="text-xs text-slate-500 truncate">{{ b.product.name }} · {{ b.quantity_produced|intcomma }} kg</div>
+                    </div>
+                    <span class="text-xs text-slate-500 font-mono">{{ b.production_date|date:"d/m/Y" }}</span>
+                </li>
+                {% empty %}
+                <li class="p-6 text-sm text-slate-400 text-center">Sin lotes registrados.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Quick links footer -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <a href="{% url 'production_order_list' %}" class="card-soft p-4 flex items-center gap-3 hover:shadow-md transition-all">
+            <div class="w-10 h-10 rounded-xl bg-primary-50 text-primary-500 flex items-center justify-center"><i class="fas fa-industry"></i></div>
+            <div>
+                <div class="font-bold text-slate-800 text-sm">Órdenes</div>
+                <div class="text-xs text-slate-500">Listado y filtros</div>
+            </div>
+        </a>
+        <a href="{% url 'bom_list' %}" class="card-soft p-4 flex items-center gap-3 hover:shadow-md transition-all">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center"><i class="fas fa-flask"></i></div>
+            <div>
+                <div class="font-bold text-slate-800 text-sm">Fórmulas</div>
+                <div class="text-xs text-slate-500">Recetas maestras</div>
+            </div>
+        </a>
+        <a href="{% url 'wip_stock_list' %}" class="card-soft p-4 flex items-center gap-3 hover:shadow-md transition-all">
+            <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center"><i class="fas fa-cogs"></i></div>
+            <div>
+                <div class="font-bold text-slate-800 text-sm">Stock en Proceso</div>
+                <div class="text-xs text-slate-500">Mezclado y envasado</div>
+            </div>
+        </a>
+        <a href="{% url 'traceability:stock_list' %}" class="card-soft p-4 flex items-center gap-3 hover:shadow-md transition-all">
+            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center"><i class="fas fa-barcode"></i></div>
+            <div>
+                <div class="font-bold text-slate-800 text-sm">Trazabilidad</div>
+                <div class="text-xs text-slate-500">Lotes y stock</div>
+            </div>
+        </a>
+    </div>
+
+</div>
+{% endblock %}

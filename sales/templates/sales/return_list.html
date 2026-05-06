@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Devoluciones — Propel{% endblock %}
+{% block header_title %}Devoluciones (RMA){% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+        <div>
+            <a href="{% url 'sales_dashboard' %}"
+               class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary-600 transition-colors mb-2">
+                <i class="fas fa-arrow-left text-[0.7rem]"></i><span>Volver a Ventas</span>
+            </a>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight leading-tight">Devoluciones</h1>
+            <p class="text-sm text-slate-500 mt-1.5">Reintegros y restock asociados a ventas. Modulo en construcción.</p>
+        </div>
+    </div>
+
+    {% if returns %}
+    <div class="card-soft overflow-hidden">
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-200">
+                <tr class="text-left text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em]">
+                    <th class="px-4 py-3">Fecha</th>
+                    <th class="px-4 py-3">Venta</th>
+                    <th class="px-4 py-3">Estado</th>
+                    <th class="px-4 py-3 text-right">Reintegro</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for r in returns %}
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-4 py-3 text-slate-600">{{ r.date|date:"d/m/Y" }}</td>
+                    <td class="px-4 py-3 font-mono text-slate-700">#{{ r.sale.order_id|default:r.sale.pk }}</td>
+                    <td class="px-4 py-3">
+                        {% if r.status == 'POSTED' %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[0.7rem] font-semibold">Procesada</span>
+                        {% elif r.status == 'APPROVED' %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[0.7rem] font-semibold">Aprobada</span>
+                        {% else %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[0.7rem] font-semibold">Borrador</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono text-slate-700">${{ r.refund_amount|floatformat:2|intcomma }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="card-soft p-12 text-center">
+        <div class="w-14 h-14 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-undo-alt text-xl"></i>
+        </div>
+        <h3 class="text-lg font-semibold text-slate-700 mb-1">Aún no hay devoluciones</h3>
+        <p class="text-sm text-slate-500 max-w-md mx-auto">
+            El módulo de devoluciones está disponible mediante el servicio
+            <code class="px-1 py-0.5 bg-slate-100 rounded text-[0.75rem] font-mono">ReturnService.process(...)</code>.
+            La interfaz visual completa estará próximamente.
+        </p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

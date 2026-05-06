@@ -1,63 +1,78 @@
 {% extends 'base.html' %}
+{% load humanize %}
+
+{% block header_title %}Órdenes de Producción{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
             <h2 class="text-2xl font-bold text-slate-800">Órdenes de Producción</h2>
-            <p class="text-slate-500 text-sm">Gestiona la fabricación de productos.</p>
+            <p class="text-slate-500 text-sm">Gestiona la fabricación de productos. BPM/ISO compatible.</p>
+            <a href="{% url 'production_hub' %}" class="inline-flex items-center text-sm text-slate-500 hover:text-primary-600 mt-2 transition-colors">
+                <i class="fas fa-arrow-left mr-1"></i> Volver a Producción
+            </a>
         </div>
         <div class="flex items-center gap-3">
-            <button type="submit" form="bulkDeleteForm" id="deleteBtn" class="hidden bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-xl text-sm font-medium transition-colors border border-red-200" onclick="return confirm('¿Estás seguro de eliminar las órdenes seleccionadas?');">
+            <button type="submit" form="bulkDeleteForm" id="deleteBtn"
+                    class="hidden bg-rose-50 hover:bg-rose-100 text-rose-600 px-4 py-2 rounded-xl text-sm font-medium transition-colors border border-rose-200"
+                    onclick="return confirm('¿Eliminar las órdenes seleccionadas?');">
                 <i class="fas fa-trash-alt mr-2"></i>Eliminar Selección
             </button>
-            <a href="{% url 'production_order_create' %}" class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-lg shadow-primary/30 flex items-center gap-2">
+            <a href="{% url 'production_order_create' %}" class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-lg shadow-primary-500/30 flex items-center gap-2">
                 <i class="fas fa-plus"></i> Nueva Orden
             </a>
         </div>
     </div>
 
-    <!-- Metrics Grid -->
-    <div class="grid grid-cols-2 lg:grid-cols-6 gap-4">
-        <!-- ALL -->
-        <a href="?status=ALL" class="block p-4 rounded-2xl shadow-sm border transition-all duration-200 
-            {% if current_status == 'ALL' or not current_status %}bg-slate-800 text-white border-slate-900 shadow-md transform scale-105{% else %}bg-white text-slate-500 border-slate-100 hover:border-slate-300 hover:shadow{% endif %}">
-            <div class="text-xs uppercase font-bold opacity-70">Total</div>
-            <div class="text-2xl font-bold mt-1 text-inherit">{{ stats.total }}</div>
+    <!-- KPIs -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <a href="?status=ALL" class="card-soft p-4 transition-all {% if current_status == 'ALL' or not current_status %}ring-2 ring-slate-700{% endif %}">
+            <div class="text-xs uppercase font-bold text-slate-400">Total</div>
+            <div class="text-2xl font-bold text-slate-800 mt-1 font-mono">{{ stats.total|intcomma }}</div>
         </a>
-
-        <!-- DRAFT -->
-        <a href="?status=DRAFT" class="block p-4 rounded-2xl shadow-sm border transition-all duration-200 
-            {% if current_status == 'DRAFT' %}bg-slate-100 text-slate-800 border-slate-300 shadow-md transform scale-105{% else %}bg-white text-slate-500 border-slate-100 hover:border-slate-300 hover:shadow{% endif %}">
-            <div class="text-xs uppercase font-bold opacity-70">Borrador</div>
-            <div class="text-2xl font-bold mt-1 text-inherit">{{ stats.draft }}</div>
+        <a href="?status=DRAFT" class="card-soft p-4 transition-all {% if current_status == 'DRAFT' %}ring-2 ring-slate-400{% endif %}">
+            <div class="text-xs uppercase font-bold text-slate-400">Borrador</div>
+            <div class="text-2xl font-bold text-slate-700 mt-1 font-mono">{{ stats.draft|intcomma }}</div>
         </a>
-
-        <!-- IN PROGRESS -->
-        <a href="?status=IN_PROGRESS" class="block p-4 rounded-2xl shadow-sm border transition-all duration-200 
-            {% if current_status == 'IN_PROGRESS' %}bg-blue-100 text-blue-800 border-blue-300 shadow-md transform scale-105{% else %}bg-white text-slate-500 border-slate-100 hover:border-slate-300 hover:shadow{% endif %}">
-            <div class="text-xs uppercase font-bold opacity-70">En Proceso</div>
-            <div class="text-2xl font-bold mt-1 text-inherit">{{ stats.in_progress }}</div>
+        <a href="?status=IN_PROGRESS" class="card-soft p-4 transition-all {% if current_status == 'IN_PROGRESS' %}ring-2 ring-primary-500{% endif %}">
+            <div class="text-xs uppercase font-bold text-slate-400">En proceso</div>
+            <div class="text-2xl font-bold text-primary-600 mt-1 font-mono">{{ stats.in_progress|intcomma }}</div>
         </a>
-
-        <!-- DONE -->
-        <a href="?status=DONE" class="block p-4 rounded-2xl shadow-sm border transition-all duration-200 
-            {% if current_status == 'DONE' %}bg-green-100 text-green-800 border-green-300 shadow-md transform scale-105{% else %}bg-white text-slate-500 border-slate-100 hover:border-slate-300 hover:shadow{% endif %}">
-            <div class="text-xs uppercase font-bold opacity-70">Finalizado</div>
-            <div class="text-2xl font-bold mt-1 text-inherit">{{ stats.done }}</div>
+        <a href="?status=DONE" class="card-soft p-4 transition-all {% if current_status == 'DONE' %}ring-2 ring-emerald-500{% endif %}">
+            <div class="text-xs uppercase font-bold text-slate-400">Finalizado</div>
+            <div class="text-2xl font-bold text-emerald-600 mt-1 font-mono">{{ stats.done|intcomma }}</div>
         </a>
-
-        <!-- CANCELLED -->
-        <a href="?status=CANCELLED" class="block p-4 rounded-2xl shadow-sm border transition-all duration-200 
-            {% if current_status == 'CANCELLED' %}bg-red-100 text-red-800 border-red-300 shadow-md transform scale-105{% else %}bg-white text-slate-500 border-slate-100 hover:border-slate-300 hover:shadow{% endif %}">
-            <div class="text-xs uppercase font-bold opacity-70">Cancelado</div>
-            <div class="text-2xl font-bold mt-1 text-inherit">{{ stats.cancelled }}</div>
+        <a href="?status=CANCELLED" class="card-soft p-4 transition-all {% if current_status == 'CANCELLED' %}ring-2 ring-rose-500{% endif %}">
+            <div class="text-xs uppercase font-bold text-slate-400">Cancelado</div>
+            <div class="text-2xl font-bold text-rose-600 mt-1 font-mono">{{ stats.cancelled|intcomma }}</div>
         </a>
     </div>
 
+    <!-- Filters -->
+    <form method="get" class="card-soft p-4 grid grid-cols-1 md:grid-cols-5 gap-3">
+        <input type="hidden" name="status" value="{{ current_status|default:'ALL' }}">
+        <div class="md:col-span-2">
+            <label class="block text-xs uppercase font-bold text-slate-400 mb-1">Buscar</label>
+            <input type="text" name="q" value="{{ current_search }}" placeholder="Código, producto, origen..." class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
+        </div>
+        <div>
+            <label class="block text-xs uppercase font-bold text-slate-400 mb-1">Desde</label>
+            <input type="date" name="from" value="{{ current_from }}" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
+        </div>
+        <div>
+            <label class="block text-xs uppercase font-bold text-slate-400 mb-1">Hasta</label>
+            <input type="date" name="to" value="{{ current_to }}" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
+        </div>
+        <div class="flex items-end gap-2">
+            <button class="flex-1 bg-slate-800 hover:bg-slate-900 text-white rounded-xl px-4 py-2 text-sm font-semibold transition-colors">Filtrar</button>
+            <a href="{% url 'production_order_list' %}" class="px-3 py-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 text-sm">Limpiar</a>
+        </div>
+    </form>
+
     <!-- Table -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <div class="card-soft overflow-hidden">
         <form method="post" action="{% url 'bulk_delete_orders' %}" id="bulkDeleteForm">
             {% csrf_token %}
             <div class="overflow-x-auto">
@@ -65,42 +80,79 @@
                     <thead class="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-100">
                         <tr>
                             <th class="px-6 py-4 w-4">
-                                <input type="checkbox" id="selectAll" class="rounded border-slate-300 text-primary focus:ring-primary toggle-checkbox">
+                                <input type="checkbox" id="selectAll" class="rounded border-slate-300 text-primary-600 focus:ring-primary-500">
                             </th>
                             <th class="px-6 py-4">Código</th>
                             <th class="px-6 py-4">Producto</th>
-                            <th class="px-6 py-4">Cantidad</th>
+                            <th class="px-6 py-4">Fórmula</th>
+                            <th class="px-6 py-4 text-right">Cantidad</th>
                             <th class="px-6 py-4">Estado</th>
+                            <th class="px-6 py-4">BPM</th>
+                            <th class="px-6 py-4">Días</th>
                             <th class="px-6 py-4">Fecha</th>
+                            <th class="px-6 py-4 text-right">Acciones</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         {% for order in orders %}
-                        <tr class="hover:bg-slate-50/50 transition-colors group">
+                        <tr class="hover:bg-slate-50/50 transition-colors">
                             <td class="px-6 py-4">
-                                <input type="checkbox" name="order_ids" value="{{ order.pk }}" class="rounded border-slate-300 text-primary focus:ring-primary order-checkbox">
+                                <input type="checkbox" name="order_ids" value="{{ order.pk }}" class="rounded border-slate-300 text-primary-600 focus:ring-primary-500 order-checkbox">
                             </td>
-                            <td class="px-6 py-4 font-medium text-slate-700">
-                                <a href="{% url 'production_order_update' order.pk %}" class="hover:text-primary transition-colors">
-                                    {{ order.code }}
-                                </a>
+                            <td class="px-6 py-4 font-mono font-medium text-slate-700">
+                                <a href="{% url 'production_order_update' order.pk %}" class="hover:text-primary-600">{{ order.code }}</a>
                             </td>
                             <td class="px-6 py-4 text-slate-600">{{ order.product.name }}</td>
-                            <td class="px-6 py-4 text-slate-600 font-medium">{{ order.quantity_to_produce }}</td>
+                            <td class="px-6 py-4 text-slate-500 text-xs">
+                                {% if order.bom %}<a href="{% url 'bom_update' order.bom.pk %}" class="text-indigo-600 hover:underline">{{ order.bom.name|truncatechars:25 }}</a>{% else %}<span class="text-slate-300">-</span>{% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-slate-700 font-mono text-right">{{ order.quantity_to_produce|intcomma }}</td>
                             <td class="px-6 py-4">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                                    {% if order.status == 'DONE' %}bg-green-100 text-green-800
-                                    {% elif order.status == 'IN_PROGRESS' %}bg-blue-100 text-blue-800
-                                    {% elif order.status == 'DRAFT' %}bg-slate-100 text-slate-800
-                                    {% else %}bg-orange-100 text-orange-800{% endif %}">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                    {% if order.status == 'DONE' %}bg-emerald-100 text-emerald-700
+                                    {% elif order.status == 'IN_PROGRESS' %}bg-primary-100 text-primary-700
+                                    {% elif order.status == 'DRAFT' %}bg-slate-100 text-slate-700
+                                    {% else %}bg-rose-100 text-rose-700{% endif %}">
                                     {{ order.get_status_display }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-slate-500">{{ order.start_date|default:"-" }}</td>
+                            <td class="px-6 py-4">
+                                {% if order.missing_batch %}
+                                    <span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-bold" title="Orden DONE sin lote registrado">Sin batch</span>
+                                {% elif order.batch_count %}
+                                    <span class="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-medium"><i class="fas fa-check"></i> {{ order.batch_count }}</span>
+                                {% else %}
+                                    <span class="text-slate-300 text-xs">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-slate-500 text-xs">
+                                {% if order.status == 'IN_PROGRESS' or order.status == 'DRAFT' %}<span class="font-mono">{{ order.days_since_creation }}d</span>{% else %}-{% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-slate-500 font-mono text-xs">{{ order.created_at|date:"d/m/Y" }}</td>
+                            <td class="px-6 py-4 text-right">
+                                <div class="flex justify-end gap-1">
+                                    {% if order.status == 'DRAFT' %}
+                                    <button type="submit" form="status-form-{{ order.pk }}" class="text-primary-600 hover:bg-primary-50 px-2 py-1 rounded-lg text-xs font-semibold" title="Iniciar producción">
+                                        <i class="fas fa-play"></i>
+                                    </button>
+                                    {% endif %}
+                                    {% if order.status == 'IN_PROGRESS' %}
+                                    <button type="submit" form="finish-form-{{ order.pk }}" class="text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded-lg text-xs font-semibold" title="Finalizar (genera lote)" onclick="return confirm('¿Finalizar y generar lote de trazabilidad?');">
+                                        <i class="fas fa-flag-checkered"></i>
+                                    </button>
+                                    {% endif %}
+                                    <a href="{% url 'production_order_update' order.pk %}" class="text-slate-400 hover:text-primary-600 px-2 py-1 rounded-lg" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'report_production_order' order.pk %}" target="_blank" class="text-slate-400 hover:text-rose-500 px-2 py-1 rounded-lg" title="PDF">
+                                        <i class="fas fa-file-pdf"></i>
+                                    </a>
+                                </div>
+                            </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="px-6 py-12 text-center text-slate-400">
+                            <td colspan="10" class="px-6 py-12 text-center text-slate-400">
                                 <i class="fas fa-industry text-4xl mb-3 opacity-50"></i>
                                 <p>No hay órdenes de producción registradas.</p>
                             </td>
@@ -110,6 +162,20 @@
                 </table>
             </div>
         </form>
+
+        <!-- Hidden quick-status forms -->
+        {% for order in orders %}
+            {% if order.status == 'DRAFT' %}
+            <form id="status-form-{{ order.pk }}" method="post" action="{% url 'production_order_quick_status' order.pk %}" class="hidden">
+                {% csrf_token %}<input type="hidden" name="status" value="IN_PROGRESS">
+            </form>
+            {% endif %}
+            {% if order.status == 'IN_PROGRESS' %}
+            <form id="finish-form-{{ order.pk }}" method="post" action="{% url 'production_order_quick_status' order.pk %}" class="hidden">
+                {% csrf_token %}<input type="hidden" name="status" value="DONE">
+            </form>
+            {% endif %}
+        {% endfor %}
     </div>
 </div>
 
@@ -139,11 +205,9 @@
         checkboxes.forEach(cb => {
             cb.addEventListener('change', function() {
                 updateDeleteButton();
-                // Update selectAll state
-                selectAll.checked = document.querySelectorAll('.order-checkbox:checked').length === checkboxes.length;
+                if (selectAll) selectAll.checked = document.querySelectorAll('.order-checkbox:checked').length === checkboxes.length;
             });
         });
     });
 </script>
-</div>
 {% endblock %}

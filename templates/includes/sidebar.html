@@ -114,19 +114,10 @@
         <a href="{% url 'traceability:purchase_list' %}"
            class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
                   transition-all duration-200 ease-soft
-                  {% if '/traceability/purchases/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
-            {% if '/traceability/purchases/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+                  {% if '/traceability/purchases/' in active or '/finance/purchases/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/traceability/purchases/' in active or '/finance/purchases/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
             <i class="fas fa-shopping-bag w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
-            <span>Historial Compras</span>
-        </a>
-
-        <a href="{% url 'purchase_hub' %}"
-           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
-                  transition-all duration-200 ease-soft
-                  {% if '/purchases/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
-            {% if '/purchases/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
-            <i class="fas fa-plus-circle w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
-            <span>Nueva Compra</span>
+            <span>Compras</span>
         </a>
 
         {# ────────── Finanzas ────────── #}
@@ -234,11 +225,11 @@
             </div>
         </div>
 
-        <a href="{% url 'production_order_list' %}"
+        <a href="{% url 'production_hub' %}"
            class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
                   transition-all duration-200 ease-soft
-                  {% if '/production/orders/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
-            {% if '/production/orders/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+                  {% if active == '/production/' or active == '/production' or '/production/orders/' in active or '/production/compliance/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if active == '/production/' or active == '/production' or '/production/orders/' in active or '/production/compliance/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
             <i class="fas fa-industry w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
             <span>Producción</span>
         </a>

@@ -6,8 +6,11 @@ from django.urls import reverse_lazy
 from decimal import Decimal
 from datetime import date, timedelta
 from django.contrib import messages
-from django.db import models
+import logging
+from django.db import models, transaction
 from django.db.models import Sum, Avg, Count, F
+
+_payment_logger = logging.getLogger('finance.payments')
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -52,8 +55,8 @@ def fixed_cost_list(request):
     expenses = base_ctx['monthly_expenses']
 
     # Split fixed vs variable: fixed = tied to a recurring FixedCost template.
-    fixed_expenses = expenses.filter(fixed_cost__isnull=False).select_related('fixed_cost', 'category')
-    variable_expenses = expenses.filter(fixed_cost__isnull=True).select_related('category')
+    fixed_expenses = expenses.filter(cost_definition__isnull=False).select_related('cost_definition')
+    variable_expenses = expenses.filter(cost_definition__isnull=True)
 
     # Month-of-year navigator with status pills (Pagado / Pendiente / Sin datos).
     months_nav = []
@@ -300,36 +303,58 @@ def purchase_pay(request, pk):
     Accepts an optional `amount` POST field for partial payments.
     Without it, marks the full balance as paid.
     """
-    purchase = get_object_or_404(Purchase, pk=pk, user=request.user)
     if request.method != 'POST':
         return redirect('traceability:purchase_list')
 
     raw_amount = (request.POST.get('amount') or '').strip()
+
     try:
-        if raw_amount:
-            pay_amount = Decimal(raw_amount)
-        else:
-            pay_amount = purchase.amount - purchase.paid_amount
-    except (ValueError, TypeError):
-        messages.error(request, 'Monto inválido.')
+        with transaction.atomic():
+            # Lock the row so concurrent quick-pay clicks can't double-post
+            # the same balance.
+            purchase = get_object_or_404(
+                Purchase.objects.select_for_update(),
+                pk=pk,
+                user=request.user,
+            )
+
+            try:
+                if raw_amount:
+                    pay_amount = Decimal(raw_amount)
+                else:
+                    pay_amount = purchase.amount - purchase.paid_amount
+            except (ValueError, TypeError):
+                messages.error(request, 'Monto inválido.')
+                return redirect('traceability:purchase_list')
+
+            if pay_amount <= 0:
+                messages.error(request, 'El monto a pagar debe ser mayor a cero.')
+                return redirect('traceability:purchase_list')
+
+            new_paid = purchase.paid_amount + pay_amount
+            if new_paid > purchase.amount:
+                new_paid = purchase.amount
+
+            previous_status = purchase.payment_status
+            purchase.paid_amount = new_paid
+            if new_paid >= purchase.amount:
+                purchase.payment_status = 'PAID'
+                purchase.is_paid = True
+            elif new_paid > 0:
+                purchase.payment_status = 'PARTIAL'
+                purchase.is_paid = False
+            purchase.save(update_fields=['paid_amount', 'payment_status', 'is_paid', 'updated_at'])
+
+            _payment_logger.info(
+                "purchase_pay user=%s purchase=%s amount=%s status=%s->%s",
+                request.user.pk, purchase.pk, pay_amount,
+                previous_status, purchase.payment_status,
+            )
+    except Exception:
+        _payment_logger.exception("purchase_pay failed user=%s pk=%s", request.user.pk, pk)
+        messages.error(request, 'No se pudo registrar el pago. Intente nuevamente.')
         return redirect('traceability:purchase_list')
 
-    if pay_amount <= 0:
-        messages.error(request, 'El monto a pagar debe ser mayor a cero.')
-        return redirect('traceability:purchase_list')
-
-    new_paid = purchase.paid_amount + pay_amount
-    if new_paid > purchase.amount:
-        new_paid = purchase.amount
-
-    purchase.paid_amount = new_paid
-    if new_paid >= purchase.amount:
-        purchase.payment_status = 'PAID'
-        purchase.is_paid = True
-    elif new_paid > 0:
-        purchase.payment_status = 'PARTIAL'
-        purchase.is_paid = False
-    purchase.save(update_fields=['paid_amount', 'payment_status', 'is_paid', 'updated_at'])
     messages.success(request, f'Pago registrado: ${pay_amount} en {purchase.code or purchase.description or "compra"}.')
     return redirect('traceability:purchase_list')
 
@@ -760,31 +785,182 @@ def cashflow_dashboard(request):
 
 @login_required
 def aging_dashboard(request):
+    """Accounts Receivable + Accounts Payable with aging buckets, KPIs, top
+    debtors/creditors, filters, and a net cashflow projection.
+
+    Buckets are computed by `due_date` vs today:
+        - current: not yet due
+        - b_0_30:  1..30 days overdue
+        - b_31_60: 31..60 days overdue
+        - b_61_90: 61..90 days overdue
+        - b_90:    90+ days overdue
     """
-    Shows Accounts Receivable (Sales) and Accounts Payable (Purchases).
-    """
+    today = timezone.now().date()
+    q = (request.GET.get('q') or '').strip()
+    bucket = (request.GET.get('bucket') or '').strip()
+    status = (request.GET.get('status') or '').strip()  # PENDING / PARTIAL / OVERDUE / ''
+    side = (request.GET.get('side') or '').strip()      # receivables / payables / ''
+
     # Receivables (Me deben)
-    receivables = Sale.objects.filter(
-        user=request.user, 
-        payment_status__in=['PENDING', 'PARTIAL']
-    ).exclude(status='CANCELLED').order_by('due_date')
-    
-    total_receivables = sum(r.balance for r in receivables)
-    
+    rec_qs = (Sale.objects
+              .filter(user=request.user, payment_status__in=['PENDING', 'PARTIAL'])
+              .exclude(status='CANCELLED')
+              .select_related('customer')
+              .annotate(balance_calc=F('total') - F('paid_amount'))
+              .order_by('due_date', '-id'))
+    if q:
+        rec_qs = rec_qs.filter(
+            models.Q(customer__name__icontains=q)
+            | models.Q(id__iexact=q.lstrip('#'))
+        )
+    if status in ('PENDING', 'PARTIAL'):
+        rec_qs = rec_qs.filter(payment_status=status)
+    elif status == 'OVERDUE':
+        rec_qs = rec_qs.filter(due_date__lt=today)
+
     # Payables (Debo)
-    payables = Purchase.objects.filter(
-        user=request.user, 
-        payment_status__in=['PENDING', 'PARTIAL']
-    ).order_by('due_date')
-    
-    total_payables = sum(p.balance for p in payables)
-    
+    pay_qs = (Purchase.objects
+              .filter(user=request.user, payment_status__in=['PENDING', 'PARTIAL'])
+              .select_related('provider', 'category')
+              .annotate(balance_calc=F('amount') - F('paid_amount'))
+              .order_by('due_date', '-id'))
+    if q:
+        pay_qs = pay_qs.filter(
+            models.Q(provider__name__icontains=q)
+            | models.Q(category__name__icontains=q)
+            | models.Q(description__icontains=q)
+            | models.Q(code__icontains=q)
+        )
+    if status in ('PENDING', 'PARTIAL'):
+        pay_qs = pay_qs.filter(payment_status=status)
+    elif status == 'OVERDUE':
+        pay_qs = pay_qs.filter(due_date__lt=today)
+
+    def _bucket(due, today_):
+        if not due:
+            return 'no_date'
+        if due >= today_:
+            return 'current'
+        days = (today_ - due).days
+        if days <= 30:
+            return 'b_0_30'
+        if days <= 60:
+            return 'b_31_60'
+        if days <= 90:
+            return 'b_61_90'
+        return 'b_90'
+
+    def _build_buckets(items):
+        buckets = {'current': [], 'b_0_30': [], 'b_31_60': [], 'b_61_90': [], 'b_90': [], 'no_date': []}
+        for it in items:
+            buckets[_bucket(it.due_date, today)].append(it)
+        return buckets
+
+    receivables_list = list(rec_qs)
+    payables_list = list(pay_qs)
+
+    rec_buckets = _build_buckets(receivables_list)
+    pay_buckets = _build_buckets(payables_list)
+
+    if bucket and bucket in rec_buckets:
+        receivables_list = rec_buckets[bucket]
+    if bucket and bucket in pay_buckets:
+        payables_list = pay_buckets[bucket]
+
+    def _sum_balance(items):
+        return sum((i.balance_calc or 0) for i in items)
+
+    rec_bucket_totals = {k: {'count': len(v), 'amount': _sum_balance(v)} for k, v in rec_buckets.items()}
+    pay_bucket_totals = {k: {'count': len(v), 'amount': _sum_balance(v)} for k, v in pay_buckets.items()}
+
+    total_receivables = sum(v['amount'] for v in rec_bucket_totals.values())
+    total_payables = sum(v['amount'] for v in pay_bucket_totals.values())
+
+    # Ordered, template-friendly bucket rows with precomputed % bar widths.
+    BUCKET_ORDER = [
+        ('current', 'Vigente', 'emerald'),
+        ('b_0_30', '1–30 días', 'amber'),
+        ('b_31_60', '31–60 días', 'orange'),
+        ('b_61_90', '61–90 días', 'rose'),
+        ('b_90', '+90 días', 'red'),
+        ('no_date', 'Sin fecha', 'slate'),
+    ]
+
+    def _make_rows(totals_map, total):
+        rows = []
+        for key, label, color in BUCKET_ORDER:
+            d = totals_map.get(key, {'count': 0, 'amount': 0})
+            amount = d['amount']
+            pct = int((amount / total) * 100) if total and total > 0 else 0
+            rows.append({
+                'key': key, 'label': label, 'color': color,
+                'count': d['count'], 'amount': amount, 'pct': pct,
+            })
+        return rows
+
+    rec_bucket_rows = _make_rows(rec_bucket_totals, total_receivables)
+    pay_bucket_rows = _make_rows(pay_bucket_totals, total_payables)
+    net_position = total_receivables - total_payables
+
+    overdue_rec_amount = sum(v['amount'] for k, v in rec_bucket_totals.items() if k.startswith('b_'))
+    overdue_pay_amount = sum(v['amount'] for k, v in pay_bucket_totals.items() if k.startswith('b_'))
+    overdue_rec_count = sum(v['count'] for k, v in rec_bucket_totals.items() if k.startswith('b_'))
+    overdue_pay_count = sum(v['count'] for k, v in pay_bucket_totals.items() if k.startswith('b_'))
+
+    # Top debtors/creditors (Top 5 by outstanding balance).
+    top_debtors = {}
+    for s in rec_qs:
+        key = s.customer_id or 0
+        name = s.customer.name if s.customer_id else 'Consumidor Final'
+        d = top_debtors.setdefault(key, {'name': name, 'amount': 0, 'count': 0, 'overdue': 0})
+        d['amount'] += s.balance_calc or 0
+        d['count'] += 1
+        if s.due_date and s.due_date < today:
+            d['overdue'] += s.balance_calc or 0
+    top_debtors = sorted(top_debtors.values(), key=lambda x: -x['amount'])[:5]
+
+    top_creditors = {}
+    for p in pay_qs:
+        key = p.provider_id or 0
+        name = p.provider.name if p.provider_id else (p.category.name if p.category_id else 'Sin proveedor')
+        d = top_creditors.setdefault(key, {'name': name, 'amount': 0, 'count': 0, 'overdue': 0})
+        d['amount'] += p.balance_calc or 0
+        d['count'] += 1
+        if p.due_date and p.due_date < today:
+            d['overdue'] += p.balance_calc or 0
+    top_creditors = sorted(top_creditors.values(), key=lambda x: -x['amount'])[:5]
+
+    # Cashflow forecast (next 30 / 60 / 90 days inflow vs outflow).
+    horizons = [7, 30, 60, 90]
+    forecast = []
+    for days in horizons:
+        cutoff = today + timedelta(days=days)
+        inflow = sum((s.balance_calc or 0) for s in rec_qs if s.due_date and s.due_date <= cutoff)
+        outflow = sum((p.balance_calc or 0) for p in pay_qs if p.due_date and p.due_date <= cutoff)
+        forecast.append({'days': days, 'inflow': inflow, 'outflow': outflow, 'net': inflow - outflow})
+
     context = {
-        'receivables': receivables,
-        'payables': payables,
+        'today': today,
+        'q': q,
+        'bucket': bucket,
+        'status': status,
+        'side': side,
+        'receivables': receivables_list,
+        'payables': payables_list,
+        'rec_bucket_totals': rec_bucket_totals,
+        'pay_bucket_totals': pay_bucket_totals,
+        'rec_bucket_rows': rec_bucket_rows,
+        'pay_bucket_rows': pay_bucket_rows,
         'total_receivables': total_receivables,
         'total_payables': total_payables,
-        'today': timezone.now().date(),
+        'net_position': net_position,
+        'overdue_rec_amount': overdue_rec_amount,
+        'overdue_pay_amount': overdue_pay_amount,
+        'overdue_rec_count': overdue_rec_count,
+        'overdue_pay_count': overdue_pay_count,
+        'top_debtors': top_debtors,
+        'top_creditors': top_creditors,
+        'forecast': forecast,
     }
     return render(request, 'finance/dashboard_aging.html', context)
 
