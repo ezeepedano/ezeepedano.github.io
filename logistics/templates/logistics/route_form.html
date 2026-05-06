@@ -1,192 +1,230 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
+{% block title %}{% if form.instance.pk %}Editar{% else %}Nueva{% endif %} Hoja de Ruta — Propel{% endblock %}
+{% block header_title %}{% if form.instance.pk %}Editar{% else %}Nueva{% endif %} Hoja de Ruta{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto pb-20"> <!-- Increased width for table -->
-    
-    <form method="post" class="space-y-8" id="routeForm">
+<div class="max-w-7xl mx-auto pb-20">
+
+    <div class="mb-5">
+        <a href="{% url 'delivery_route_list' %}"
+           class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary-600 transition-colors">
+            <i class="fas fa-arrow-left text-[0.7rem]"></i><span>Volver al tablero</span>
+        </a>
+    </div>
+
+    <form method="post" id="routeForm" class="space-y-5">
         {% csrf_token %}
 
-        <!-- Header / Actions -->
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        {# ────────── Header ────────── #}
+        <div class="card-soft p-6 md:p-7 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
-                <a href="{% url 'delivery_route_list' %}" class="text-slate-500 hover:text-slate-700 font-bold text-sm mb-2 inline-flex items-center transition-colors">
-                    <i class="fas fa-arrow-left mr-2"></i> Volver al Tablero
-                </a>
-                <h2 class="text-3xl font-black text-slate-900 tracking-tight">
-                    {% if form.instance.pk %}Editar{% else %}Nueva{% endif %} Hoja de Ruta
-                </h2>
-                <p class="text-slate-500 font-medium">Asigna pedidos y planifica la logística del día.</p>
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">
+                    {% if form.instance.pk %}Editar{% else %}Nueva{% endif %} hoja de ruta
+                </h1>
+                <p class="text-sm text-slate-500 mt-1">Asigná pedidos al vehículo y planificá el reparto del día.</p>
+                <div id="conflictBanner" class="hidden mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold">
+                    <i class="fas fa-triangle-exclamation"></i><span id="conflictText"></span>
+                </div>
             </div>
-            <div class="flex items-center gap-3">
-                 <button type="button" onclick="history.back()" class="px-5 py-3 rounded-xl text-slate-600 font-bold bg-white border border-slate-200 hover:bg-slate-50 transition-all shadow-sm">
+            <div class="flex items-center gap-2">
+                <a href="{% url 'delivery_route_list' %}"
+                   class="px-4 py-2 rounded-md text-slate-500 text-sm font-semibold hover:bg-slate-50 hover:text-slate-700 transition-colors">
                     Cancelar
-                </button>
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-500/30 flex items-center gap-2 transform hover:-translate-y-1 transition-all">
-                    <span>Guardar y Generar</span>
-                    <i class="fas fa-route"></i>
+                </a>
+                <button type="submit"
+                        class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-semibold shadow-sm hover:shadow-md transition-all inline-flex items-center gap-1.5">
+                    <i class="fas fa-route text-xs"></i>
+                    <span>Guardar y generar</span>
                 </button>
             </div>
         </div>
 
-        <!-- MAIN GRID -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            <!-- LEFT COLUMN: Route Configuration (Sticky) -->
+        {% if form.non_field_errors %}
+        <div class="rounded-md bg-rose-50 border border-rose-200 text-rose-700 p-3 text-sm">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+            {# ────────── Left: configuration ────────── #}
             <div class="lg:col-span-1">
-                <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 p-6 sticky top-6">
-                    <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-50">
-                        <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                <div class="card-soft p-6 sticky top-6 space-y-5">
+                    <div class="flex items-center gap-3 pb-4 border-b border-slate-100">
+                        <div class="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center text-base shrink-0">
                             <i class="fas fa-truck-moving"></i>
                         </div>
-                        <h3 class="font-bold text-lg text-slate-800">Configuración</h3>
-                    </div>
-
-                    <div class="space-y-5">
-                        <!-- Date -->
-                        <div class="space-y-1">
-                            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Fecha de Salida</label>
-                            {{ form.date }}
-                            {% if form.date.errors %}<p class="text-red-500 text-xs mt-1">{{ form.date.errors.0 }}</p>{% endif %}
-                        </div>
-
- 
-                        <!-- Driver with Quick Add -->
-                        <div class="space-y-1">
-                            <div class="flex justify-between items-center">
-                                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Conductor</label>
-                                <button type="button" onclick="openModal('driverModal')" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-bold hover:bg-blue-100 transition-colors">
-                                    + Nuevo
-                                </button>
-                            </div>
-                            <div class="relative">
-                                {{ form.driver }}
-                                <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400">
-                                    <i class="fas fa-user-circle"></i>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Vehicle with Quick Add -->
-                        <div class="space-y-1">
-                            <div class="flex justify-between items-center">
-                                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Vehículo</label>
-                                <button type="button" onclick="openModal('vehicleModal')" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-bold hover:bg-blue-100 transition-colors">
-                                    + Nuevo
-                                </button>
-                            </div>
-                            <div class="relative">
-                                {{ form.vehicle }}
-                                <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400">
-                                    <i class="fas fa-truck"></i>
-                                </div>
-                            </div>
-                        </div>
-
-                         <!-- Zone with Quick Add -->
-                        <div class="space-y-1">
-                            <div class="flex justify-between items-center">
-                                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Zona (Opcional)</label>
-                                <button type="button" onclick="openModal('zoneModal')" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-bold hover:bg-blue-100 transition-colors">
-                                    + Nueva
-                                </button>
-                            </div>
-                            {{ form.zone }}
-                        </div>
-
-                        <!-- Status -->
-                        <div class="space-y-1">
-                            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Estado</label>
-                            {{ form.status }}
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900">Configuración</h3>
+                            <p class="text-[0.7rem] text-slate-500">Datos de la ruta</p>
                         </div>
                     </div>
-                    
-                    <div class="mt-6 pt-6 border-t border-slate-50 text-center">
-                        <p class="text-xs text-slate-400">
-                            Asegúrese de guardar la ruta antes de imprimir.
-                        </p>
+
+                    <div>
+                        <label class="block text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em] mb-1.5">Fecha de salida</label>
+                        {{ form.date }}
+                        {% if form.date.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.date.errors.0 }}</p>{% endif %}
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">Conductor</label>
+                            <button type="button" onclick="openModal('driverModal')" class="text-[0.65rem] bg-primary-50 text-primary-700 px-2 py-0.5 rounded font-semibold hover:bg-primary-100 transition-colors">
+                                + Nuevo
+                            </button>
+                        </div>
+                        {{ form.driver }}
+                        {% if form.driver.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.driver.errors.0 }}</p>{% endif %}
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">Vehículo</label>
+                            <button type="button" onclick="openModal('vehicleModal')" class="text-[0.65rem] bg-primary-50 text-primary-700 px-2 py-0.5 rounded font-semibold hover:bg-primary-100 transition-colors">
+                                + Nuevo
+                            </button>
+                        </div>
+                        {{ form.vehicle }}
+                        {% if form.vehicle.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.vehicle.errors.0 }}</p>{% endif %}
+
+                        <div id="capacityPanel" class="hidden mt-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3 text-xs space-y-2">
+                            <div class="flex items-center justify-between text-[0.7rem] font-semibold text-slate-600">
+                                <span><i class="fas fa-weight-hanging text-[0.65rem] mr-1"></i> Peso</span>
+                                <span id="capWeightText" class="font-mono">0 / 0 kg</span>
+                            </div>
+                            <div class="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                                <div id="capWeightBar" class="h-full bg-emerald-400 rounded-full transition-all" style="width: 0%"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-[0.7rem] font-semibold text-slate-600 pt-1">
+                                <span><i class="fas fa-cubes text-[0.65rem] mr-1"></i> Volumen</span>
+                                <span id="capVolumeText" class="font-mono">0 / 0 m³</span>
+                            </div>
+                            <div class="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                                <div id="capVolumeBar" class="h-full bg-emerald-400 rounded-full transition-all" style="width: 0%"></div>
+                            </div>
+                            <p class="text-[0.65rem] text-slate-500 pt-1">Cálculo estimado · 0,5 kg promedio por ítem.</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">Zona (opcional)</label>
+                            <button type="button" onclick="openModal('zoneModal')" class="text-[0.65rem] bg-primary-50 text-primary-700 px-2 py-0.5 rounded font-semibold hover:bg-primary-100 transition-colors">
+                                + Nueva
+                            </button>
+                        </div>
+                        {{ form.zone }}
+                    </div>
+
+                    <div>
+                        <label class="block text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em] mb-1.5">Estado</label>
+                        {{ form.status }}
+                    </div>
+
+                    <div class="rounded-lg bg-primary-50/60 border border-primary-100 p-3">
+                        <div class="flex items-center justify-between text-[0.7rem] font-semibold text-primary-800">
+                            <span><i class="fas fa-clipboard-check mr-1 text-[0.65rem]"></i> Paradas seleccionadas</span>
+                            <span id="selectedCount" class="font-mono text-base">0</span>
+                        </div>
+                        <div class="text-[0.7rem] text-slate-600 mt-1 flex items-center justify-between">
+                            <span>Total ítems</span>
+                            <span id="totalItems" class="font-mono">0</span>
+                        </div>
+                        <div class="text-[0.7rem] text-slate-600 flex items-center justify-between">
+                            <span>Total facturado</span>
+                            <span id="totalAmount" class="font-mono font-semibold">$0</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- RIGHT COLUMN: Order Selection -->
-            <div class="lg:col-span-2 space-y-6">
-                
-                <!-- Selection Card -->
-                <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
-                    <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
+            {# ────────── Right: order selection ────────── #}
+            <div class="lg:col-span-2 space-y-5">
+
+                {# Pending KPI strip #}
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="card-soft p-4 border-l-4 border-primary-400">
+                        <p class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">Pedidos sin asignar</p>
+                        <p class="text-2xl font-bold text-primary-700 font-mono mt-1">{{ pending_sales_count }}</p>
+                    </div>
+                    <div class="card-soft p-4 border-l-4 border-emerald-400">
+                        <p class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">Total facturado</p>
+                        <p class="text-2xl font-bold text-emerald-700 font-mono mt-1">${{ pending_sales_total|floatformat:0|intcomma }}</p>
+                    </div>
+                    <div class="card-soft p-4 border-l-4 border-slate-300">
+                        <p class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">Capacidad</p>
+                        <p class="text-2xl font-bold text-slate-700 font-mono mt-1" id="capacityPct">—</p>
+                    </div>
+                </div>
+
+                <div class="card-soft overflow-hidden p-0">
+                    <div class="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                         <div>
-                            <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
-                                <i class="fas fa-clipboard-list text-slate-400"></i>
-                                Pedidos Pendientes
-                            </h3>
-                            <p class="text-sm text-slate-500">Seleccione los pedidos a cargar en esta ruta.</p>
+                            <h3 class="text-base font-bold text-slate-900"><i class="fas fa-clipboard-list text-primary-500 text-xs mr-1.5"></i> Pedidos pendientes</h3>
+                            <p class="text-[0.7rem] text-slate-500 mt-0.5">Marcá los que querés cargar. Orden = secuencia de entrega.</p>
                         </div>
                         <div class="flex items-center gap-2">
-                             <div class="bg-white border border-slate-200 rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-sm">
-                                <i class="fas fa-search text-slate-400 text-sm"></i>
-                                <input type="text" id="orderSearch" placeholder="Buscar cliente, ciudad..." class="text-sm border-none focus:ring-0 p-0 w-40 placeholder-slate-400 font-medium">
+                            <div class="bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 flex items-center gap-2 w-full sm:w-auto">
+                                <i class="fas fa-search text-slate-400 text-xs"></i>
+                                <input type="text" id="orderSearch" placeholder="Buscar cliente, ciudad…"
+                                       class="text-sm bg-transparent border-none focus:ring-0 p-0 w-full sm:w-44 placeholder-slate-400 outline-none">
                             </div>
+                            <button type="button" id="autoSequenceBtn"
+                                    class="px-3 py-1.5 rounded-md text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors"
+                                    title="Reordenar por ciudad">
+                                <i class="fas fa-arrow-down-a-z mr-1 text-[0.65rem]"></i> Ordenar por ciudad
+                            </button>
                         </div>
                     </div>
 
-                    <div class="overflow-x-auto max-h-[600px] overflow-y-auto custom-scrollbar">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="bg-slate-50 sticky top-0 z-10 shadow-sm">
-                                <tr class="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    <th class="px-6 py-4 w-10 text-center">
-                                        <input type="checkbox" id="selectAll" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer w-4 h-4">
+                    <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead class="bg-slate-50/60 sticky top-0 z-10 border-b border-slate-100">
+                                <tr class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">
+                                    <th class="px-4 py-3.5 w-10 text-center">
+                                        <input type="checkbox" id="selectAll" class="rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer w-4 h-4">
                                     </th>
-                                    <th class="px-6 py-4">Pedido / Cliente</th>
-                                    <th class="px-6 py-4">Destino</th>
-                                    <th class="px-6 py-4 text-center">Items</th>
-                                    <th class="px-6 py-4 text-right">Total</th>
+                                    <th class="px-4 py-3.5">Pedido / Cliente</th>
+                                    <th class="px-4 py-3.5">Destino</th>
+                                    <th class="px-4 py-3.5 text-center">Ítems</th>
+                                    <th class="px-4 py-3.5 text-right">Total</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100 text-sm" id="ordersTableBody">
+                            <tbody class="divide-y divide-slate-100" id="ordersTableBody">
                                 {% for sale in pending_sales %}
-                                <tr class="hover:bg-blue-50/50 transition-colors cursor-pointer group select-row" onclick="toggleRow(this)">
-                                    <td class="px-6 py-4 text-center" onclick="event.stopPropagation()">
-                                        <input type="checkbox" name="selected_sales" value="{{ sale.id }}" class="order-checkbox rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer w-4 h-4" onchange="updateRowStyle(this)">
+                                <tr class="hover:bg-primary-50/40 transition-colors cursor-pointer select-row"
+                                    data-items="{{ sale.items.count }}" data-total="{{ sale.total|default:0 }}"
+                                    onclick="toggleRow(this, event)">
+                                    <td class="px-4 py-3 text-center" onclick="event.stopPropagation()">
+                                        <input type="checkbox" name="selected_sales" value="{{ sale.id }}"
+                                               class="order-checkbox rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer w-4 h-4"
+                                               onchange="updateRowStyle(this)">
                                     </td>
-                                    <td class="px-6 py-4">
-                                        <div class="flex flex-col">
-                                            <span class="font-bold text-slate-800 group-hover:text-blue-700 transition-colors">
-                                                #{{ sale.order_id }} 
-                                            </span>
-                                            <span class="text-slate-500 text-xs font-medium">{{ sale.customer.name|default:"Consumidor Final" }}</span>
-                                            <span class="text-xs text-slate-400">{{ sale.date|date:"d M H:i" }}</span>
-                                        </div>
+                                    <td class="px-4 py-3">
+                                        <p class="font-semibold text-slate-800 truncate">#{{ sale.order_id|default:sale.id }}</p>
+                                        <p class="text-[0.7rem] text-slate-500 truncate">{{ sale.customer.name|default:"Consumidor Final" }}</p>
+                                        <p class="text-[0.65rem] text-slate-400">{{ sale.date|date:"d M H:i" }}</p>
                                     </td>
-                                    <td class="px-6 py-4">
-                                        <div class="flex flex-col">
-                                            <span class="font-bold text-slate-700">{{ sale.city|default:"-" }}</span>
-                                            <span class="text-xs text-slate-500 truncate max-w-[150px]" title="{{ sale.shipping_address }}">{{ sale.shipping_address|default:"-" }}</span>
-                                        </div>
+                                    <td class="px-4 py-3">
+                                        <p class="font-semibold text-slate-700 truncate">{{ sale.city|default:"—" }}</p>
+                                        <p class="text-[0.65rem] text-slate-500 truncate max-w-[200px]" title="{{ sale.shipping_address }}">{{ sale.shipping_address|default:"—" }}</p>
                                     </td>
-                                    <td class="px-6 py-4 text-center">
-                                        <span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg font-bold text-xs">{{ sale.items.count }}</span>
+                                    <td class="px-4 py-3 text-center">
+                                        <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-slate-100 text-slate-700">{{ sale.items.count }}</span>
                                     </td>
-                                    <td class="px-6 py-4 text-right font-bold text-slate-800">
-                                        ${{ sale.total|floatformat:0 }}
-                                    </td>
+                                    <td class="px-4 py-3 text-right font-bold text-slate-800 font-mono whitespace-nowrap">${{ sale.total|floatformat:0|intcomma }}</td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="px-6 py-12 text-center text-slate-400">
-                                        <div class="flex flex-col items-center gap-2">
-                                            <i class="fas fa-box-open text-3xl opacity-50"></i>
-                                            <p>No hay pedidos pendientes para asignar.</p>
-                                        </div>
+                                    <td colspan="5" class="px-4 py-12 text-center">
+                                        <i class="fas fa-box-open text-3xl text-slate-300"></i>
+                                        <p class="text-sm text-slate-500 mt-2">No hay pedidos sin asignar.</p>
+                                        <a href="{% url 'sale_create' %}" class="text-xs text-primary-600 hover:text-primary-800 font-semibold">Crear venta nueva</a>
                                     </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
-                    </div>
-                     <div class="p-4 border-t border-slate-100 bg-slate-50 text-right">
-                        <span class="text-xs font-bold text-slate-500 uppercase mr-2">Seleccionados:</span>
-                        <span id="selectedCount" class="text-blue-600 font-bold text-lg">0</span>
                     </div>
                 </div>
             </div>
@@ -194,222 +232,293 @@
     </form>
 </div>
 
-<!-- ================= MODALS ================= -->
-
-<!-- VEHICLE MODAL -->
-<div id="vehicleModal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+{# ────────── Modals ────────── #}
+<div id="vehicleModal" class="hidden fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
     <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeModal('vehicleModal')"></div>
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="fixed inset-0 bg-slate-900/40" onclick="closeModal('vehicleModal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
         <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 class="text-lg leading-6 font-bold text-gray-900 mb-4" id="modal-title">Nuevo Vehículo</h3>
-                <div class="space-y-4">
+            <div class="px-5 pt-5 pb-4">
+                <h3 class="text-base font-bold text-slate-900 mb-3">Nuevo vehículo</h3>
+                <div class="space-y-3 text-sm">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Nombre (Marca/Modelo)</label>
-                        <input type="text" id="vehName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2">
+                        <label class="block text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em] mb-1">Nombre (marca / modelo)</label>
+                        <input type="text" id="vehName" class="w-full px-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Patente</label>
-                        <input type="text" id="vehPlate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2 uppercase">
+                        <label class="block text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em] mb-1">Patente</label>
+                        <input type="text" id="vehPlate" class="w-full px-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none uppercase">
                     </div>
-                </div>
-            </div>
-            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button type="button" onclick="submitQuickAdd('vehicle')" class="w-full inline-flex justify-center rounded-xl border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
-                    Guardar Vehículo
-                </button>
-                <button type="button" onclick="closeModal('vehicleModal')" class="mt-3 w-full inline-flex justify-center rounded-xl border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                    Cancelar
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ZONE MODAL -->
-<div id="zoneModal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeModal('zoneModal')"></div>
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 class="text-lg leading-6 font-bold text-gray-900 mb-4">Nueva Zona de Reparto</h3>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Nombre de Zona</label>
-                        <input type="text" id="zoneName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Código</label>
-                        <input type="text" id="zoneCode" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2">
-                    </div>
-                </div>
-            </div>
-            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button type="button" onclick="submitQuickAdd('zone')" class="w-full inline-flex justify-center rounded-xl border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
-                    Guardar Zona
-                </button>
-                <button type="button" onclick="closeModal('zoneModal')" class="mt-3 w-full inline-flex justify-center rounded-xl border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                    Cancelar
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- DRIVER MODAL (Basic User Creation) -->
-<div id="driverModal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeModal('driverModal')"></div>
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 class="text-lg leading-6 font-bold text-gray-900 mb-4">Nuevo Conductor</h3>
-                <p class="text-sm text-gray-500 mb-4">Se creará un usuario de sistema para este conductor.</p>
-                <div class="space-y-4">
-                    <div class="grid grid-cols-2 gap-4">
-                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Nombre</label>
-                            <input type="text" id="driverName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em] mb-1">Capacidad peso (kg)</label>
+                            <input type="number" id="vehWeight" min="0" step="0.01" placeholder="0" class="w-full px-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none">
                         </div>
                         <div>
-                             <label class="block text-sm font-medium text-gray-700">Apellido</label>
-                            <input type="text" id="driverSurname" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2">
+                            <label class="block text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em] mb-1">Capacidad volumen (m³)</label>
+                            <input type="number" id="vehVolume" min="0" step="0.01" placeholder="0" class="w-full px-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none">
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button type="button" onclick="submitQuickAdd('driver')" class="w-full inline-flex justify-center rounded-xl border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
-                    Guardar Conductor
-                </button>
-                <button type="button" onclick="closeModal('driverModal')" class="mt-3 w-full inline-flex justify-center rounded-xl border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                    Cancelar
-                </button>
+            <div class="bg-slate-50 px-5 py-3 sm:flex sm:flex-row-reverse gap-2">
+                <button type="button" onclick="submitQuickAdd('vehicle')" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-semibold transition-colors">Guardar</button>
+                <button type="button" onclick="closeModal('vehicleModal')" class="px-4 py-2 rounded-md text-slate-500 text-sm font-semibold hover:bg-slate-100 transition-colors">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="zoneModal" class="hidden fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-slate-900/40" onclick="closeModal('zoneModal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="px-5 pt-5 pb-4">
+                <h3 class="text-base font-bold text-slate-900 mb-3">Nueva zona de reparto</h3>
+                <div class="space-y-3 text-sm">
+                    <div>
+                        <label class="block text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em] mb-1">Nombre</label>
+                        <input type="text" id="zoneName" class="w-full px-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em] mb-1">Código</label>
+                        <input type="text" id="zoneCode" class="w-full px-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none uppercase">
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-50 px-5 py-3 sm:flex sm:flex-row-reverse gap-2">
+                <button type="button" onclick="submitQuickAdd('zone')" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-semibold transition-colors">Guardar</button>
+                <button type="button" onclick="closeModal('zoneModal')" class="px-4 py-2 rounded-md text-slate-500 text-sm font-semibold hover:bg-slate-100 transition-colors">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="driverModal" class="hidden fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-slate-900/40" onclick="closeModal('driverModal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="px-5 pt-5 pb-4">
+                <h3 class="text-base font-bold text-slate-900 mb-1">Nuevo conductor</h3>
+                <p class="text-[0.7rem] text-slate-500 mb-3">Se crea un usuario de sistema con contraseña inicial. Pedile que la cambie en su primer ingreso.</p>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                        <label class="block text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em] mb-1">Nombre</label>
+                        <input type="text" id="driverName" class="w-full px-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.1em] mb-1">Apellido</label>
+                        <input type="text" id="driverSurname" class="w-full px-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none">
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-50 px-5 py-3 sm:flex sm:flex-row-reverse gap-2">
+                <button type="button" onclick="submitQuickAdd('driver')" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-semibold transition-colors">Guardar</button>
+                <button type="button" onclick="closeModal('driverModal')" class="px-4 py-2 rounded-md text-slate-500 text-sm font-semibold hover:bg-slate-100 transition-colors">Cancelar</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    // -- Modal Control --
-    function openModal(id) {
-        document.getElementById(id).classList.remove('hidden');
-    }
+(function () {
+    // Style Django-rendered selects + inputs to match the design.
+    const inputClass = 'w-full px-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none text-sm transition-all';
+    ['id_date', 'id_vehicle', 'id_driver', 'id_zone', 'id_status'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.className = inputClass;
+    });
 
-    function closeModal(id) {
-        document.getElementById(id).classList.add('hidden');
-    }
+    const VEHICLE_CAPACITY = {{ vehicle_capacity_map_json|default:"{}"|safe }};
+    const ROUTE_ASSIGNMENTS = {{ route_assignments_json|default:"[]"|safe }};
 
-    // -- Quick Add Logic --
-    async function submitQuickAdd(type) {
-        let url = '';
+    const dateEl = document.getElementById('id_date');
+    const vehicleEl = document.getElementById('id_vehicle');
+    const driverEl = document.getElementById('id_driver');
+    const conflictBanner = document.getElementById('conflictBanner');
+    const conflictText = document.getElementById('conflictText');
+
+    function checkConflict() {
+        if (!dateEl || !vehicleEl || !driverEl) return;
+        const d = dateEl.value;
+        const vId = parseInt(vehicleEl.value || 0, 10);
+        const drId = parseInt(driverEl.value || 0, 10);
+        if (!d) { conflictBanner.classList.add('hidden'); return; }
+        const sameDay = ROUTE_ASSIGNMENTS.filter(r => r.date === d);
+        const msgs = [];
+        if (vId && sameDay.some(r => r.vehicle_id === vId)) msgs.push('vehículo ya asignado a otra ruta este día');
+        if (drId && sameDay.some(r => r.driver_id === drId)) msgs.push('conductor ya asignado a otra ruta este día');
+        if (msgs.length) {
+            conflictText.textContent = msgs.join(' · ');
+            conflictBanner.classList.remove('hidden');
+        } else {
+            conflictBanner.classList.add('hidden');
+        }
+    }
+    [dateEl, vehicleEl, driverEl].forEach(el => el && el.addEventListener('change', checkConflict));
+
+    // Capacity panel
+    const capPanel = document.getElementById('capacityPanel');
+    const capWeightText = document.getElementById('capWeightText');
+    const capVolumeText = document.getElementById('capVolumeText');
+    const capWeightBar = document.getElementById('capWeightBar');
+    const capVolumeBar = document.getElementById('capVolumeBar');
+    const capacityPct = document.getElementById('capacityPct');
+
+    function recalcCapacity() {
+        const vId = vehicleEl ? vehicleEl.value : '';
+        const cap = VEHICLE_CAPACITY[vId];
+        let totalItems = 0;
+        let totalAmount = 0;
+        document.querySelectorAll('.order-checkbox:checked').forEach(cb => {
+            const tr = cb.closest('tr');
+            totalItems += parseInt(tr.dataset.items || 0, 10);
+            totalAmount += parseFloat(tr.dataset.total || 0);
+        });
+        document.getElementById('totalItems').textContent = totalItems;
+        document.getElementById('totalAmount').textContent = '$' + totalAmount.toLocaleString('es-AR', {maximumFractionDigits: 0});
+
+        if (cap && (cap.weight > 0 || cap.volume > 0)) {
+            capPanel.classList.remove('hidden');
+            // Estimate: 0.5 kg per item (rough). Could be replaced with real product data.
+            const estWeight = totalItems * 0.5;
+            const estVolume = totalItems * 0.001; // 1 L per item ≈ 0.001 m³
+            const wPct = cap.weight > 0 ? Math.min(100, (estWeight / cap.weight) * 100) : 0;
+            const vPct = cap.volume > 0 ? Math.min(100, (estVolume / cap.volume) * 100) : 0;
+            capWeightText.textContent = `${estWeight.toFixed(1)} / ${cap.weight} kg`;
+            capVolumeText.textContent = `${estVolume.toFixed(3)} / ${cap.volume} m³`;
+            capWeightBar.style.width = wPct + '%';
+            capVolumeBar.style.width = vPct + '%';
+            // Color coded
+            [capWeightBar, capVolumeBar].forEach((bar, idx) => {
+                const pct = idx === 0 ? wPct : vPct;
+                bar.classList.remove('bg-emerald-400', 'bg-amber-400', 'bg-rose-500');
+                bar.classList.add(pct < 70 ? 'bg-emerald-400' : pct < 95 ? 'bg-amber-400' : 'bg-rose-500');
+            });
+            capacityPct.textContent = Math.max(wPct, vPct).toFixed(0) + '%';
+        } else {
+            capPanel.classList.add('hidden');
+            capacityPct.textContent = '—';
+        }
+    }
+    if (vehicleEl) vehicleEl.addEventListener('change', recalcCapacity);
+
+    // Selection
+    window.toggleRow = function (row, ev) {
+        if (ev && ev.target && ev.target.tagName === 'INPUT') return;
+        const cb = row.querySelector('.order-checkbox');
+        cb.checked = !cb.checked;
+        updateRowStyle(cb);
+    };
+    window.updateRowStyle = function (cb) {
+        const row = cb.closest('tr');
+        if (cb.checked) row.classList.add('bg-primary-50/50');
+        else row.classList.remove('bg-primary-50/50');
+        const count = document.querySelectorAll('.order-checkbox:checked').length;
+        document.getElementById('selectedCount').textContent = count;
+        recalcCapacity();
+    };
+
+    const selectAll = document.getElementById('selectAll');
+    if (selectAll) selectAll.addEventListener('change', function () {
+        document.querySelectorAll('.order-checkbox').forEach(cb => {
+            const row = cb.closest('tr');
+            if (row.style.display !== 'none') {
+                cb.checked = this.checked;
+                updateRowStyle(cb);
+            }
+        });
+    });
+
+    // Search filter
+    const search = document.getElementById('orderSearch');
+    if (search) search.addEventListener('input', function () {
+        const q = this.value.toLowerCase();
+        document.querySelectorAll('#ordersTableBody tr').forEach(row => {
+            if (!row.querySelector('td')) return;
+            row.style.display = row.innerText.toLowerCase().includes(q) ? '' : 'none';
+        });
+    });
+
+    // Sort by city
+    const sortBtn = document.getElementById('autoSequenceBtn');
+    if (sortBtn) sortBtn.addEventListener('click', function () {
+        const tbody = document.getElementById('ordersTableBody');
+        const rows = Array.from(tbody.querySelectorAll('tr.select-row'));
+        rows.sort((a, b) => {
+            const ac = a.querySelectorAll('td')[2]?.innerText.trim().toLowerCase() || '';
+            const bc = b.querySelectorAll('td')[2]?.innerText.trim().toLowerCase() || '';
+            return ac.localeCompare(bc);
+        });
+        rows.forEach(r => tbody.appendChild(r));
+    });
+
+    // Modals
+    window.openModal = id => document.getElementById(id).classList.remove('hidden');
+    window.closeModal = id => document.getElementById(id).classList.add('hidden');
+
+    window.submitQuickAdd = async function (type) {
+        const urls = {
+            vehicle: "{% url 'quick_create_vehicle' %}",
+            zone: "{% url 'quick_create_zone' %}",
+            driver: "{% url 'quick_create_driver' %}",
+        };
         let payload = {};
-        
         if (type === 'vehicle') {
-            url = "{% url 'api_vehicle_create' %}";
             payload = {
-                name: document.getElementById('vehName').value,
-                plate: document.getElementById('vehPlate').value
+                name: document.getElementById('vehName').value.trim(),
+                plate: document.getElementById('vehPlate').value.trim(),
+                capacity_weight: document.getElementById('vehWeight').value || 0,
+                capacity_volume: document.getElementById('vehVolume').value || 0,
             };
         } else if (type === 'zone') {
-            url = "{% url 'api_zone_create' %}";
             payload = {
-                name: document.getElementById('zoneName').value,
-                code: document.getElementById('zoneCode').value
+                name: document.getElementById('zoneName').value.trim(),
+                code: document.getElementById('zoneCode').value.trim(),
             };
-        } else if (type === 'driver') {
-            url = "{% url 'api_driver_create' %}";
-            payload = {
-                first_name: document.getElementById('driverName').value,
-                last_name: document.getElementById('driverSurname').value
-            };
-        }
-
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
-                body: JSON.stringify(payload)
-            });
-
-            const result = await response.json();
-
-            if (result.status === 'success') {
-                // Close modal
-                closeModal(type + 'Modal');
-                
-                // Add to Select and Select it
-                const selectId = (type === 'vehicle') ? 'id_vehicle' : (type === 'zone') ? 'id_zone' : 'id_driver';
-                const select = document.getElementById(selectId);
-                
-                const option = new Option(result.label, result.id);
-                select.add(option, undefined);
-                select.value = result.id;
-                
-                // Optional: Flash success
-                // alert('Creado exitosamente'); // A bit intrusive, relying on UI update is smoother
-            } else {
-                alert('Error: ' + result.message);
-            }
-
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error inesperado al crear');
-        }
-    }
-
-    // Row Toggle Logic
-
-    function toggleRow(row) {
-        const checkbox = row.querySelector('.order-checkbox');
-        checkbox.checked = !checkbox.checked;
-        updateRowStyle(checkbox);
-    }
-
-    function updateRowStyle(checkbox) {
-        const row = checkbox.closest('tr');
-        if (checkbox.checked) {
-            row.classList.add('bg-blue-50');
-            row.classList.remove('hover:bg-blue-50/50');
         } else {
-            row.classList.remove('bg-blue-50');
-            row.classList.add('hover:bg-blue-50/50');
+            payload = {
+                first_name: document.getElementById('driverName').value.trim(),
+                last_name: document.getElementById('driverSurname').value.trim(),
+            };
         }
-        updateCount();
-    }
-
-    // Select All
-    document.getElementById('selectAll').addEventListener('change', function() {
-        const checkboxes = document.querySelectorAll('.order-checkbox');
-        checkboxes.forEach(cb => {
-            cb.checked = this.checked;
-            updateRowStyle(cb);
-        });
-    });
-
-    // Update Counter
-    function updateCount() {
-        const count = document.querySelectorAll('.order-checkbox:checked').length;
-        document.getElementById('selectedCount').innerText = count;
-    }
-
-    // Search Filtering
-    document.getElementById('orderSearch').addEventListener('keyup', function() {
-        const searchText = this.value.toLowerCase();
-        const rows = document.querySelectorAll('#ordersTableBody tr');
-
-        rows.forEach(row => {
-            if (row.querySelector('td')) { // Skip empty state row
-                const text = row.innerText.toLowerCase();
-                row.style.display = text.includes(searchText) ? '' : 'none';
+        try {
+            const res = await fetch(urls[type], {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                closeModal(type + 'Modal');
+                const selectMap = { vehicle: 'id_vehicle', zone: 'id_zone', driver: 'id_driver' };
+                const sel = document.getElementById(selectMap[type]);
+                const opt = new Option(data.label, data.id, true, true);
+                sel.add(opt);
+                sel.value = data.id;
+                if (type === 'vehicle') {
+                    VEHICLE_CAPACITY[String(data.id)] = {
+                        weight: parseFloat(payload.capacity_weight) || 0,
+                        volume: parseFloat(payload.capacity_volume) || 0,
+                        plate: payload.plate,
+                    };
+                    recalcCapacity();
+                }
+                checkConflict();
+            } else {
+                alert('Error: ' + (data.message || 'no se pudo crear'));
             }
-        });
-    });
+        } catch (err) {
+            console.error(err);
+            alert('Error inesperado al crear.');
+        }
+    };
+
+    // Initial
+    recalcCapacity();
+    checkConflict();
+})();
 </script>
 {% endblock %}
-

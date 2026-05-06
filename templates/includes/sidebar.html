@@ -1,199 +1,320 @@
 {% load static %}
-<!-- Sidebar (Dark Premium) -->
+{% comment %}
+    Sidebar — Soft UI Evolution
+    - Deep indigo surface with a subtle vertical gradient
+    - Group headers with 2px accent
+    - Active item: primary 600 with soft glow + left bar
+    - Idle item: slate-300 (AA on #1E1B4B) -> white on hover
+    - Consistent 40px minimum tap target (py-2.5 + 18px icon)
+{% endcomment %}
 <aside id="sidebar"
-    class="bg-sidebar w-72 h-screen flex flex-col fixed lg:static top-0 left-0 z-50 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl border-r border-white/5">
-    
+    class="w-72 h-screen flex flex-col fixed lg:static top-0 left-0 z-50
+           transform -translate-x-full lg:translate-x-0
+           transition-transform duration-300 ease-soft
+           shadow-lift border-r border-white/5 text-slate-300"
+    style="background: linear-gradient(180deg, #1E1B4B 0%, #17153B 60%, #13112F 100%);">
+
     <!-- Logo -->
-    <div class="h-24 flex items-center px-8 border-b border-white/5 relative overflow-hidden group">
-        <div class="absolute inset-0 bg-gradient-to-r from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-        <img src="{% static 'img/logos/logo_light.png' %}" alt="Propel ERP Logo" class="max-h-12 w-auto max-w-[200px] z-10 transition-transform hover:scale-105" data-fallback="{% static 'img/logos/logo_main.png' %}" onerror="this.onerror=null; this.src=this.dataset.fallback;">
+    <div class="h-20 flex items-center px-6 border-b border-white/5 relative overflow-hidden group">
+        <div class="absolute inset-0 bg-gradient-to-r from-primary/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-soft"></div>
+        <a href="/" class="flex items-center z-10">
+            <img src="{% static 'img/logos/logo_light.png' %}"
+                 alt="Propel ERP"
+                 class="max-h-11 w-auto max-w-[200px] transition-transform duration-200 ease-soft group-hover:scale-[1.03]"
+                 data-fallback="{% static 'img/logos/logo_main.png' %}"
+                 onerror="this.onerror=null; this.src=this.dataset.fallback;">
+        </a>
     </div>
 
     <!-- Nav List -->
-    <nav class="flex-1 px-4 py-8 space-y-2 overflow-y-auto custom-scrollbar">
-        
-        <!-- Dashboard -->
+    <nav class="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto custom-scrollbar" aria-label="Navegación principal">
+
+        {# ────────── Principal ────────── #}
+        {% with active=request.path %}
+
         <a href="/"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if request.path == '/' %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-th-large w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Dashboard</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if active == '/' %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if active == '/' %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-th-large w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Dashboard</span>
         </a>
 
-        <!-- BI -->
         <a href="{% url 'bi_dashboard' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/bi/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-chart-line w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Inteligencia</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/bi/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/bi/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-chart-line w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Inteligencia</span>
         </a>
 
-        <div class="px-4 pt-6 pb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Módulos</div>
+        {# ────────── Módulos ────────── #}
+        <div class="pt-5 pb-1.5 px-3.5">
+            <div class="flex items-center gap-2">
+                <span class="h-[2px] w-3 bg-primary-500 rounded-full"></span>
+                <span class="text-[0.68rem] font-bold text-slate-500 uppercase tracking-[0.14em]">Módulos</span>
+            </div>
+        </div>
 
         <a href="{% url 'product_list' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/inventory/' in request.path and '/ingredients/' not in request.path and '/intelligence/' not in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-boxes w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Inventario</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/inventory/' in active and '/ingredients/' not in active and '/intelligence/' not in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/inventory/' in active and '/ingredients/' not in active and '/intelligence/' not in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-boxes w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Inventario</span>
         </a>
 
-        <!-- Raw Materials -->
         <a href="{% url 'ingredient_list' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/inventory/ingredients/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-leaf w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Materia Prima</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/inventory/ingredients/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/inventory/ingredients/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-leaf w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Materia Prima</span>
         </a>
 
-        <!-- Sales -->
-        <!-- Sales -->
         <a href="{% url 'sales_dashboard' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/sales/' in request.path and '/customers/' not in request.path and '/quotations/' not in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-shopping-cart w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Ventas</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/sales/' in active and '/customers/' not in active and '/quotations/' not in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/sales/' in active and '/customers/' not in active and '/quotations/' not in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-shopping-cart w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Ventas</span>
         </a>
 
         <a href="{% url 'quotation_list' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/sales/quotations/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-file-invoice-dollar w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Presupuestos</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/sales/quotations/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/sales/quotations/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-file-invoice-dollar w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Presupuestos</span>
         </a>
 
         <a href="{% url 'customer_list' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/sales/customers/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-user-tag w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Clientes</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/sales/customers/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/sales/customers/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-user-tag w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Clientes</span>
         </a>
 
-        <!-- Purchases Group -->
-        <div class="px-4 pt-6 pb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Compras</div>
+        {# ────────── Compras ────────── #}
+        <div class="pt-5 pb-1.5 px-3.5">
+            <div class="flex items-center gap-2">
+                <span class="h-[2px] w-3 bg-primary-500 rounded-full"></span>
+                <span class="text-[0.68rem] font-bold text-slate-500 uppercase tracking-[0.14em]">Compras</span>
+            </div>
+        </div>
 
         <a href="{% url 'traceability:purchase_list' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/traceability/purchases/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-shopping-bag w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Historial Compras</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/traceability/purchases/' in active or '/finance/purchases/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/traceability/purchases/' in active or '/finance/purchases/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-shopping-bag w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Compras</span>
         </a>
 
-        <a href="{% url 'purchase_hub' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/purchases/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-plus-circle w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Nueva Compra</span>
-        </a>
-
-
-        <!-- Finance Group -->
-        <div class="px-4 pt-6 pb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Finanzas</div>
+        {# ────────── Finanzas ────────── #}
+        <div class="pt-5 pb-1.5 px-3.5">
+            <div class="flex items-center gap-2">
+                <span class="h-[2px] w-3 bg-primary-500 rounded-full"></span>
+                <span class="text-[0.68rem] font-bold text-slate-500 uppercase tracking-[0.14em]">Finanzas</span>
+            </div>
+        </div>
 
         <a href="{% url 'accounting_ledger' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/accounting/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-book w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Libro Diario</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/accounting/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/accounting/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-book w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Libro Diario</span>
+        </a>
+
+        <a href="{% url 'accounting_trial_balance' %}"
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/accounting/balance/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/accounting/balance/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-balance-scale w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Balance</span>
         </a>
 
         <a href="{% url 'cashflow_dashboard' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/finance/dashboard/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-wallet w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Caja Real (Cashflow)</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/finance/dashboard/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/finance/dashboard/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-wallet w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Caja Real</span>
         </a>
 
         <a href="{% url 'aging_dashboard' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/finance/aging/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-hand-holding-usd w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Deudas y Cobros</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/finance/aging/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/finance/aging/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-hand-holding-usd w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Deudas y Cobros</span>
         </a>
 
         <a href="{% url 'fixed_cost_list' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/finance/costs/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-chart-pie w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Gastos Fijos</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/finance/costs/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/finance/costs/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-chart-pie w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Gastos Fijos</span>
         </a>
 
         <a href="{% url 'asset_list' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/finance/assets/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-building w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Bienes de Uso</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/finance/assets/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/finance/assets/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-building w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Bienes de Uso</span>
         </a>
 
-
-        <!-- HR -->
-        <a href="{% url 'employee_list' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/hr/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-users-cog w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Recursos Humanos</span>
-        </a>
-
-        <!-- Proveedores (Shortcut) -->
         <a href="{% url 'provider_list' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/finance/providers/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-truck w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Proveedores</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/finance/providers/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/finance/providers/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-truck w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Proveedores</span>
         </a>
 
-        <!-- Operations Group -->
-        <div class="px-4 pt-6 pb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Operaciones</div>
+        {# ────────── Equipo ────────── #}
+        <div class="pt-5 pb-1.5 px-3.5">
+            <div class="flex items-center gap-2">
+                <span class="h-[2px] w-3 bg-primary-500 rounded-full"></span>
+                <span class="text-[0.68rem] font-bold text-slate-500 uppercase tracking-[0.14em]">Equipo</span>
+            </div>
+        </div>
 
-        <a href="{% url 'production_order_list' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/production/orders/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-industry w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Producción</span>
+        <a href="{% url 'employee_list' %}"
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/hr/' in active and '/payroll/' not in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/hr/' in active and '/payroll/' not in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-users-cog w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Recursos Humanos</span>
+        </a>
+
+        <a href="{% url 'payroll_list' %}"
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/hr/payroll/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/hr/payroll/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-money-check-alt w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Nóminas</span>
+        </a>
+
+        {# ────────── Operaciones ────────── #}
+        <div class="pt-5 pb-1.5 px-3.5">
+            <div class="flex items-center gap-2">
+                <span class="h-[2px] w-3 bg-primary-500 rounded-full"></span>
+                <span class="text-[0.68rem] font-bold text-slate-500 uppercase tracking-[0.14em]">Operaciones</span>
+            </div>
+        </div>
+
+        <a href="{% url 'production_hub' %}"
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if active == '/production/' or active == '/production' or '/production/orders/' in active or '/production/compliance/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if active == '/production/' or active == '/production' or '/production/orders/' in active or '/production/compliance/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-industry w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Producción</span>
+        </a>
+
+        <a href="{% url 'wip_stock_list' %}"
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/production/wip/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/production/wip/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-cogs w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Stock en Proceso</span>
         </a>
 
         <a href="{% url 'bom_list' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/production/formulas/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-flask w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Fórmulas</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/production/formulas/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/production/formulas/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-flask w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Fórmulas</span>
         </a>
 
         <a href="{% url 'delivery_route_list' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/logistics/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-truck-loading w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Logística</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/logistics/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/logistics/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-truck-loading w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Logística</span>
         </a>
 
         <a href="{% url 'traceability:stock_list' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/traceability/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-barcode w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Trazabilidad</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/traceability/' in active and '/purchases/' not in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/traceability/' in active and '/purchases/' not in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-barcode w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Trazabilidad</span>
         </a>
 
         <a href="{% url 'reports_hub' %}"
-            class="flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
-            {% if '/production/reports/' in request.path %}bg-primary text-white shadow-glow{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            <i class="fas fa-file-pdf w-6 transition-transform group-hover:scale-110"></i>
-            <span class="font-medium tracking-wide">Reportes</span>
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if '/production/reports/' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if '/production/reports/' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-file-pdf w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Reportes</span>
         </a>
 
+        {# ────────── Sistema ────────── #}
+        <div class="pt-5 pb-1.5 px-3.5">
+            <div class="flex items-center gap-2">
+                <span class="h-[2px] w-3 bg-primary-500 rounded-full"></span>
+                <span class="text-[0.68rem] font-bold text-slate-500 uppercase tracking-[0.14em]">Sistema</span>
+            </div>
+        </div>
+
+        <a href="{% url 'company_config' %}"
+           class="nav-item group relative flex items-center gap-3 px-3.5 py-2.5 rounded-md font-medium text-[0.9rem] tracking-tight
+                  transition-all duration-200 ease-soft
+                  {% if 'config' in active %}bg-primary-600 text-white shadow-glow{% else %}text-slate-300 hover:text-white hover:bg-white/[0.06]{% endif %}">
+            {% if 'config' in active %}<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-white/90"></span>{% endif %}
+            <i class="fas fa-cog w-5 text-center text-[0.95rem] transition-transform duration-200 ease-soft group-hover:scale-110"></i>
+            <span>Configuración</span>
+        </a>
+
+        {% endwith %}
     </nav>
 
     <!-- Footer / User -->
-    <div class="p-6 border-t border-white/5">
-        <div class="bg-white/5 rounded-2xl p-4 flex items-center gap-3 hover:bg-white/10 transition-colors cursor-pointer border border-white/5 group relative overflow-hidden">
-            <div class="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            
-            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-400 to-blue-500 flex items-center justify-center text-white font-bold shadow-lg z-10">
+    <div class="p-4 border-t border-white/5">
+        <div class="bg-white/[0.04] hover:bg-white/[0.08] rounded-lg p-3 flex items-center gap-3 transition-colors duration-200 ease-soft border border-white/[0.06] group relative overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-soft"></div>
+
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold shadow-sm z-10 ring-2 ring-white/10">
                 {{ request.user.username|make_list|first|upper }}
             </div>
-            <div class="flex-1 overflow-hidden z-10">
-                <h4 class="text-sm font-bold text-white truncate">{{ request.user.username|title }}</h4>
-                <p class="text-xs text-slate-400 truncate">Administrator</p>
+            <div class="flex-1 overflow-hidden z-10 leading-tight">
+                <h4 class="text-sm font-semibold text-white truncate">{{ request.user.username|title }}</h4>
+                <p class="text-xs text-slate-400 truncate">Administrador</p>
             </div>
-            <a href="{% url 'logout' %}" class="text-slate-400 hover:text-red-400 transition-colors z-10">
+            <a href="{% url 'logout' %}"
+               class="text-slate-400 hover:text-red-400 transition-colors duration-200 ease-soft z-10 p-2 rounded-md hover:bg-white/5"
+               aria-label="Cerrar sesión"
+               title="Cerrar sesión">
                 <i class="fas fa-sign-out-alt"></i>
             </a>
         </div>

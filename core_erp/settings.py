@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import logging
+import warnings
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,27 +24,57 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ... existing imports ...
 import os
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# SECURITY WARNING: keep the secret key used in production secret!
-# In production, SECRET_KEY MUST be set via environment variable.
-_default_key = 'django-insecure-dev-only-key-do-not-use-in-production'
-SECRET_KEY = os.environ.get('SECRET_KEY', _default_key)
-
 # SECURITY WARNING: don't run with debug turned on in production!
-# Render sets 'RENDER' env var to 'true'.
-DEBUG = 'RENDER' not in os.environ
+# Explicit env var: DJANGO_DEBUG=1 enables debug; everything else (incl.
+# unset) leaves debug off.
+DEBUG = os.environ.get('DJANGO_DEBUG', '0') == '1'
+
+# SECURITY WARNING: keep the secret key used in production secret!
+# Production MUST set SECRET_KEY via environment. Dev uses a clearly
+# marked fallback and emits a warning.
+_default_key = 'django-insecure-dev-only-key-do-not-use-in-production'
+_secret_from_env = os.environ.get('SECRET_KEY')
+if _secret_from_env:
+    SECRET_KEY = _secret_from_env
+elif DEBUG:
+    SECRET_KEY = _default_key
+    warnings.warn(
+        'SECRET_KEY is not set; falling back to insecure development key. '
+        'Set SECRET_KEY env var for production.',
+        RuntimeWarning,
+    )
+else:
+    raise ImproperlyConfigured(
+        'SECRET_KEY environment variable must be set when DEBUG is False.'
+    )
+
+# CSRF trusted origins (comma-separated env)
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+
+# Session cookie hardening (always Lax — same-site by default).
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
 
 ALLOWED_HOSTS = []
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
-# Additional ALLOWED_HOSTS from env (split by comma)
-if os.environ.get("ALLOWED_HOSTS"):
-    ALLOWED_HOSTS.extend([h.strip() for h in os.environ.get("ALLOWED_HOSTS").split(",") if h.strip()])
+# Additional ALLOWED_HOSTS from env (split by comma) — supports both legacy
+# ALLOWED_HOSTS and the canonical DJANGO_ALLOWED_HOSTS.
+for _env_name in ('ALLOWED_HOSTS', 'DJANGO_ALLOWED_HOSTS'):
+    _raw = os.environ.get(_env_name, '')
+    if _raw:
+        ALLOWED_HOSTS.extend([h.strip() for h in _raw.split(',') if h.strip()])
 
 # Localhost fallback just in case
 if DEBUG:
@@ -215,10 +247,6 @@ CORS_ALLOWED_ORIGINS = [
 # PRODUCTION SECURITY SETTINGS
 # =============================================================================
 if not DEBUG:
-    # Ensure SECRET_KEY is set in production
-    if SECRET_KEY == _default_key:
-        raise ValueError('SECRET_KEY environment variable must be set in production!')
-
     # HTTPS / Cookie security
     SECURE_SSL_REDIRECT = True
     SECURE_HSTS_SECONDS = 31536000  # 1 year
@@ -231,6 +259,9 @@ if not DEBUG:
 # =============================================================================
 # LOGGING
 # =============================================================================
+LOG_DIR = BASE_DIR / 'logs'
+os.makedirs(LOG_DIR, exist_ok=True)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -245,36 +276,66 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': str(LOG_DIR / 'app.log'),
+            'maxBytes': 10 * 1024 * 1024,  # 10 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+            'encoding': 'utf-8',
+        },
     },
     'root': {
-        'handlers': ['console'],
+        'handlers': ['console', 'file'],
         'level': os.environ.get('LOG_LEVEL', 'INFO'),
     },
     'loggers': {
         'django': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
             'level': 'WARNING',
             'propagate': False,
         },
         'sales': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
             'level': 'INFO',
             'propagate': False,
         },
         'finance': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
             'level': 'INFO',
             'propagate': False,
         },
         'inventory': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
             'level': 'INFO',
             'propagate': False,
         },
         'production': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
             'level': 'INFO',
             'propagate': False,
         },
     },
 }
+
+# =============================================================================
+# Optional Sentry integration — only activates if SENTRY_DSN is set AND the
+# sentry-sdk package is importable. Never adds itself to requirements.
+# =============================================================================
+_SENTRY_DSN = os.environ.get('SENTRY_DSN', '').strip()
+if _SENTRY_DSN:
+    try:
+        import sentry_sdk  # type: ignore
+        from sentry_sdk.integrations.django import DjangoIntegration  # type: ignore
+
+        sentry_sdk.init(
+            dsn=_SENTRY_DSN,
+            integrations=[DjangoIntegration()],
+            traces_sample_rate=float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0.05')),
+            send_default_pii=False,
+            environment=os.environ.get('SENTRY_ENV', 'production' if not DEBUG else 'development'),
+        )
+    except ImportError:
+        logging.getLogger(__name__).warning(
+            'SENTRY_DSN is set but sentry-sdk is not installed; skipping Sentry init.'
+        )

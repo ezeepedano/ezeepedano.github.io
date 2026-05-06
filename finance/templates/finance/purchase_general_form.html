@@ -1,12 +1,13 @@
 {% extends 'base.html' %}
 
 {% block title %}Registrar Gasto General - Propel{% endblock %}
+{% block header_title %}Registrar Compra{% endblock %}
 
 {% block content %}
 <div class="max-w-3xl mx-auto">
     <!-- Minimal Breadcrumb / Back Navigation (Matches Stock Form) -->
     <div class="mb-6 flex items-center justify-between">
-        <a href="{% url 'purchase_hub' %}" class="flex items-center text-gray-500 hover:text-gray-800 transition-colors font-medium">
+        <a href="{% url 'traceability:purchase_list' %}" class="flex items-center text-gray-500 hover:text-gray-800 transition-colors font-medium">
             <i class="fas fa-arrow-left mr-2"></i> Volver
         </a>
         <span class="text-sm font-bold text-gray-300">GASTOS GENERALES</span>
@@ -142,7 +143,7 @@
 
                 <!-- Actions -->
                 <div class="pt-6 border-t border-gray-100 flex items-center justify-end gap-4">
-                    <a href="{% url 'purchase_hub' %}" class="px-6 py-4 rounded-xl text-gray-500 font-bold hover:bg-gray-50 hover:text-gray-800 transition-colors">
+                    <a href="{% url 'traceability:purchase_list' %}" class="px-6 py-4 rounded-xl text-gray-500 font-bold hover:bg-gray-50 hover:text-gray-800 transition-colors">
                         Cancelar
                     </a>
                     <button type="submit" class="px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center">

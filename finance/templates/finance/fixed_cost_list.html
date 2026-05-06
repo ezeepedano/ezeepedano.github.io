@@ -1,463 +1,396 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
-{% block title %}Finanzas - Propel{% endblock %}
+{% block title %}Gastos del mes — Propel{% endblock %}
+{% block header_title %}Gastos del Mes{% endblock %}
 
 {% block content %}
-<div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+<div class="max-w-7xl mx-auto">
 
-    <!-- LEFT COLUMN: Main Month View -->
-    <div class="lg:col-span-3 space-y-8">
-        <!-- Header & Nav -->
-        <!-- Header & Nav -->
-        <div class="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-3xl shadow-sm gap-4">
-            <div class="flex items-center gap-4 w-full md:w-auto justify-center md:justify-start">
-                <!-- Month Navigation -->
-                <div class="flex items-center bg-gray-50 rounded-xl px-2 py-1 border border-gray-100">
-                    <a href="?year={{ prev_month.year }}&month={{ prev_month.month }}"
-                        class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white hover:shadow-sm text-secondary transition-all">
-                        <i class="fas fa-chevron-left"></i>
-                    </a>
-                    <!-- NEW SPLIT NAVIGATION -->
-                    <div class="flex items-center bg-white rounded-xl shadow-sm border border-gray-100 p-1 gap-1">
+    {# ────────── Header ────────── #}
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 animate__animated animate__fadeIn">
+        <div>
+            <a href="{% url 'executive_dashboard' %}"
+               class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary-600 transition-colors mb-2">
+                <i class="fas fa-arrow-left text-[0.7rem]"></i><span>Volver al tablero</span>
+            </a>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight leading-tight">Gastos del mes</h1>
+            <p class="text-sm text-slate-500 mt-1.5">Costos fijos recurrentes y caja chica. Sincronizá desde plantillas con un click.</p>
+        </div>
 
-                        <!-- 1. YEAR DROPDOWN -->
-                        <div class="relative">
-                            <button
-                                onclick="document.getElementById('yearDropdown').classList.toggle('hidden'); document.getElementById('monthSplitDropdown').classList.add('hidden');"
-                                class="px-3 py-2 hover:bg-gray-50 rounded-lg text-sm font-bold text-gray-700 flex items-center gap-2 transition-colors">
-                                {{ current_month|date:"Y" }} <i
-                                    class="fas fa-chevron-down text-[10px] text-gray-400"></i>
-                            </button>
-                            <div id="yearDropdown"
-                                class="hidden absolute top-full left-0 mt-2 w-32 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden ring-1 ring-black/5 animate-fade-in-down">
-                                {% for y in available_years %}
-                                <a href="?year={{ y }}&month={{ current_month.month }}"
-                                    class="block px-4 py-2 hover:bg-purple-50 text-sm font-bold {% if y == current_month.year %}text-primary bg-purple-50{% else %}text-gray-600{% endif %}">
-                                    {{ y }}
-                                </a>
-                                {% endfor %}
-                            </div>
-                        </div>
+        <div class="flex flex-wrap gap-2 md:justify-end items-end">
+            <a href="{% url 'fixed_cost_definition_list' %}"
+               class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:border-primary-300 hover:text-primary-700 text-slate-700 rounded-md text-sm font-semibold shadow-sm transition-all">
+                <i class="fas fa-cog text-xs"></i><span>Plantillas</span>
+            </a>
 
-                        <div class="w-px h-6 bg-gray-200"></div>
+            <form action="{% url 'generate_monthly_expenses' %}" method="POST" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="year" value="{{ current_month.year }}">
+                <input type="hidden" name="month" value="{{ current_month.month }}">
+                <button type="submit"
+                        {% if expenses %}onclick="return confirm('Sincronizar este mes desde plantillas. Se agregan nuevos costos y se actualizan los pendientes (los pagados quedan intactos). ¿Continuar?');"{% endif %}
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-semibold shadow-sm hover:shadow-md transition-all">
+                    <i class="fas {% if expenses %}fa-rotate{% else %}fa-wand-magic-sparkles{% endif %} text-xs"></i>
+                    <span>{% if expenses %}Sincronizar{% else %}Generar mes{% endif %}</span>
+                </button>
+            </form>
 
-                        <!-- 2. MONTH DROPDOWN -->
-                        <div class="relative">
-                            <button
-                                onclick="document.getElementById('monthSplitDropdown').classList.toggle('hidden'); document.getElementById('yearDropdown').classList.add('hidden');"
-                                class="px-3 py-2 hover:bg-gray-50 rounded-lg text-sm font-bold text-gray-800 flex items-center gap-2 transition-colors uppercase">
-                                {{ current_month|date:"F" }} <i class="fas fa-chevron-down text-[10px] text-gray-400"></i>
-                            </button>
-
-                            <div id="monthSplitDropdown"
-                                class="hidden absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden ring-1 ring-black/5 p-2 grid grid-cols-2 gap-1 animate-fade-in-down">
-                                {% for m_nav in months_navigation %}
-                                <a href="?year={{ current_month.year }}&month={{ m_nav.num }}"
-                                    class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-all relative group
-                                   {% if m_nav.num == current_month.month %}bg-purple-600 text-white shadow-md{% else %}hover:bg-gray-50 text-gray-600{% endif %}">
-                                    <span class="capitalize">{{ m_nav.date|date:"F" }}</span>
-
-                                    {% if m_nav.is_paid %}
-                                    <div class="w-2 h-2 rounded-full bg-green-400 shadow-sm" title="Pagado"></div>
-                                    {% elif m_nav.has_data %}
-                                    <div class="w-2 h-2 rounded-full bg-orange-300 shadow-sm" title="Pendiente"></div>
-                                    {% else %}
-                                    <div class="w-2 h-2 rounded-full bg-gray-200" title="Sin datos"></div>
-                                    {% endif %}
-                                </a>
-                                {% endfor %}
-                            </div>
-                        </div>
-
-                        <!-- 3. TODAY BUTTON -->
-                        <div class="w-px h-6 bg-gray-200"></div>
-                        <a href="?year={{ today.year }}&month={{ today.month }}"
-                            class="px-3 py-2 hover:bg-purple-50 rounded-lg text-xs font-bold text-primary flex items-center gap-2 transition-all uppercase"
-                            title="Ir a Hoy">
-                            <i class="fas fa-calendar-day"></i> Hoy
-                        </a>
-
-                        <!-- Click Outside Script -->
-                        <script>
-                            document.addEventListener('click', function (event) {
-                                const dropdowns = ['yearDropdown', 'monthSplitDropdown'];
-                                dropdowns.forEach(id => {
-                                    const el = document.getElementById(id);
-                                    const trigger = event.target.closest('button');
-                                    // If click is NOT inside a button that toggles THIS dropdown specifically
-                                    // (Simplification: closing if click outside dropdown, complex logic handled by toggle)
-                                    if (el && !el.classList.contains('hidden') && !el.contains(event.target) && (!trigger || !trigger.onclick.toString().includes(id))) {
-                                        el.classList.add('hidden');
-                                    }
-                                });
-                            });
-                        </script>
-                    </div>
-                    <a href="?year={{ next_month.year }}&month={{ next_month.month }}"
-                        class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white hover:shadow-sm text-secondary transition-all">
-                        <i class="fas fa-chevron-right"></i>
-                    </a>
-                </div>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                <form action="{% url 'generate_monthly_expenses' %}" method="POST" id="generateForm" class="w-full sm:w-auto">
-                    {% csrf_token %}
-                    <input type="hidden" name="year" value="{{ current_month.year }}">
-                    <input type="hidden" name="month" value="{{ current_month.month }}">
-
-                    {% if expenses %}
-                    <button type="submit"
-                        onclick="return confirm('¡ATENCIÓN!\n\nYa existen gastos generados para este mes.\n\nAl continuar, se ACTUALIZARÁN los montos según las plantillas vigentes.\n\n- Se agregarán nuevos costos si creaste plantillas nuevas.\n- Se actualizarán los montos de los costos pendientes de pago.\n- NO se modificarán los montos de los costos YA PAGADOS.\n\n¿Desea proceder?');"
-                        class="bg-black hover:bg-gray-800 text-white px-5 py-3 rounded-xl text-sm font-bold transition-all shadow-lg flex items-center justify-center w-full sm:w-auto">
-                        <i class="fas fa-sync-alt mr-2"></i> Sincronizar
-                    </button>
-                    {% else %}
-                    <button type="submit"
-                        class="bg-black hover:bg-gray-800 text-white px-5 py-3 rounded-xl text-sm font-bold transition-all shadow-lg flex items-center justify-center w-full sm:w-auto">
-                        <i class="fas fa-magic mr-2"></i> Generar Mes
-                    </button>
-                    {% endif %}
-                </form>
-
-                {% if expenses %}
-                <form action="{% url 'delete_monthly_expenses' %}" method="POST" class="inline w-full sm:w-auto">
-                    {% csrf_token %}
-                    <input type="hidden" name="year" value="{{ current_month.year }}">
-                    <input type="hidden" name="month" value="{{ current_month.month }}">
-                    <button type="submit"
-                        onclick="return confirm('⚠️ ¡PELIGRO - ACCIÓN IRREVERSIBLE! ⚠️\n\n¿Estás seguro de que deseas ELIMINAR TODOS los gastos de este mes?\n\n- Se borrarán todos los registros de gastos.\n- Se perderá el estado de pago de cada uno.\n- Esta acción NO SE PUEDE deshacer.\n\n¿Confirmar borrado?');"
-                        class="bg-white border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 px-5 py-3 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center justify-center w-full sm:w-auto"
+            {% if expenses %}
+            <form action="{% url 'delete_monthly_expenses' %}" method="POST" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="year" value="{{ current_month.year }}">
+                <input type="hidden" name="month" value="{{ current_month.month }}">
+                <button type="submit"
+                        onclick="return confirm('PELIGRO — acción irreversible. Borra TODOS los gastos del mes (incluso pagados). ¿Continuar?');"
+                        class="inline-flex items-center gap-2 px-3 py-2 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-md text-sm font-semibold shadow-sm transition-all"
                         title="Borrar mes completo">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
-                </form>
-                {% endif %}
+                    <i class="fas fa-trash text-xs"></i>
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
 
-                <a href="{% url 'fixed_cost_definition_list' %}"
-                    class="bg-white border text-gray-700 hover:text-primary hover:border-primary px-5 py-3 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center justify-center w-full sm:w-auto">
-                    <i class="fas fa-cog mr-2"></i> Plantillas
-                </a>
+    {# ────────── Month nav ────────── #}
+    <div class="card-soft p-3 mb-5 flex flex-wrap items-center gap-2">
+        <a href="?year={{ prev_month.year }}&month={{ prev_month.month }}"
+           class="w-9 h-9 flex items-center justify-center rounded-md bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors"
+           title="Mes anterior">
+            <i class="fas fa-chevron-left text-xs"></i>
+        </a>
+
+        <div class="relative">
+            <button type="button" id="yearBtn"
+                    class="px-3 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 text-sm font-semibold text-slate-700 inline-flex items-center gap-2">
+                {{ current_month|date:"Y" }} <i class="fas fa-chevron-down text-[0.6rem] text-slate-400"></i>
+            </button>
+            <div id="yearMenu" class="hidden absolute top-full left-0 mt-1 w-32 bg-white rounded-md shadow-xl border border-slate-100 z-40 ring-1 ring-black/5 overflow-hidden">
+                {% for y in available_years %}
+                <a href="?year={{ y }}&month={{ current_month.month }}"
+                   class="block px-3 py-1.5 text-sm font-semibold {% if y == current_month.year %}bg-primary-50 text-primary-700{% else %}text-slate-600 hover:bg-slate-50{% endif %}">{{ y }}</a>
+                {% endfor %}
             </div>
         </div>
 
-        <!-- TITLE -->
-        <h2 class="text-xl font-bold text-gray-800 px-4 mb-4">
-            <i class="fas fa-file-invoice-dollar mr-2"></i> Gestión de Costos
-        </h2>
+        <div class="relative">
+            <button type="button" id="monthBtn"
+                    class="px-3 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 text-sm font-semibold text-slate-700 inline-flex items-center gap-2 capitalize">
+                {{ current_month|date:"F" }} <i class="fas fa-chevron-down text-[0.6rem] text-slate-400"></i>
+            </button>
+            <div id="monthMenu" class="hidden absolute top-full left-0 mt-1 w-72 bg-white rounded-md shadow-xl border border-slate-100 z-40 ring-1 ring-black/5 p-2 grid grid-cols-2 gap-1">
+                {% for m_nav in months_navigation %}
+                <a href="?year={{ current_month.year }}&month={{ m_nav.num }}"
+                   class="flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-semibold capitalize transition-colors
+                          {% if m_nav.num == current_month.month %}bg-primary-600 text-white{% else %}text-slate-600 hover:bg-slate-50{% endif %}">
+                    <span>{{ m_nav.date|date:"F" }}</span>
+                    <span class="w-2 h-2 rounded-full
+                        {% if m_nav.is_paid %}bg-emerald-400{% elif m_nav.has_data %}bg-amber-400{% else %}bg-slate-300{% endif %}"></span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
 
-        <!-- 1. GASTOS (Separated into Recurrent and Variable) -->
-        <div id="content-fixed" class="space-y-8 animate-fade-in">
-            <!-- Month Detail Card -->
-            <div class="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100">
-                <div class="px-8 py-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center bg-gray-50/50 gap-4">
-                    <div class="text-center md:text-left">
-                        <h2 class="text-xl font-bold text-gray-800">Detalle de {{ current_month|date:"F" }}</h2>
-                        <p class="text-sm text-secondary">
-                            <span class="font-bold text-gray-700">${{ total_amount|floatformat:2 }}</span> en total
-                        </p>
-                    </div>
-                    <!-- Mini Progress Bar -->
-                    <div class="w-full md:w-1/3">
-                        <div class="flex justify-between text-xs font-bold text-secondary mb-1">
-                            <span>Pagado: ${{ total_paid|floatformat:0 }}</span>
-                            <span>Pendiente: ${{ total_pending|floatformat:0 }}</span>
-                        </div>
-                        <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                            {% if total_amount > 0 %}
-                            <div class="h-full bg-green-500 rounded-full transition-all duration-500"
-                                style="width: {% widthratio total_paid total_amount 100 %}%"></div>
-                            {% else %}
-                            <div class="h-full bg-gray-300 w-full"></div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
+        <a href="?year={{ today.year }}&month={{ today.month }}"
+           class="px-3 py-1.5 rounded-md bg-primary-50 hover:bg-primary-100 text-primary-700 text-xs font-semibold inline-flex items-center gap-1.5">
+            <i class="fas fa-calendar-day text-[0.65rem]"></i> Hoy
+        </a>
 
-                <!-- SECTION: FIXED COSTS (Recurrent) -->
-                <div class="px-8 py-4 bg-purple-50 border-b border-gray-100">
-                    <h3 class="text-sm font-bold text-purple-900 uppercase tracking-wide">
-                        <i class="fas fa-redo-alt mr-2"></i> Costos Fijos (Recurrentes)
-                    </h3>
+        <a href="?year={{ next_month.year }}&month={{ next_month.month }}"
+           class="w-9 h-9 flex items-center justify-center rounded-md bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors"
+           title="Mes siguiente">
+            <i class="fas fa-chevron-right text-xs"></i>
+        </a>
+    </div>
+
+    {# ────────── KPI tiles ────────── #}
+    <div class="grid grid-cols-2 xl:grid-cols-5 gap-3 mb-5">
+        <div class="card-soft p-5">
+            <div class="flex items-start justify-between mb-4">
+                <div class="w-10 h-10 rounded-md bg-primary-50 text-primary-600 flex items-center justify-center"><i class="fas fa-receipt"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Total mes</p>
+            <h3 class="text-2xl font-bold text-slate-900 tracking-tight leading-none">${{ total_amount|floatformat:0|intcomma }}</h3>
+            <p class="text-[0.7rem] text-slate-500 mt-1.5 capitalize">{{ current_month|date:"F Y" }}</p>
+        </div>
+        <div class="card-soft p-5">
+            <div class="flex items-start justify-between mb-4">
+                <div class="w-10 h-10 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="fas fa-check-double"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Pagado</p>
+            <h3 class="text-2xl font-bold text-emerald-700 tracking-tight leading-none">${{ total_paid|floatformat:0|intcomma }}</h3>
+            <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mt-2">
+                {% if total_amount > 0 %}<div class="h-full bg-emerald-500" style="width: {% widthratio total_paid total_amount 100 %}%"></div>{% endif %}
+            </div>
+        </div>
+        <div class="card-soft p-5">
+            <div class="flex items-start justify-between mb-4">
+                <div class="w-10 h-10 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fas fa-hourglass-half"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Pendiente</p>
+            <h3 class="text-2xl font-bold text-amber-700 tracking-tight leading-none">${{ total_pending|floatformat:0|intcomma }}</h3>
+        </div>
+        <div class="card-soft p-5">
+            <div class="flex items-start justify-between mb-4">
+                <div class="w-10 h-10 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center"><i class="fas fa-triangle-exclamation"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Vencidos</p>
+            <h3 class="text-2xl font-bold text-rose-700 tracking-tight leading-none">{{ overdue_count }}</h3>
+            <p class="text-[0.7rem] text-slate-500 mt-1.5">sin pagar</p>
+        </div>
+        <div class="card-soft p-5">
+            <div class="flex items-start justify-between mb-4">
+                <div class="w-10 h-10 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-chart-line"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Promedio mensual {{ today|date:"Y" }}</p>
+            <h3 class="text-2xl font-bold text-slate-900 tracking-tight leading-none">${{ average_monthly|floatformat:0|intcomma }}</h3>
+            <p class="text-[0.7rem] text-slate-500 mt-1.5">año total ${{ total_year_spent|floatformat:0|intcomma }}</p>
+        </div>
+    </div>
+
+    {# ────────── Grid: month detail + history ────────── #}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div class="lg:col-span-2 space-y-5">
+            {# ───── Costos fijos ───── #}
+            <div class="card-soft overflow-hidden p-0">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h2 class="text-base font-bold text-slate-900"><i class="fas fa-rotate text-primary-500 text-xs mr-1.5"></i> Costos fijos recurrentes</h2>
+                    <span class="text-[0.7rem] text-slate-400 font-semibold">{{ fixed_expenses|length }} ítem{{ fixed_expenses|length|pluralize:"s" }}</span>
                 </div>
+                {% if fixed_expenses %}
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="text-secondary text-xs font-bold uppercase border-b border-gray-50">
-                                <th class="px-8 py-5">Concepto</th>
-                                <th class="px-6 py-5 text-center">Vencimiento</th>
-                                <th class="px-6 py-5 text-right">Monto</th>
-                                <th class="px-6 py-5 text-center">Estado</th>
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead class="bg-slate-50/60 border-b border-slate-100">
+                            <tr class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">
+                                <th class="px-4 py-3.5">Concepto</th>
+                                <th class="px-4 py-3.5 text-center">Vencimiento</th>
+                                <th class="px-4 py-3.5 text-right">Monto</th>
+                                <th class="px-4 py-3.5 text-center">Estado</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-50">
-                            {% regroup fixed_expenses by get_category_display as category_list %}
-
-                            {% for category in category_list %}
-                            <tr class="bg-gray-50/50">
-                                <td colspan="4" class="px-8 py-2">
-                                    <h4
-                                        class="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                                        {{ category.grouper }}
-                                        <span class="h-px bg-gray-200 flex-1"></span>
-                                    </h4>
+                        <tbody class="divide-y divide-slate-100">
+                            {% regroup fixed_expenses by category as cat_list %}
+                            {% for cat in cat_list %}
+                            <tr class="bg-slate-50/40">
+                                <td colspan="4" class="px-4 py-2 text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.12em]">
+                                    {{ cat.grouper.name|default:"Sin categoría" }}
                                 </td>
                             </tr>
-                            {% for expense in category.list %}
-                            <tr class="hover:bg-gray-50 transition-colors group">
-                                <td class="px-8 py-4 align-middle">
-                                    <div class="flex items-center gap-4">
-                                        <div
-                                            class="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-primary font-bold text-lg group-hover:scale-110 transition-transform">
-                                            {{ expense.name|slice:":1" }}
-                                        </div>
-                                        <div>
-                                            <p class="font-bold text-gray-800 text-sm">{{ expense.name }}</p>
-                                            {% if expense.description %}
-                                            <p class="text-xs text-secondary">{{ expense.description|truncatechars:30 }}
-                                            </p>
-                                            {% endif %}
+                            {% for exp in cat.list %}
+                            {% with overdue=exp.due_date|default_if_none:'' %}
+                            <tr class="hover:bg-primary-50/30 transition-colors">
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-md bg-primary-50 text-primary-700 flex items-center justify-center font-bold text-xs">{{ exp.name|slice:":1"|upper }}</div>
+                                        <div class="min-w-0">
+                                            <p class="font-semibold text-slate-800 truncate">{{ exp.name }}</p>
+                                            {% if exp.description %}<p class="text-[0.7rem] text-slate-400 truncate">{{ exp.description|truncatechars:48 }}</p>{% endif %}
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 align-middle text-center">
-                                    <span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-xs font-bold">
-                                        {{ expense.due_date|date:"d M" }}
-                                    </span>
+                                <td class="px-4 py-3 text-center whitespace-nowrap">
+                                    {% if exp.due_date and not exp.is_paid and exp.due_date < today %}
+                                    <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-rose-50 text-rose-700 border border-rose-200">{{ exp.due_date|date:"d M" }}</span>
+                                    {% else %}
+                                    <span class="text-slate-600">{{ exp.due_date|date:"d M"|default:"—" }}</span>
+                                    {% endif %}
                                 </td>
-                                <td class="px-6 py-4 align-middle text-right text-sm font-bold text-gray-800">
-                                    ${{ expense.amount|floatformat:2 }}
-                                </td>
-                                <td class="px-6 py-4 align-middle text-center">
-                                    <form action="{% url 'toggle_payment' expense.pk %}" method="POST" class="inline">
+                                <td class="px-4 py-3 text-right font-bold text-slate-900 font-mono whitespace-nowrap">${{ exp.amount|floatformat:2|intcomma }}</td>
+                                <td class="px-4 py-3 text-center">
+                                    <form action="{% url 'toggle_payment' exp.pk %}" method="POST" class="inline">
                                         {% csrf_token %}
                                         <button type="submit"
-                                            class="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold ring-1 ring-inset transition-all cursor-pointer transform hover:scale-105 active:scale-95 {% if expense.is_paid %}bg-green-50 text-green-700 ring-green-600/20 hover:bg-green-100 shadow-sm{% else %}bg-white text-gray-400 ring-gray-200 hover:ring-red-300 hover:text-red-500 hover:bg-red-50{% endif %}">
-                                            <span
-                                                class="w-2 h-2 rounded-full mr-2 {% if expense.is_paid %}bg-green-500{% else %}bg-gray-300{% endif %}"></span>
-                                            {% if expense.is_paid %}Pagado{% else %}Pendiente{% endif %}
+                                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[0.7rem] font-semibold border transition-all
+                                                       {% if exp.is_paid %}bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100
+                                                       {% else %}bg-white text-slate-500 border-slate-200 hover:border-emerald-300 hover:text-emerald-600 hover:bg-emerald-50{% endif %}">
+                                            <span class="w-1.5 h-1.5 rounded-full {% if exp.is_paid %}bg-emerald-500{% else %}bg-slate-300{% endif %}"></span>
+                                            {% if exp.is_paid %}Pagado{% else %}Pendiente{% endif %}
                                         </button>
                                     </form>
                                 </td>
                             </tr>
+                            {% endwith %}
                             {% endfor %}
-                            {% empty %}
-                            <tr>
-                                <td colspan="4" class="px-6 py-8 text-center text-gray-400 text-sm">
-                                    No hay costos fijos generados para este mes.
-                                </td>
-                            </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
+                {% else %}
+                <div class="px-6 py-10 text-center">
+                    <p class="text-slate-700 font-semibold text-sm">Sin costos fijos generados</p>
+                    <p class="text-xs text-slate-500 mt-1">Generá el mes desde plantillas para empezar.</p>
+                </div>
+                {% endif %}
+            </div>
 
-                <!-- SECTION: VARIABLE EXPENSES (Caja Chica) -->
-                <div class="px-8 py-4 bg-orange-50 border-t border-gray-100 flex justify-between items-center">
-                    <h3 class="text-sm font-bold text-orange-900 uppercase tracking-wide">
-                        <i class="fas fa-wallet mr-2"></i> Gastos Variables (Caja Chica)
-                    </h3>
-                    <button onclick="document.getElementById('addVariableExpenseModal').classList.remove('hidden')"
-                        class="bg-white border border-orange-200 text-orange-600 hover:bg-orange-100 hover:text-orange-700 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center">
-                        <i class="fas fa-plus mr-2"></i> Nuevo Gasto
+            {# ───── Caja chica ───── #}
+            <div class="card-soft overflow-hidden p-0">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h2 class="text-base font-bold text-slate-900"><i class="fas fa-wallet text-amber-500 text-xs mr-1.5"></i> Caja chica (gastos variables)</h2>
+                    <button type="button" id="btnNewVariable"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-600 hover:text-white text-amber-700 rounded-md text-xs font-semibold transition-all">
+                        <i class="fas fa-plus text-[0.65rem]"></i> Nuevo gasto
                     </button>
                 </div>
+                {% if variable_expenses %}
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <!-- Reuse same header structure for consistency or simpler one -->
-                        <tbody class="divide-y divide-gray-50">
-                            {% regroup variable_expenses by get_category_display as var_category_list %}
-
-                            {% for category in var_category_list %}
-                            <tr class="bg-gray-50/50">
-                                <td colspan="4" class="px-8 py-2">
-                                    <h4
-                                        class="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                                        {{ category.grouper }}
-                                        <span class="h-px bg-gray-200 flex-1"></span>
-                                    </h4>
-                                </td>
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead class="bg-slate-50/60 border-b border-slate-100">
+                            <tr class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">
+                                <th class="px-4 py-3.5">Concepto</th>
+                                <th class="px-4 py-3.5 text-center">Fecha</th>
+                                <th class="px-4 py-3.5 text-right">Monto</th>
+                                <th class="px-4 py-3.5 text-center">Estado</th>
                             </tr>
-                            {% for expense in category.list %}
-                            <tr class="hover:bg-gray-50 transition-colors group">
-                                <td class="px-8 py-4 align-middle">
-                                    <div class="flex items-center gap-4">
-                                        <!-- Different Icon/Color for Variable -->
-                                        <div
-                                            class="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-500 font-bold text-lg group-hover:scale-110 transition-transform">
-                                            <i class="fas fa-receipt"></i>
-                                        </div>
-                                        <div>
-                                            <p class="font-bold text-gray-800 text-sm">{{ expense.name }}</p>
-                                            {% if expense.description %}
-                                            <p class="text-xs text-secondary">{{ expense.description|truncatechars:30 }}
-                                            </p>
-                                            {% endif %}
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for exp in variable_expenses %}
+                            <tr class="hover:bg-primary-50/30 transition-colors">
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fas fa-receipt text-xs"></i></div>
+                                        <div class="min-w-0">
+                                            <p class="font-semibold text-slate-800 truncate">{{ exp.name }}</p>
+                                            {% if exp.description %}<p class="text-[0.7rem] text-slate-400 truncate">{{ exp.description|truncatechars:48 }}</p>{% endif %}
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 align-middle text-center">
-                                    <span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-xs font-bold">
-                                        {{ expense.due_date|date:"d M" }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 align-middle text-right text-sm font-bold text-gray-800">
-                                    ${{ expense.amount|floatformat:2 }}
-                                </td>
-                                <td class="px-6 py-4 align-middle text-center">
-                                    <form action="{% url 'toggle_payment' expense.pk %}" method="POST" class="inline">
+                                <td class="px-4 py-3 text-center text-slate-600 whitespace-nowrap">{{ exp.due_date|date:"d M"|default:"—" }}</td>
+                                <td class="px-4 py-3 text-right font-bold text-slate-900 font-mono whitespace-nowrap">${{ exp.amount|floatformat:2|intcomma }}</td>
+                                <td class="px-4 py-3 text-center">
+                                    <form action="{% url 'toggle_payment' exp.pk %}" method="POST" class="inline">
                                         {% csrf_token %}
                                         <button type="submit"
-                                            class="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold ring-1 ring-inset transition-all cursor-pointer transform hover:scale-105 active:scale-95 {% if expense.is_paid %}bg-green-50 text-green-700 ring-green-600/20 hover:bg-green-100 shadow-sm{% else %}bg-white text-gray-400 ring-gray-200 hover:ring-red-300 hover:text-red-500 hover:bg-red-50{% endif %}">
-                                            <span
-                                                class="w-2 h-2 rounded-full mr-2 {% if expense.is_paid %}bg-green-500{% else %}bg-gray-300{% endif %}"></span>
-                                            {% if expense.is_paid %}Pagado{% else %}Pendiente{% endif %}
+                                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[0.7rem] font-semibold border transition-all
+                                                       {% if exp.is_paid %}bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100
+                                                       {% else %}bg-white text-slate-500 border-slate-200 hover:border-emerald-300 hover:text-emerald-600 hover:bg-emerald-50{% endif %}">
+                                            <span class="w-1.5 h-1.5 rounded-full {% if exp.is_paid %}bg-emerald-500{% else %}bg-slate-300{% endif %}"></span>
+                                            {% if exp.is_paid %}Pagado{% else %}Pendiente{% endif %}
                                         </button>
                                     </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                            {% empty %}
-                            <tr>
-                                <td colspan="4" class="px-6 py-8 text-center text-gray-400 text-sm">
-                                    No hay gastos variables (peajes, combustibles, etc).
                                 </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
+                {% else %}
+                <div class="px-6 py-10 text-center">
+                    <p class="text-slate-700 font-semibold text-sm">Sin gastos variables</p>
+                    <p class="text-xs text-slate-500 mt-1">Combustible, peajes, taxis, librería… registralos acá.</p>
+                </div>
+                {% endif %}
             </div>
         </div>
 
-
-
-
-
-    <!-- Add Variable Expense Modal (Caja Chica) -->
-    <div id="addVariableExpenseModal"
-        class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl p-6 transform transition-all scale-100">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-bold text-gray-900">Registrar Gasto Variable</h3>
-                <button onclick="document.getElementById('addVariableExpenseModal').classList.add('hidden')"
-                    class="text-gray-400 hover:text-gray-600">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-
-            <form action="{% url 'variable_expense_create' %}" method="POST" class="space-y-4">
-                {% csrf_token %}
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Fecha</label>
-                        <input type="date" name="due_date" value="{{ current_month|date:'Y-m-d' }}" required
-                            class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Monto ($)</label>
-                        <input type="number" step="0.01" name="amount" required placeholder="0.00"
-                            class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Concepto / Nombre</label>
-                    <input type="text" name="name" required placeholder="Ej: Combustible, Peajes, Taxis..."
-                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Detalles (Opcional)</label>
-                    <textarea name="description" rows="2" placeholder="Detalles adicionales..."
-                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary"></textarea>
-                </div>
-
-                <div class="pt-4 flex gap-3">
-                    <button type="button"
-                        onclick="document.getElementById('addVariableExpenseModal').classList.add('hidden')"
-                        class="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200 transition-colors">
-                        Cancelar
-                    </button>
-                    <button type="submit"
-                        class="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition-all shadow-lg">
-                        Guardar Gasto
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-
-
-    <!-- History/Previous Months List -->
-    <h3 class="text-xl font-bold text-gray-800 px-2 mt-8">Historial Mensual</h3>
-    <div class="space-y-4">
-        {% for month_data in history_summary %}
-        {% if month_data.month != current_month %}
-        <a href="?year={{ month_data.month.year }}&month={{ month_data.month.month }}"
-            class="block bg-white hover:bg-purple-50 p-4 rounded-2xl shadow-sm border border-transparent hover:border-purple-100 transition-all group">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-4">
-                    <div
-                        class="w-12 h-12 rounded-xl bg-gray-100 text-gray-500 flex flex-col items-center justify-center font-bold text-xs group-hover:bg-purple-100 group-hover:text-primary transition-colors">
-                        <span class="uppercase">{{ month_data.month|date:"M" }}</span>
-                        <span class="text-sm">{{ month_data.month|date:"y" }}</span>
-                    </div>
-                    <div>
-                        <h4 class="font-bold text-gray-800 group-hover:text-primary transition-colors capitalize">{{ month_data.month|date:"F Y" }}</h4>
-                        <div class="flex items-center gap-2 text-xs text-secondary mt-1">
-                            <span class="bg-gray-100 px-1.5 py-0.5 rounded">{{ month_data.count }} items</span>
-                            <span>•</span>
-                            {% if month_data.paid == month_data.total %}
-                            <span class="text-green-600 font-bold"><i class="fas fa-check-circle mr-1"></i>
-                                Completado</span>
-                            {% else %}
-                            <span class="text-orange-500 font-bold">Pendiente</span>
-                            {% endif %}
+        {# ───── Sidebar: history + tip ───── #}
+        <aside class="space-y-4">
+            <div class="card-soft p-5">
+                <h3 class="text-sm font-bold text-slate-900 mb-3">Historial</h3>
+                {% if history_summary %}
+                <ul class="space-y-2.5">
+                    {% for h in history_summary %}
+                    <a href="?year={{ h.month.year }}&month={{ h.month.month }}"
+                       class="flex items-center justify-between gap-2 p-2.5 rounded-md hover:bg-primary-50 transition-colors group">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-10 h-10 rounded-md bg-slate-50 group-hover:bg-primary-100 text-slate-600 group-hover:text-primary-700 flex flex-col items-center justify-center font-bold text-[0.65rem] uppercase tracking-tight transition-colors">
+                                <span>{{ h.month|date:"M" }}</span>
+                                <span>{{ h.month|date:"y" }}</span>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-xs font-bold text-slate-800 truncate capitalize">{{ h.month|date:"F Y" }}</p>
+                                <p class="text-[0.65rem] text-slate-500">{{ h.count }} ítem{{ h.count|pluralize:"s" }} · {% if h.paid >= h.total %}<span class="text-emerald-600 font-semibold">completo</span>{% else %}<span class="text-amber-600 font-semibold">pendiente</span>{% endif %}</p>
+                            </div>
                         </div>
-                    </div>
+                        <span class="text-xs font-bold text-slate-700 whitespace-nowrap">${{ h.total|floatformat:0|intcomma }}</span>
+                    </a>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-xs text-slate-500">Sin historial.</p>
+                {% endif %}
+            </div>
+
+            <div class="card-soft p-5 bg-primary-50/40 border-primary-100">
+                <h4 class="text-sm font-bold text-primary-900 mb-1.5"><i class="fas fa-lightbulb mr-1.5 text-xs"></i> Tip</h4>
+                <p class="text-xs text-primary-800/80 leading-relaxed">
+                    Editá <a class="underline font-semibold" href="{% url 'fixed_cost_definition_list' %}">plantillas</a> con los nuevos valores y apretá <strong>Sincronizar</strong>. Se actualiza lo pendiente; lo pagado queda.
+                </p>
+            </div>
+        </aside>
+    </div>
+</div>
+
+{# ────────── Variable expense modal ────────── #}
+<div id="varModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <h3 class="text-base font-bold text-slate-900">Nuevo gasto variable</h3>
+            <button type="button" id="varModalClose" class="text-slate-400 hover:text-slate-700"><i class="fas fa-xmark"></i></button>
+        </div>
+        <form action="{% url 'variable_expense_create' %}" method="POST" class="p-6 space-y-4">
+            {% csrf_token %}
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase tracking-[0.1em] mb-1.5">Fecha</label>
+                    <input type="date" name="due_date" value="{{ current_month|date:'Y-m-d' }}" required
+                           class="w-full px-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm transition-all">
                 </div>
-                <div class="text-right">
-                    <span class="block text-lg font-bold text-gray-800">${{ month_data.total|floatformat:0 }}</span>
-                    <span class="text-xs text-secondary font-medium">Gastado: ${{ month_data.paid|default:0|floatformat:0 }}</span>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase tracking-[0.1em] mb-1.5">Monto</label>
+                    <input type="number" step="0.01" name="amount" required placeholder="0.00"
+                           class="w-full px-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm transition-all">
                 </div>
             </div>
-        </a>
-        {% endif %}
-        {% endfor %}
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-[0.1em] mb-1.5">Concepto</label>
+                <input type="text" name="name" required placeholder="Combustible, peaje, taxi…"
+                       class="w-full px-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm transition-all">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-[0.1em] mb-1.5">Detalle (opcional)</label>
+                <textarea name="description" rows="2"
+                          class="w-full px-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm transition-all"></textarea>
+            </div>
+            <div class="flex items-center justify-end gap-2 pt-2">
+                <button type="button" id="varModalCancel" class="px-4 py-2 rounded-md text-slate-500 text-sm font-semibold hover:bg-slate-50 hover:text-slate-700">Cancelar</button>
+                <button type="submit" class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-semibold shadow-sm">Guardar gasto</button>
+            </div>
+        </form>
     </div>
 </div>
 
+<script>
+(function () {
+    // Year/month dropdown toggles. Using single shared close-on-outside
+    // handler instead of duplicating logic per dropdown.
+    const dropdowns = [
+        ['yearBtn', 'yearMenu'],
+        ['monthBtn', 'monthMenu'],
+    ];
+    const menus = [];
+    dropdowns.forEach(function ([btnId, menuId]) {
+        const btn = document.getElementById(btnId);
+        const menu = document.getElementById(menuId);
+        if (!btn || !menu) return;
+        menus.push(menu);
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            menus.forEach(m => m !== menu && m.classList.add('hidden'));
+            menu.classList.toggle('hidden');
+        });
+    });
+    document.addEventListener('click', function () { menus.forEach(m => m.classList.add('hidden')); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') menus.forEach(m => m.classList.add('hidden')); });
 
-<!-- RIGHT COLUMN: Dashboard & Stats -->
-<div class="space-y-6">
-    <!-- Year Stats Card -->
-    <div class="bg-gradient-to-br from-gray-900 to-black rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
-        <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white opacity-5 rounded-full blur-2xl"></div>
-
-        <h3 class="text-gray-400 text-xs font-bold uppercase tracking-wider mb-6">Resumen {{ today|date:"Y" }}</h3>
-
-        <div class="mb-6">
-            <span class="text-3xl font-bold block mb-1">${{ total_year_spent|floatformat:0 }}</span>
-            <span class="text-gray-400 text-sm font-medium">Pagado este año</span>
-        </div>
-
-        <div class="pt-6 border-t border-gray-800">
-            <span class="text-xl font-bold block mb-1 text-purple-400">${{ average_monthly|floatformat:0 }}</span>
-            <span class="text-gray-500 text-xs font-medium">Promedio mensual</span>
-        </div>
-    </div>
-
-    <!-- Quick Tips or Info -->
-    <div class="bg-purple-50 rounded-3xl p-6 border border-purple-100">
-        <h4 class="font-bold text-purple-900 mb-2"><i class="fas fa-lightbulb mr-2"></i> Tip</h4>
-        <p class="text-sm text-purple-800/80 leading-relaxed">
-            Utiliza el botón <strong>Sincronizar</strong> si actualizaste los valores de tus plantillas y quieres
-            reflejarlos en el mes actual sin perder lo que ya pagaste.
-        </p>
-    </div>
-</div>
-
-</div>
+    // Variable expense modal.
+    const modal = document.getElementById('varModal');
+    const open = document.getElementById('btnNewVariable');
+    const close = document.getElementById('varModalClose');
+    const cancel = document.getElementById('varModalCancel');
+    if (open && modal) open.addEventListener('click', () => modal.classList.remove('hidden'));
+    [close, cancel].forEach(function (b) { if (b) b.addEventListener('click', () => modal.classList.add('hidden')); });
+    modal && modal.addEventListener('click', function (e) { if (e.target === modal) modal.classList.add('hidden'); });
+})();
+</script>
 {% endblock %}

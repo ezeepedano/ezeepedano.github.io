@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Eliminar empleado — Propel{% endblock %}
+{% block header_title %}Eliminar empleado{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+
+    <div class="flex items-center gap-4 mb-6 animate__animated animate__fadeIn">
+        <a href="{% url 'employee_list' %}"
+           class="w-10 h-10 flex items-center justify-center rounded-md bg-white border border-slate-200 text-slate-500 hover:text-primary-700 hover:border-primary-300 transition-all">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">Eliminar empleado</h1>
+            <p class="text-sm text-slate-500 mt-1">Esta acción es permanente.</p>
+        </div>
+    </div>
+
+    <div class="card-soft p-6 border-l-4 border-amber-500">
+        <div class="flex items-start gap-4 mb-5">
+            <div class="w-12 h-12 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center text-xl flex-shrink-0">
+                <i class="fas fa-triangle-exclamation"></i>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-slate-900">¿Confirmás eliminar a {{ employee.first_name }} {{ employee.last_name }}?</h2>
+                <p class="text-sm text-slate-600 mt-1">Las nóminas asociadas también se eliminarán. Si solo querés desactivarlo, editá su ficha y desmarcá "Activo".</p>
+            </div>
+        </div>
+
+        <div class="bg-slate-50 rounded-md p-4 border border-slate-100 mb-5">
+            <dl class="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                    <dt class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-wide">DNI</dt>
+                    <dd class="font-mono text-slate-900 mt-0.5">{{ employee.dni }}</dd>
+                </div>
+                <div>
+                    <dt class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-wide">Puesto</dt>
+                    <dd class="text-slate-900 mt-0.5">{{ employee.position|default:'—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-wide">Ingreso</dt>
+                    <dd class="text-slate-900 mt-0.5">{{ employee.hire_date|date:"d M Y" }}</dd>
+                </div>
+                <div>
+                    <dt class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-wide">Sueldo básico</dt>
+                    <dd class="font-mono font-semibold text-slate-900 mt-0.5">${{ employee.basic_salary|floatformat:0|intcomma }}</dd>
+                </div>
+                <div class="col-span-2">
+                    <dt class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-wide">Nóminas registradas</dt>
+                    <dd class="text-slate-900 mt-0.5">{{ employee.payrolls.count }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <form method="post" class="flex items-center justify-end gap-2">
+            {% csrf_token %}
+            <a href="{% url 'employee_list' %}"
+               class="px-4 py-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 rounded-md text-sm font-semibold transition-all">
+                Cancelar
+            </a>
+            <button type="submit"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-sm font-semibold shadow-sm hover:shadow-md transition-all">
+                <i class="fas fa-trash text-xs"></i> Eliminar definitivamente
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

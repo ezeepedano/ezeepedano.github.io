@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Cumplimiento BPM/ISO{% endblock %}
+{% block header_title %}Cumplimiento BPM/ISO{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800">Cumplimiento BPM / ISO 9001</h2>
+            <p class="text-slate-500 text-sm">Auditoría continua de calidad y trazabilidad - {{ today|date:"d/m/Y" }}</p>
+            <a href="{% url 'production_hub' %}" class="inline-flex items-center text-sm text-slate-500 hover:text-primary-600 mt-2">
+                <i class="fas fa-arrow-left mr-1"></i> Volver a Producción
+            </a>
+        </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-2 lg:grid-cols-6 gap-4">
+        <div class="card-soft p-4">
+            <div class="text-xs uppercase font-bold text-slate-400">Sin calidad</div>
+            <div class="text-2xl font-bold text-amber-600 mt-1 font-mono">{{ kpis.no_quality_count|intcomma }}</div>
+        </div>
+        <div class="card-soft p-4">
+            <div class="text-xs uppercase font-bold text-slate-400">Sin lote</div>
+            <div class="text-2xl font-bold text-rose-600 mt-1 font-mono">{{ kpis.no_batch_count|intcomma }}</div>
+        </div>
+        <div class="card-soft p-4">
+            <div class="text-xs uppercase font-bold text-slate-400">Vence ≤30 d</div>
+            <div class="text-2xl font-bold text-amber-600 mt-1 font-mono">{{ kpis.expiring_30_count|intcomma }}</div>
+        </div>
+        <div class="card-soft p-4">
+            <div class="text-xs uppercase font-bold text-slate-400">Vence ≤60 d</div>
+            <div class="text-2xl font-bold text-amber-500 mt-1 font-mono">{{ kpis.expiring_60_count|intcomma }}</div>
+        </div>
+        <div class="card-soft p-4">
+            <div class="text-xs uppercase font-bold text-slate-400">Vence ≤90 d</div>
+            <div class="text-2xl font-bold text-slate-600 mt-1 font-mono">{{ kpis.expiring_90_count|intcomma }}</div>
+        </div>
+        <div class="card-soft p-4">
+            <div class="text-xs uppercase font-bold text-slate-400">Vencidos</div>
+            <div class="text-2xl font-bold text-rose-700 mt-1 font-mono">{{ kpis.expired_count|intcomma }}</div>
+        </div>
+    </div>
+
+    <!-- Two-Column: Quality + Audit -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Batches without QA -->
+        <div class="card-soft overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 bg-amber-50/40 flex items-center justify-between">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-vial text-amber-500"></i> Lotes sin resultados de calidad</h3>
+                <span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">{{ kpis.no_quality_count }}</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-xs text-slate-500 uppercase bg-slate-50/40 border-b border-slate-100">
+                        <tr><th class="px-4 py-3 text-left">Lote</th><th class="px-4 py-3 text-left">Producto</th><th class="px-4 py-3 text-left">Fecha</th><th class="px-4 py-3 text-right">Acción</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for b in batches_no_quality|slice:":15" %}
+                        <tr class="hover:bg-slate-50/40">
+                            <td class="px-4 py-2.5 font-mono text-slate-700">{{ b.internal_lot_code }}</td>
+                            <td class="px-4 py-2.5 text-slate-600">{{ b.product.name|truncatechars:30 }}</td>
+                            <td class="px-4 py-2.5 text-slate-500">{{ b.production_date|date:"d/m/Y" }}</td>
+                            <td class="px-4 py-2.5 text-right">
+                                <a href="{% url 'traceability:production_detail' b.pk %}" class="text-primary-600 hover:underline text-xs font-semibold">Cargar QA</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400 text-sm">Todos los lotes tienen QA cargada.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Orders DONE without batch -->
+        <div class="card-soft overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 bg-rose-50/40 flex items-center justify-between">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-unlink text-rose-500"></i> Órdenes finalizadas sin lote</h3>
+                <span class="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold">{{ kpis.no_batch_count }}</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-xs text-slate-500 uppercase bg-slate-50/40 border-b border-slate-100">
+                        <tr><th class="px-4 py-3 text-left">Código</th><th class="px-4 py-3 text-left">Producto</th><th class="px-4 py-3 text-left">Fecha</th><th class="px-4 py-3 text-right">Acción</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for o in orders_done_no_batch|slice:":15" %}
+                        <tr class="hover:bg-slate-50/40">
+                            <td class="px-4 py-2.5 font-mono text-slate-700">{{ o.code }}</td>
+                            <td class="px-4 py-2.5 text-slate-600">{{ o.product.name|truncatechars:30 }}</td>
+                            <td class="px-4 py-2.5 text-slate-500">{{ o.end_date|date:"d/m/Y"|default:"-" }}</td>
+                            <td class="px-4 py-2.5 text-right">
+                                <a href="{% url 'production_order_update' o.pk %}" class="text-primary-600 hover:underline text-xs font-semibold">Editar</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400 text-sm">Todas las órdenes tienen su lote.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Expiring batches -->
+    <div class="card-soft overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 bg-amber-50/40 flex items-center gap-3">
+            <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="far fa-calendar-times text-amber-500"></i> Vencimientos próximos</h3>
+            <span class="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold">{{ kpis.expired_count }} vencidos</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="text-xs text-slate-500 uppercase bg-slate-50/40 border-b border-slate-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left">Lote</th>
+                        <th class="px-4 py-3 text-left">Item</th>
+                        <th class="px-4 py-3 text-right">Cantidad</th>
+                        <th class="px-4 py-3 text-left">Vencimiento</th>
+                        <th class="px-4 py-3 text-left">Estado</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for b in expired %}
+                    <tr class="hover:bg-rose-50/30 bg-rose-50/10">
+                        <td class="px-4 py-2.5 font-mono text-slate-700">{{ b.number }}</td>
+                        <td class="px-4 py-2.5 text-slate-600">{% if b.ingredient %}{{ b.ingredient.name }}{% else %}{{ b.product.name }}{% endif %}</td>
+                        <td class="px-4 py-2.5 text-right font-mono text-slate-700">{{ b.quantity|intcomma }}</td>
+                        <td class="px-4 py-2.5 text-rose-600 font-mono">{{ b.expiration_date|date:"d/m/Y" }}</td>
+                        <td class="px-4 py-2.5"><span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-xs font-bold">Vencido</span></td>
+                    </tr>
+                    {% endfor %}
+                    {% for b in expiring_30 %}
+                    <tr class="hover:bg-amber-50/30">
+                        <td class="px-4 py-2.5 font-mono text-slate-700">{{ b.number }}</td>
+                        <td class="px-4 py-2.5 text-slate-600">{% if b.ingredient %}{{ b.ingredient.name }}{% else %}{{ b.product.name }}{% endif %}</td>
+                        <td class="px-4 py-2.5 text-right font-mono text-slate-700">{{ b.quantity|intcomma }}</td>
+                        <td class="px-4 py-2.5 text-amber-700 font-mono">{{ b.expiration_date|date:"d/m/Y" }}</td>
+                        <td class="px-4 py-2.5"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-bold">≤30 días</span></td>
+                    </tr>
+                    {% endfor %}
+                    {% for b in expiring_60 %}
+                    <tr class="hover:bg-slate-50/40">
+                        <td class="px-4 py-2.5 font-mono text-slate-700">{{ b.number }}</td>
+                        <td class="px-4 py-2.5 text-slate-600">{% if b.ingredient %}{{ b.ingredient.name }}{% else %}{{ b.product.name }}{% endif %}</td>
+                        <td class="px-4 py-2.5 text-right font-mono text-slate-700">{{ b.quantity|intcomma }}</td>
+                        <td class="px-4 py-2.5 text-slate-700 font-mono">{{ b.expiration_date|date:"d/m/Y" }}</td>
+                        <td class="px-4 py-2.5"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full text-xs font-bold">≤60 días</span></td>
+                    </tr>
+                    {% endfor %}
+                    {% for b in expiring_90 %}
+                    <tr class="hover:bg-slate-50/40">
+                        <td class="px-4 py-2.5 font-mono text-slate-700">{{ b.number }}</td>
+                        <td class="px-4 py-2.5 text-slate-600">{% if b.ingredient %}{{ b.ingredient.name }}{% else %}{{ b.product.name }}{% endif %}</td>
+                        <td class="px-4 py-2.5 text-right font-mono text-slate-700">{{ b.quantity|intcomma }}</td>
+                        <td class="px-4 py-2.5 text-slate-700 font-mono">{{ b.expiration_date|date:"d/m/Y" }}</td>
+                        <td class="px-4 py-2.5"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full text-xs font-bold">≤90 días</span></td>
+                    </tr>
+                    {% endfor %}
+                    {% if not expired and not expiring_30 and not expiring_60 and not expiring_90 %}
+                    <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400 text-sm">Sin vencimientos próximos.</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Audit trail -->
+    <div class="card-soft overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-history text-slate-500"></i> Pista de auditoría (últimas 25 órdenes)</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="text-xs text-slate-500 uppercase bg-slate-50/40 border-b border-slate-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left">Código</th>
+                        <th class="px-4 py-3 text-left">Producto</th>
+                        <th class="px-4 py-3 text-left">Estado</th>
+                        <th class="px-4 py-3 text-left">Última actualización</th>
+                        <th class="px-4 py-3 text-left">Origen</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for o in audit_orders %}
+                    <tr class="hover:bg-slate-50/40">
+                        <td class="px-4 py-2.5 font-mono text-slate-700"><a href="{% url 'production_order_update' o.pk %}" class="hover:text-primary-600">{{ o.code }}</a></td>
+                        <td class="px-4 py-2.5 text-slate-600">{{ o.product.name|truncatechars:30 }}</td>
+                        <td class="px-4 py-2.5">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-medium
+                                {% if o.status == 'DONE' %}bg-emerald-100 text-emerald-700
+                                {% elif o.status == 'IN_PROGRESS' %}bg-primary-100 text-primary-700
+                                {% elif o.status == 'DRAFT' %}bg-slate-100 text-slate-700
+                                {% else %}bg-rose-100 text-rose-700{% endif %}">{{ o.get_status_display }}</span>
+                        </td>
+                        <td class="px-4 py-2.5 text-slate-500 font-mono">{{ o.updated_at|date:"d/m/Y H:i" }}</td>
+                        <td class="px-4 py-2.5 text-slate-500">{{ o.origin|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400 text-sm">Sin actividad reciente.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

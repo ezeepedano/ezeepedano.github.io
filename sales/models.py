@@ -141,6 +141,10 @@ class Sale(models.Model):
     discounts = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Descuentos")
     shipping_income = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Ingresos por envío")
     
+    # External payment status (free-text from importers like MercadoLibre).
+    # Distinct from the internal `payment_status` (PENDING/PARTIAL/PAID).
+    external_payment_status = models.CharField(max_length=100, blank=True, null=True, help_text="Estado de pago según el canal externo")
+
     # Shipping & Buyer Details
     shipping_option = models.CharField(max_length=100, blank=True, null=True, help_text="Forma de entrega")
     tracking_number = models.CharField(max_length=100, blank=True, null=True, help_text="Número de seguimiento")
@@ -150,7 +154,6 @@ class Sale(models.Model):
     city = models.CharField(max_length=100, blank=True, null=True, help_text="Ciudad")
     zip_code = models.CharField(max_length=20, blank=True, null=True, help_text="Código postal")
     # Detailed Statuses
-    payment_status = models.CharField(max_length=100, blank=True, null=True, help_text="Estado del pago")
     shipping_status = models.CharField(max_length=100, blank=True, null=True, help_text="Estado del envío")
     
     # Financial Details
@@ -178,9 +181,6 @@ class Sale(models.Model):
     recipient_phone = models.CharField(max_length=100, blank=True, null=True, help_text="Teléfono para el envío")
     
     invoice_data = models.TextField(blank=True, null=True, help_text="Datos para facturación")
-    
-    # Internal Flags
-    stock_deducted = models.BooleanField(default=False, help_text="Stock descontado")
 
     def clean(self):
         from django.core.exceptions import ValidationError
@@ -215,7 +215,7 @@ class SaleItem(models.Model):
     """
     sale = models.ForeignKey(Sale, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True)
-    
+
     product_title = models.CharField(max_length=300)
     sku = models.CharField(max_length=100, blank=True, null=True)
     quantity = models.PositiveIntegerField(default=1)
@@ -223,6 +223,63 @@ class SaleItem(models.Model):
 
     def __str__(self):
         return f"{self.quantity}x {self.product_title}"
+
+
+# =============================================================================
+# RETURNS / RMA
+# =============================================================================
+class SaleReturn(models.Model):
+    """RMA: customer return associated with a Sale.
+
+    Lifecycle: DRAFT -> APPROVED -> POSTED. Only `POSTED` triggers stock
+    restoration and refund accounting (handled by ReturnService).
+    """
+    STATUS_CHOICES = [
+        ('DRAFT', 'Borrador'),
+        ('APPROVED', 'Aprobada'),
+        ('POSTED', 'Procesada'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sale_returns')
+    sale = models.ForeignKey(Sale, on_delete=models.CASCADE, related_name='returns')
+    date = models.DateField(help_text="Fecha de la devolución")
+    reason = models.TextField(blank=True, default='', help_text="Motivo de la devolución")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='DRAFT')
+
+    refund_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        help_text="Monto reintegrado al cliente (calculado al postear)"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date', '-created_at']
+        verbose_name = "Devolución de Venta"
+        verbose_name_plural = "Devoluciones de Ventas"
+
+    def __str__(self):
+        return f"Devolución #{self.pk} - Venta #{self.sale.order_id or self.sale.pk}"
+
+    @property
+    def is_editable(self):
+        return self.status == 'DRAFT'
+
+
+class SaleReturnItem(models.Model):
+    """Individual line of a SaleReturn — links to the original SaleItem."""
+    sale_return = models.ForeignKey(SaleReturn, on_delete=models.CASCADE, related_name='items')
+    sale_item = models.ForeignKey(SaleItem, on_delete=models.PROTECT, related_name='return_items')
+    quantity = models.PositiveIntegerField(default=1)
+    restocked = models.BooleanField(default=True, help_text="Si el producto vuelve al stock")
+
+    class Meta:
+        verbose_name = "Item devuelto"
+        verbose_name_plural = "Items devueltos"
+
+    def __str__(self):
+        return f"{self.quantity}x {self.sale_item.product_title}"
 
 
 class CustomerStats(models.Model):
@@ -291,7 +348,9 @@ class Quotation(models.Model):
     Supports wholesale and retail pricing with IVA and discounts.
     """
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    number = models.CharField(max_length=20, unique=True, editable=False, help_text="Nro de presupuesto auto-generado")
+    # Per-user uniqueness (see Meta.constraints). The number sequence is
+    # generated per-tenant in save() so other tenants' counters don't leak.
+    number = models.CharField(max_length=20, editable=False, help_text="Nro de presupuesto auto-generado")
     date = models.DateField(help_text="Fecha de emisión")
     valid_until = models.DateField(help_text="Válido hasta")
     customer = models.ForeignKey(
@@ -327,6 +386,9 @@ class Quotation(models.Model):
 
     class Meta:
         ordering = ['-date', '-pk']
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'number'], name='uniq_quotation_user_number'),
+        ]
 
     def __str__(self):
         customer_name = self.customer.name if self.customer else "Sin cliente"
@@ -334,14 +396,19 @@ class Quotation(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.number:
-            last = Quotation.objects.filter(user=self.user).order_by('-pk').first()
-            if last and last.number:
+            # Per-user sequence so each tenant gets P00001..P99999 of their
+            # own. Without the user filter, Max(number) would return the
+            # global max and silently leak that another tenant has more
+            # quotations than the current user.
+            from django.db.models import Max
+            qs = Quotation.objects.filter(user=self.user) if self.user_id else Quotation.objects.all()
+            max_number = qs.aggregate(Max('number'))['number__max']
+            seq = 1
+            if max_number:
                 try:
-                    seq = int(last.number.replace('P', '')) + 1
+                    seq = int(max_number.replace('P', '')) + 1
                 except ValueError:
                     seq = 1
-            else:
-                seq = 1
             self.number = f"P{seq:05d}"
         super().save(*args, **kwargs)
 

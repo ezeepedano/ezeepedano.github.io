@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}{{ title }} - Propel ERP{% endblock %}
+{% block header_title %}Presupuesto{% endblock %}
 
 {% block content %}
 <div class="max-w-5xl mx-auto">
@@ -14,7 +15,19 @@
 
     <form method="POST" class="space-y-8">
         {% csrf_token %}
-        
+
+        {% if form.errors or form.non_field_errors or formset.non_form_errors %}
+        <div class="bg-red-50 border-l-4 border-red-500 text-red-800 p-4 rounded-md text-sm">
+            <p class="font-bold mb-2"><i class="fas fa-triangle-exclamation mr-1.5"></i>No se pudo guardar el presupuesto</p>
+            <ul class="list-disc list-inside space-y-0.5">
+                {% for err in form.non_field_errors %}<li>{{ err }}</li>{% endfor %}
+                {% for field in form %}{% for err in field.errors %}<li><strong>{{ field.label }}:</strong> {{ err }}</li>{% endfor %}{% endfor %}
+                {% for err in formset.non_form_errors %}<li>{{ err }}</li>{% endfor %}
+                {% for ferrors in formset.errors %}{% for fname, fmsgs in ferrors.items %}{% for fm in fmsgs %}<li><strong>Producto — {{ fname }}:</strong> {{ fm }}</li>{% endfor %}{% endfor %}{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
         <!-- Header Info -->
         <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
             <h2 class="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
@@ -170,6 +183,7 @@
 {% endblock %}
 
 {% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.default.min.css" rel="stylesheet">
 <style>
     select, input[type="text"], input[type="number"], input[type="date"], textarea {
         width: 100%;
@@ -186,13 +200,70 @@
         outline: none;
         background-color: white;
     }
+
+    /* TomSelect — match form theme */
+    .ts-wrapper.single .ts-control,
+    .ts-wrapper.multi .ts-control {
+        background-color: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        min-height: auto;
+    }
+    .ts-wrapper.focus .ts-control {
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+        background-color: white;
+    }
+    .ts-dropdown {
+        border-radius: 0.75rem;
+        border-color: #e5e7eb;
+        box-shadow: 0 10px 30px -10px rgba(15,23,42,0.18);
+    }
+    .ts-dropdown .option.active {
+        background-color: #eef2ff;
+        color: #4338ca;
+    }
+    .ts-dropdown .option {
+        padding: 0.55rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    .ts-dropdown .no-results {
+        padding: 0.75rem;
+        color: #94a3b8;
+        font-size: 0.85rem;
+    }
 </style>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const productsData = {{ products_json|safe }};
+
+    // Searchable autocomplete on customer + every product dropdown.
+    // Without this the native <select> only jumps to the first option
+    // matching the typed letter — useless for users with hundreds of
+    // customers/products.
+    const TS_OPTS = {
+        create: false,
+        allowEmptyOption: true,
+        searchField: ['text'],
+        placeholder: 'Buscar…',
+        plugins: ['dropdown_input'],
+        render: {
+            no_results: function(d, esc){
+                return '<div class="no-results">Sin resultados para <strong>'+esc(d.input)+'</strong></div>';
+            },
+        },
+    };
+    const initTS = (sel) => {
+        if (!sel || sel.tomselect) return;
+        try { new TomSelect(sel, TS_OPTS); } catch (e) { console.warn('TomSelect init failed', e); }
+    };
+    document.querySelectorAll('select#id_customer, select.product-select, select[name$="-product"]').forEach(initTS);
     
     // Auto-fill description and price when product is selected
     document.addEventListener('change', function(e) {
@@ -223,13 +294,27 @@ document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('formset-container');
         const totalForms = document.getElementById('id_items-TOTAL_FORMS');
         const formIdx = parseInt(totalForms.value);
-        
+
         // Clone from first row pattern
         const template = container.querySelector('.item-row');
         if (!template) return;
-        
+
+        // TomSelect inserts a `.ts-wrapper` sibling next to each enhanced
+        // <select> and hides the original via inline style. We need to:
+        //   1) Strip the cloned wrappers (stale DOM with no JS instance).
+        //   2) Restore the underlying select's display so TomSelect can
+        //      re-enhance it.
+        // Then we reset values and init TomSelect on the new row.
         const newRow = template.cloneNode(true);
-        
+        newRow.querySelectorAll('.ts-wrapper').forEach(w => w.remove());
+        newRow.querySelectorAll('select').forEach(s => {
+            s.style.display = '';
+            // The clone may carry the `tomselect` property from the live
+            // node. Drop the reference so initTS re-creates a fresh
+            // instance.
+            delete s.tomselect;
+        });
+
         // Update all field names/IDs
         newRow.querySelectorAll('input, select, textarea').forEach(function(el) {
             if (el.name) {
@@ -254,9 +339,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 el.value = '';
             }
         });
-        
+
         container.appendChild(newRow);
         totalForms.value = formIdx + 1;
+
+        // Init TomSelect on the freshly-added product dropdown.
+        newRow.querySelectorAll('select.product-select, select[name$="-product"]').forEach(initTS);
     });
 
     // Recalculate totals

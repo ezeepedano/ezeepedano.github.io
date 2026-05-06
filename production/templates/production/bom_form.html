@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}{% if form.instance.pk %}Editar{% else %}Nueva{% endif %} Fórmula - Propel{% endblock %}
+{% block header_title %}Fórmula{% endblock %}
 
 {% block content %}
 <div class="max-w-5xl mx-auto">
@@ -162,6 +163,17 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Live total cost (server-rendered after save; live count via JS) -->
+                {% if form.instance.pk %}
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex items-center justify-between">
+                    <div>
+                        <div class="text-xs uppercase font-bold text-emerald-600">Costo total actual de la fórmula</div>
+                        <div class="text-2xl font-mono font-bold text-emerald-700 mt-1">${{ form.instance.calculate_cost|floatformat:2 }}</div>
+                    </div>
+                    <div class="text-xs text-emerald-700 font-semibold flex items-center gap-2"><i class="fas fa-info-circle"></i> Se recalcula al guardar.</div>
+                </div>
+                {% endif %}
 
                 <!-- Actions -->
                 <div class="pt-8 border-t border-gray-100 flex items-center justify-end gap-4">

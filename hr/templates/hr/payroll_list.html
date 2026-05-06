@@ -1,58 +1,192 @@
 {% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Nóminas — Propel{% endblock %}
+{% block header_title %}Nóminas{% endblock %}
+
 {% block content %}
+<div class="max-w-7xl mx-auto">
 
-<div class="flex justify-between items-center mb-6">
-    <h2 class="text-2xl font-bold text-gray-800">Payroll History</h2>
-    <a href="{% url 'payroll_generate' %}" class="bg-green-500 text-white px-4 py-2 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all">
-        <i class="fas fa-file-invoice-dollar mr-2"></i>Generate Payroll
-    </a>
-</div>
+    {# ────────── Header ────────── #}
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 animate__animated animate__fadeIn">
+        <div>
+            <a href="{% url 'employee_list' %}"
+               class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary-600 transition-colors mb-2">
+                <i class="fas fa-arrow-left text-[0.7rem]"></i><span>Volver a empleados</span>
+            </a>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight leading-tight">Nóminas</h1>
+            <p class="text-sm text-slate-500 mt-1.5">Liquidaciones por empleado y mes. Retenciones argentinas estándar.</p>
+        </div>
 
-<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-    <div class="overflow-x-auto">
-        <table class="w-full">
-            <thead class="bg-gray-50 border-b border-gray-100">
-                <tr>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Period</th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Employee</th>
-                    <th class="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase">Basic</th>
-                    <th class="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase">Net Pay</th>
-                    <th class="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Status</th>
-                    <th class="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-                {% for payroll in payrolls %}
-                <tr class="hover:bg-green-50 transition-colors">
-                    <td class="px-6 py-4 font-medium text-gray-900">{{ payroll.period|date:"F Y" }}</td>
-                    <td class="px-6 py-4 text-gray-600">{{ payroll.employee.last_name }}, {{ payroll.employee.first_name }}</td>
-                    <td class="px-6 py-4 text-right text-gray-500">${{ payroll.basic_salary }}</td>
-                    <td class="px-6 py-4 text-right font-bold text-green-600">${{ payroll.net_salary }}</td>
-                    <td class="px-6 py-4 text-center">
-                        {% if payroll.paid %}
-                        <span class="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Paid</span>
-                        {% else %}
-                        <span class="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Pending</span>
-                        {% endif %}
-                    </td>
-                    <td class="px-6 py-4 text-right">
-                        {% if not payroll.paid %}
-                        <a href="{% url 'payroll_pay' payroll.id %}" class="text-green-600 hover:text-green-800 font-medium mr-3" title="Pay Now">
-                            <i class="fas fa-money-bill-wave"></i> Pay
-                        </a>
-                        {% endif %}
-                        <button class="text-gray-400 hover:text-gray-600" title="View PDF (Coming Soon)"><i class="fas fa-print"></i></button>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">
-                        No payrolls generated yet.
-                    </td>
-                </tr>
+        <div class="flex flex-wrap gap-2 md:justify-end items-end">
+            <a href="{% url 'payroll_generate' %}"
+               class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-semibold shadow-sm hover:shadow-md transition-all">
+                <i class="fas fa-file-invoice-dollar text-xs"></i><span>Generar nómina</span>
+            </a>
+        </div>
+    </div>
+
+    {# ────────── KPI tiles ────────── #}
+    <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+        <a href="{% url 'payroll_list' %}" class="block">
+            <div class="card-soft p-4 border-l-4 border-primary-500 h-full {% if not filter_status %}ring-2 ring-primary-500/30{% endif %}">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="w-9 h-9 rounded-md bg-primary-50 text-primary-600 flex items-center justify-center"><i class="fas fa-list"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Total liquidaciones</p>
+                <h3 class="text-2xl font-bold text-slate-900 tracking-tight leading-none">{{ kpi_total }}</h3>
+                <p class="text-[0.7rem] text-slate-500 mt-1 font-mono">${{ kpi_amount_total|floatformat:0|intcomma }}</p>
+            </div>
+        </a>
+
+        <a href="?status=paid" class="block">
+            <div class="card-soft p-4 border-l-4 border-emerald-500 h-full {% if filter_status == 'paid' %}ring-2 ring-emerald-500/30{% endif %}">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="w-9 h-9 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="fas fa-check"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Pagadas</p>
+                <h3 class="text-2xl font-bold text-emerald-700 tracking-tight leading-none">{{ kpi_paid }}</h3>
+                <p class="text-[0.7rem] text-slate-500 mt-1 font-mono">${{ kpi_amount_paid|floatformat:0|intcomma }}</p>
+            </div>
+        </a>
+
+        <a href="?status=pending" class="block">
+            <div class="card-soft p-4 border-l-4 border-amber-500 h-full {% if filter_status == 'pending' %}ring-2 ring-amber-500/30{% endif %}">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="w-9 h-9 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fas fa-clock"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Pendientes</p>
+                <h3 class="text-2xl font-bold text-amber-700 tracking-tight leading-none">{{ kpi_pending }}</h3>
+                <p class="text-[0.7rem] text-slate-500 mt-1 font-mono">${{ kpi_amount_pending|floatformat:0|intcomma }}</p>
+            </div>
+        </a>
+
+        <div class="card-soft p-4 border-l-4 border-indigo-500 h-full">
+            <div class="flex items-start justify-between mb-3">
+                <div class="w-9 h-9 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fas fa-coins"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Monto total neto</p>
+            <h3 class="text-xl font-bold text-slate-900 tracking-tight leading-none font-mono">${{ kpi_amount_total|floatformat:0|intcomma }}</h3>
+            <p class="text-[0.7rem] text-slate-500 mt-1">A pagar / pagado</p>
+        </div>
+    </div>
+
+    {# ────────── Filters ────────── #}
+    <form method="get" class="card-soft p-4 mb-4 flex flex-wrap items-end gap-3">
+        {% if filter_status %}<input type="hidden" name="status" value="{{ filter_status }}">{% endif %}
+
+        <div class="flex flex-col">
+            <label class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Año</label>
+            <select name="year" onchange="this.form.submit()"
+                    class="px-3 py-1.5 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm transition-all min-w-[120px]">
+                <option value="">— Todos —</option>
+                {% for y in years %}
+                <option value="{{ y }}" {% if filter_year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
                 {% endfor %}
-            </tbody>
-        </table>
+            </select>
+        </div>
+
+        <div class="flex flex-col">
+            <label class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Mes</label>
+            <select name="month" onchange="this.form.submit()"
+                    class="px-3 py-1.5 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm transition-all min-w-[150px]">
+                <option value="">— Todos —</option>
+                {% for m, name in '01,Enero|02,Febrero|03,Marzo|04,Abril|05,Mayo|06,Junio|07,Julio|08,Agosto|09,Septiembre|10,Octubre|11,Noviembre|12,Diciembre'|cut:""|safe|slice:":0" %}{% endfor %}
+                <option value="1" {% if filter_month == '1' %}selected{% endif %}>Enero</option>
+                <option value="2" {% if filter_month == '2' %}selected{% endif %}>Febrero</option>
+                <option value="3" {% if filter_month == '3' %}selected{% endif %}>Marzo</option>
+                <option value="4" {% if filter_month == '4' %}selected{% endif %}>Abril</option>
+                <option value="5" {% if filter_month == '5' %}selected{% endif %}>Mayo</option>
+                <option value="6" {% if filter_month == '6' %}selected{% endif %}>Junio</option>
+                <option value="7" {% if filter_month == '7' %}selected{% endif %}>Julio</option>
+                <option value="8" {% if filter_month == '8' %}selected{% endif %}>Agosto</option>
+                <option value="9" {% if filter_month == '9' %}selected{% endif %}>Septiembre</option>
+                <option value="10" {% if filter_month == '10' %}selected{% endif %}>Octubre</option>
+                <option value="11" {% if filter_month == '11' %}selected{% endif %}>Noviembre</option>
+                <option value="12" {% if filter_month == '12' %}selected{% endif %}>Diciembre</option>
+            </select>
+        </div>
+
+        {% if filter_year or filter_month or filter_status %}
+        <a href="{% url 'payroll_list' %}"
+           class="px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-rose-600 transition-colors">
+            <i class="fas fa-times mr-1"></i> Limpiar
+        </a>
+        {% endif %}
+    </form>
+
+    {# ────────── Table ────────── #}
+    <div class="card-soft overflow-hidden p-0">
+        {% if payrolls %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left border-collapse">
+                <thead class="bg-slate-50/60 border-b border-slate-100">
+                    <tr class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">
+                        <th class="px-4 py-3.5">Período</th>
+                        <th class="px-4 py-3.5">Empleado</th>
+                        <th class="px-4 py-3.5 text-right">Básico</th>
+                        <th class="px-4 py-3.5 text-right">Retenciones</th>
+                        <th class="px-4 py-3.5 text-right">Neto</th>
+                        <th class="px-4 py-3.5 text-center">Estado</th>
+                        <th class="px-4 py-3.5 text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for payroll in payrolls %}
+                    <tr class="hover:bg-primary-50/30 transition-colors group">
+                        <td class="px-4 py-3 font-semibold text-slate-900 capitalize">{{ payroll.period|date:"F Y" }}</td>
+                        <td class="px-4 py-3">
+                            <p class="font-semibold text-slate-900">{{ payroll.employee.last_name }}, {{ payroll.employee.first_name }}</p>
+                            <p class="text-[0.7rem] text-slate-500">{{ payroll.employee.position }}</p>
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono text-slate-700">${{ payroll.basic_salary|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-right font-mono text-rose-600">
+                            -${% with retenciones=payroll.retirement|add:payroll.social_security|add:payroll.pami|add:payroll.other_deductions %}{{ retenciones|floatformat:0|intcomma }}{% endwith %}
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono font-bold text-emerald-700">${{ payroll.net_salary|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-center">
+                            {% if payroll.paid %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.65rem] font-bold bg-emerald-100 text-emerald-700">
+                                <i class="fas fa-check mr-1 text-[0.6rem]"></i>Pagada
+                            </span>
+                            {% if payroll.payment_date %}<p class="text-[0.65rem] text-slate-400 mt-1">{{ payroll.payment_date|date:"d M" }}</p>{% endif %}
+                            {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.65rem] font-bold bg-amber-100 text-amber-700">Pendiente</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center whitespace-nowrap">
+                            <div class="inline-flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                {% if not payroll.paid %}
+                                <a href="{% url 'payroll_pay' payroll.id %}"
+                                   class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white transition-colors text-xs font-semibold"
+                                   title="Pagar">
+                                    <i class="fas fa-money-bill-wave text-[0.7rem]"></i> Pagar
+                                </a>
+                                {% else %}
+                                <span class="text-[0.7rem] text-slate-400">—</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="px-6 py-16 text-center">
+            <div class="inline-flex w-16 h-16 rounded-full bg-slate-100 text-slate-400 items-center justify-center mb-3">
+                <i class="fas fa-file-invoice-dollar text-2xl"></i>
+            </div>
+            <p class="text-slate-700 font-semibold">Sin nóminas</p>
+            <p class="text-xs text-slate-500 mt-1 mb-5">{% if filter_year or filter_month or filter_status %}Probá limpiar los filtros.{% else %}Aún no se generaron liquidaciones.{% endif %}</p>
+            {% if not filter_year and not filter_month and not filter_status %}
+            <a href="{% url 'payroll_generate' %}"
+               class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-semibold shadow-sm transition-all">
+                <i class="fas fa-plus text-xs"></i> Generar nómina
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

@@ -1,0 +1,83 @@
+{% comment %}
+    Single ingredient row, shared by raw_materials + supplies tables.
+    Expects local var: ing (Ingredient instance with extra annotations
+    set in the view: daily_usage, runway_days, severity, depletion_date).
+{% endcomment %}
+<tr class="hover:bg-slate-50/60 transition-colors group" data-ing-pk="{{ ing.pk }}">
+    <td class="px-4 py-3.5">
+        <div class="flex items-center gap-3 min-w-0">
+            <div class="w-9 h-9 rounded-md
+                {% if ing.type == 'raw_material' %}bg-indigo-50 text-indigo-700
+                {% else %}bg-orange-50 text-orange-700{% endif %}
+                flex items-center justify-center text-xs font-bold flex-shrink-0">
+                <i class="fas {% if ing.type == 'raw_material' %}fa-vial{% else %}fa-box-open{% endif %}"></i>
+            </div>
+            <div class="min-w-0">
+                <p class="font-semibold text-slate-900 truncate">{{ ing.name }}</p>
+                <p class="text-[0.7rem] text-slate-400 font-medium flex flex-wrap items-center gap-1.5">
+                    <span class="font-mono uppercase">{{ ing.code }}</span>
+                    <span class="text-slate-300">·</span>
+                    <span>{{ ing.get_unit_display }}</span>
+                    {% if ing.depletion_date %}
+                    <span class="text-slate-300">·</span>
+                    <span title="Fecha estimada de agotamiento">se agota {{ ing.depletion_date|date:"d M" }}</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </td>
+    <td class="px-4 py-3.5 text-center">
+        <div class="flex items-center justify-center gap-1.5">
+            <button type="button"
+                    class="qty-btn w-6 h-6 rounded bg-slate-100 hover:bg-rose-500 hover:text-white text-slate-500 flex items-center justify-center transition-all duration-150 ease-soft text-[0.65rem]"
+                    data-delta="-1" title="Restar 1">
+                <i class="fas fa-minus"></i>
+            </button>
+            <span class="font-bold text-base tabular-nums w-16 text-center
+                {% if ing.severity == 'red' %}text-red-600
+                {% elif ing.severity == 'amber' %}text-amber-600
+                {% else %}text-slate-900{% endif %}"
+                  data-stock>{{ ing.stock_quantity }}</span>
+            <button type="button"
+                    class="qty-btn w-6 h-6 rounded bg-slate-100 hover:bg-emerald-500 hover:text-white text-slate-500 flex items-center justify-center transition-all duration-150 ease-soft text-[0.65rem]"
+                    data-delta="1" title="Sumar 1">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+        <p class="text-[0.6rem] text-slate-400 mt-1">mín {{ ing.min_stock|default:0 }}</p>
+    </td>
+    <td class="px-4 py-3.5 text-center tabular-nums">
+        {% if ing.daily_usage > 0 %}
+        <span class="font-semibold text-slate-700">{{ ing.daily_usage|floatformat:3 }}</span>
+        <p class="text-[0.65rem] text-slate-400">{{ ing.get_unit_display }}/día</p>
+        {% else %}
+        <span class="text-slate-300">—</span>
+        {% endif %}
+    </td>
+    <td class="px-4 py-3.5 text-center">
+        {% if ing.runway_days >= 9999 %}
+            <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-slate-100 text-slate-500 border border-slate-200">Sin uso</span>
+        {% elif ing.severity == 'red' %}
+            <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-red-50 text-red-700 border border-red-200">{{ ing.runway_days|floatformat:0 }} días</span>
+        {% elif ing.severity == 'amber' %}
+            <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-amber-50 text-amber-700 border border-amber-200">{{ ing.runway_days|floatformat:0 }} días</span>
+        {% else %}
+            <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">{{ ing.runway_days|floatformat:0 }} días</span>
+        {% endif %}
+    </td>
+    <td class="px-4 py-3.5 text-right text-slate-700 tabular-nums">${{ ing.cost_per_unit }}</td>
+    <td class="px-4 py-3.5">
+        <div class="flex items-center justify-center gap-1">
+            <a href="{% url 'ingredient_edit' ing.pk %}"
+               class="w-7 h-7 rounded-md bg-slate-100 text-slate-500 hover:bg-slate-900 hover:text-white flex items-center justify-center transition-all duration-200 ease-soft"
+               title="Editar">
+                <i class="fas fa-pen text-[0.7rem]"></i>
+            </a>
+            <a href="{% url 'ingredient_delete' ing.pk %}"
+               class="w-7 h-7 rounded-md bg-red-50 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all duration-200 ease-soft"
+               title="Eliminar">
+                <i class="fas fa-trash text-[0.7rem]"></i>
+            </a>
+        </div>
+    </td>
+</tr>

@@ -1,16 +1,17 @@
 {% extends 'base.html' %}
 
 {% block title %}Configuración de Empresa - ERP{% endblock %}
+{% block header_title %}Configuración{% endblock %}
 
 {% block content %}
 <div class="max-w-3xl mx-auto">
     <div class="flex items-center gap-4 mb-8">
-        <a href="{% url 'quotation_list' %}"
+        <button onclick="window.history.back()"
             class="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors">
             <i class="fas fa-arrow-left"></i>
-        </a>
+        </button>
         <h1 class="text-2xl font-bold text-gray-900">
-            <i class="fas fa-building text-indigo-500 mr-2"></i>Configuración de Empresa
+            <i class="fas fa-building text-indigo-500 mr-2"></i>Configuración Global
         </h1>
     </div>
 
@@ -119,9 +120,9 @@
 
         <!-- Actions -->
         <div class="flex justify-end gap-3 pt-2">
-            <a href="{% url 'quotation_list' %}" class="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">
+            <button type="button" onclick="window.history.back()" class="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">
                 Cancelar
-            </a>
+            </button>
             <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                 <i class="fas fa-save mr-2"></i> Guardar Configuración
             </button>

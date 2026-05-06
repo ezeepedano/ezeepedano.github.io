@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    ExecutiveDashboardView, 
+    ExecutiveDashboardView,
     DashboardKPIsView,
     DashboardTrendsView,
     DashboardChannelView,
@@ -10,12 +10,17 @@ from .views import (
     DashboardTopProductsView,
     DashboardStockAlertsView,
     DashboardCustomerView,
-    # Nuevas vistas avanzadas
+    # Avanzados
     DashboardGMROIView,
     DashboardCCCView,
     DashboardCLVView,
     DashboardABCView,
     BusinessIntelligenceView,
+    # Fase 3
+    DashboardTargetsView,
+    DashboardSalesForecastView,
+    DashboardCashForecastView,
+    DashboardUnifiedAlertsView,
 )
 from .excel_exports import (
     export_sales_to_excel,
@@ -42,6 +47,12 @@ urlpatterns = [
     path('api/ccc/', DashboardCCCView.as_view(), name='api_ccc'),
     path('api/clv/', DashboardCLVView.as_view(), name='api_clv'),
     path('api/abc/', DashboardABCView.as_view(), name='api_abc'),
+
+    # Fase 3 — auto-targets, forecasts, unified alerts
+    path('api/targets/',         DashboardTargetsView.as_view(),        name='api_targets'),
+    path('api/sales-forecast/',  DashboardSalesForecastView.as_view(),  name='api_sales_forecast'),
+    path('api/cash-forecast/',   DashboardCashForecastView.as_view(),   name='api_cash_forecast'),
+    path('api/alerts/unified/',  DashboardUnifiedAlertsView.as_view(),  name='api_unified_alerts'),
     
     # Endpoints de exportación a Excel
     path('export/sales/', export_sales_to_excel, name='export_sales'),

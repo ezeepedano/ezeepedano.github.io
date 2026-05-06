@@ -370,6 +370,13 @@
              <a href="{% url 'customer_list' %}" class="px-4 py-2 text-sm hover:bg-neutral-30 text-neutral-90 flex items-center gap-2 {% if 'customers' in request.path %}bg-neutral-30 font-semibold{% endif %}">
                  <i class="fas fa-users text-neutral-60 w-4"></i> Clientes
              </a>
+
+             <div class="mt-auto"></div>
+             <div class="h-[1px] bg-neutral-40 mx-4 my-2"></div>
+             
+             <a href="{% url 'company_config' %}" class="px-4 py-2 text-sm hover:bg-neutral-30 text-neutral-90 flex items-center gap-2 mb-2 {% if 'config' in request.path %}bg-neutral-30 font-semibold{% endif %}">
+                 <i class="fas fa-cog text-neutral-60 w-4"></i> Configuración
+             </a>
         </div>
 
         <!-- Canvas -->

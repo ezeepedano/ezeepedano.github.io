@@ -1,135 +1,168 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
-{% block title %}Presupuestos - Propel ERP{% endblock %}
-{% block header_title %}Presupuestos de Venta{% endblock %}
+{% block title %}Presupuestos — Propel{% endblock %}
+{% block header_title %}Presupuestos{% endblock %}
 
 {% block content %}
-<!-- Hero -->
-<div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-    <div>
-        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Presupuestos</h1>
-        <p class="text-gray-500 mt-1">Gestiona tus cotizaciones mayoristas y minoristas.</p>
-    </div>
-    <div class="flex items-center gap-3">
-        <a href="{% url 'company_config' %}" title="Configuración de Empresa"
-           class="w-12 h-12 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-all">
-            <i class="fas fa-cog text-lg"></i>
-        </a>
-        <a href="{% url 'quotation_create' %}"
-           class="inline-flex items-center gap-2 bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-bold shadow-md shadow-indigo-500/25 hover:shadow-lg hover:-translate-y-0.5 transition-all">
-            <i class="fas fa-plus"></i>
-            Nuevo Presupuesto
-        </a>
-    </div>
-</div>
+<div class="max-w-7xl mx-auto">
 
-<!-- Filters -->
-<div class="flex flex-wrap gap-2 mb-6">
-    <a href="{% url 'quotation_list' %}"
-       class="px-4 py-2 rounded-xl text-sm font-bold transition-all {% if not status_filter %}bg-indigo-100 text-indigo-700 ring-1 ring-indigo-500/30{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
-        Todos
-    </a>
-    <a href="{% url 'quotation_list' %}?status=DRAFT"
-       class="px-4 py-2 rounded-xl text-sm font-bold transition-all {% if status_filter == 'DRAFT' %}bg-gray-200 text-gray-800 ring-1 ring-gray-400/30{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
-        <i class="fas fa-pencil-alt mr-1"></i> Borradores
-    </a>
-    <a href="{% url 'quotation_list' %}?status=SENT"
-       class="px-4 py-2 rounded-xl text-sm font-bold transition-all {% if status_filter == 'SENT' %}bg-blue-100 text-blue-700 ring-1 ring-blue-500/30{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
-        <i class="fas fa-paper-plane mr-1"></i> Enviados
-    </a>
-    <a href="{% url 'quotation_list' %}?status=ACCEPTED"
-       class="px-4 py-2 rounded-xl text-sm font-bold transition-all {% if status_filter == 'ACCEPTED' %}bg-emerald-100 text-emerald-700 ring-1 ring-emerald-500/30{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
-        <i class="fas fa-check mr-1"></i> Aceptados
-    </a>
-    <a href="{% url 'quotation_list' %}?status=REJECTED"
-       class="px-4 py-2 rounded-xl text-sm font-bold transition-all {% if status_filter == 'REJECTED' %}bg-red-100 text-red-700 ring-1 ring-red-500/30{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
-        <i class="fas fa-times mr-1"></i> Rechazados
-    </a>
-</div>
-
-<!-- Table -->
-<div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-    {% if quotations %}
-    <div class="overflow-x-auto">
-        <table class="w-full">
-            <thead>
-                <tr class="border-b border-gray-100 bg-gray-50/60">
-                    <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Nro</th>
-                    <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha</th>
-                    <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Cliente</th>
-                    <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Tipo</th>
-                    <th class="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Total</th>
-                    <th class="text-center px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
-                    <th class="text-center px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-50">
-                {% for q in quotations %}
-                <tr class="hover:bg-indigo-50/30 transition-colors">
-                    <td class="px-6 py-4">
-                        <span class="font-bold text-indigo-600">{{ q.number }}</span>
-                    </td>
-                    <td class="px-6 py-4 text-sm text-gray-600">{{ q.date|date:"d/m/Y" }}</td>
-                    <td class="px-6 py-4">
-                        <span class="font-semibold text-gray-800">{{ q.customer.name|default:"—" }}</span>
-                    </td>
-                    <td class="px-6 py-4">
-                        {% if q.sale_type == 'WHOLESALE' %}
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200/50">Mayorista</span>
-                        {% else %}
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-sky-100 text-sky-800 border border-sky-200/50">Minorista</span>
-                        {% endif %}
-                    </td>
-                    <td class="px-6 py-4 text-right">
-                        <span class="font-bold text-gray-900 text-lg">${{ q.total|floatformat:2 }}</span>
-                    </td>
-                    <td class="px-6 py-4 text-center">
-                        {% if q.status == 'DRAFT' %}
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-gray-100 text-gray-600">Borrador</span>
-                        {% elif q.status == 'SENT' %}
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-700">Enviado</span>
-                        {% elif q.status == 'ACCEPTED' %}
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700">Aceptado</span>
-                        {% elif q.status == 'REJECTED' %}
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-red-100 text-red-700">Rechazado</span>
-                        {% endif %}
-                    </td>
-                    <td class="px-6 py-4 text-center">
-                        <div class="flex items-center justify-center gap-1">
-                            <a href="{% url 'quotation_pdf' pk=q.pk %}" target="_blank" title="Ver PDF"
-                               class="w-9 h-9 rounded-lg bg-red-50 text-red-600 hover:bg-red-600 hover:text-white flex items-center justify-center transition-colors">
-                                <i class="fas fa-file-pdf"></i>
-                            </a>
-                            <a href="{% url 'quotation_edit' pk=q.pk %}" title="Editar"
-                               class="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white flex items-center justify-center transition-colors">
-                                <i class="fas fa-pen"></i>
-                            </a>
-                            <a href="{% url 'quotation_duplicate' pk=q.pk %}" title="Duplicar"
-                               class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white flex items-center justify-center transition-colors">
-                                <i class="fas fa-copy"></i>
-                            </a>
-                            <a href="{% url 'quotation_delete' pk=q.pk %}" title="Eliminar"
-                               class="w-9 h-9 rounded-lg bg-gray-50 text-gray-400 hover:bg-red-600 hover:text-white flex items-center justify-center transition-colors">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div class="text-center py-16">
-        <div class="w-20 h-20 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <i class="fas fa-file-invoice text-3xl text-indigo-300"></i>
+    {# ────────── Header ────────── #}
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 animate__animated animate__fadeIn">
+        <div>
+            <a href="{% url 'executive_dashboard' %}"
+               class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary transition-colors mb-2">
+                <i class="fas fa-arrow-left text-[0.7rem]"></i><span>Volver al tablero</span>
+            </a>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight leading-tight">Presupuestos</h1>
+            <p class="text-sm text-slate-500 mt-1.5">Cotizaciones mayoristas y minoristas. Convertí a venta con un click.</p>
         </div>
-        <h3 class="text-xl font-bold text-gray-400 mb-2">Sin presupuestos</h3>
-        <p class="text-gray-400 mb-6">Crea tu primer presupuesto para comenzar.</p>
-        <a href="{% url 'quotation_create' %}" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold transition-all">
-            <i class="fas fa-plus"></i> Crear Presupuesto
+        <div class="flex flex-wrap gap-2 md:justify-end items-end">
+            <form method="get" class="relative">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" name="q" value="{{ search_query }}"
+                       placeholder="Buscar Nº, cliente o nota…"
+                       class="pl-9 pr-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm w-64 transition-all">
+                {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+            </form>
+            <a href="{% url 'quotation_create' %}"
+               class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-semibold shadow-sm hover:shadow-md transition-all">
+                <i class="fas fa-plus text-xs"></i><span>Nuevo presupuesto</span>
+            </a>
+        </div>
+    </div>
+
+    {# ────────── KPI tiles ────────── #}
+    <div class="grid grid-cols-2 xl:grid-cols-5 gap-3 mb-5">
+        <a href="{% url 'quotation_list' %}{% if search_query %}?q={{ search_query }}{% endif %}" class="block group">
+            <div class="card-soft p-5 h-full {% if not status_filter %}ring-2 ring-primary-600/40 border-primary-200{% else %}hover:-translate-y-0.5 hover:border-primary-200{% endif %} transition-all">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-primary-50 text-primary-600 flex items-center justify-center"><i class="fas fa-file-invoice-dollar"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Total</p>
+                <h3 class="text-2xl font-bold text-slate-900 tracking-tight leading-none">{{ total_count }}</h3>
+            </div>
+        </a>
+        <a href="?status=DRAFT{% if search_query %}&q={{ search_query }}{% endif %}" class="block group">
+            <div class="card-soft p-5 h-full {% if status_filter == 'DRAFT' %}ring-2 ring-slate-500/40 border-slate-300{% else %}hover:-translate-y-0.5 hover:border-slate-300{% endif %} transition-all">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-pencil-alt"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Borradores</p>
+                <h3 class="text-2xl font-bold text-slate-700 tracking-tight leading-none">{{ draft_count }}</h3>
+            </div>
+        </a>
+        <a href="?status=SENT{% if search_query %}&q={{ search_query }}{% endif %}" class="block group">
+            <div class="card-soft p-5 h-full {% if status_filter == 'SENT' %}ring-2 ring-sky-500/40 border-sky-200{% else %}hover:-translate-y-0.5 hover:border-sky-200{% endif %} transition-all">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-sky-50 text-sky-600 flex items-center justify-center"><i class="fas fa-paper-plane"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Enviados</p>
+                <h3 class="text-2xl font-bold text-sky-700 tracking-tight leading-none">{{ sent_count }}</h3>
+            </div>
+        </a>
+        <a href="?status=ACCEPTED{% if search_query %}&q={{ search_query }}{% endif %}" class="block group">
+            <div class="card-soft p-5 h-full {% if status_filter == 'ACCEPTED' %}ring-2 ring-emerald-500/40 border-emerald-200{% else %}hover:-translate-y-0.5 hover:border-emerald-200{% endif %} transition-all">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="fas fa-check"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Aceptados</p>
+                <h3 class="text-2xl font-bold text-emerald-700 tracking-tight leading-none">{{ accepted_count }}</h3>
+            </div>
+        </a>
+        <a href="?status=REJECTED{% if search_query %}&q={{ search_query }}{% endif %}" class="block group">
+            <div class="card-soft p-5 h-full {% if status_filter == 'REJECTED' %}ring-2 ring-rose-500/40 border-rose-200{% else %}hover:-translate-y-0.5 hover:border-rose-200{% endif %} transition-all">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center"><i class="fas fa-times"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Rechazados</p>
+                <h3 class="text-2xl font-bold text-rose-700 tracking-tight leading-none">{{ rejected_count }}</h3>
+            </div>
         </a>
     </div>
-    {% endif %}
+
+    <p class="text-xs text-slate-500 mb-4">
+        Aceptados — valor total: <strong class="text-emerald-700">${{ accepted_total|floatformat:0|intcomma }}</strong>
+    </p>
+
+    {# ────────── Table ────────── #}
+    <div class="card-soft overflow-hidden p-0">
+        {% if quotations %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-slate-50/60 border-b border-slate-100">
+                    <tr class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">
+                        <th class="px-4 py-3.5">Nº</th>
+                        <th class="px-4 py-3.5">Fecha</th>
+                        <th class="px-4 py-3.5">Cliente</th>
+                        <th class="px-4 py-3.5 text-center">Tipo</th>
+                        <th class="px-4 py-3.5 text-center">Vencimiento</th>
+                        <th class="px-4 py-3.5 text-right">Total</th>
+                        <th class="px-4 py-3.5 text-center">Estado</th>
+                        <th class="px-4 py-3.5 text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm text-slate-700 divide-y divide-slate-100">
+                    {% for q in quotations %}
+                    <tr class="hover:bg-primary-50/40 transition-colors group">
+                        <td class="px-4 py-3.5">
+                            <span class="font-bold text-primary-700 font-mono text-[0.8rem]">{{ q.number }}</span>
+                        </td>
+                        <td class="px-4 py-3.5 text-slate-700">{{ q.date|date:"d M Y" }}</td>
+                        <td class="px-4 py-3.5">
+                            <p class="font-semibold text-slate-900 truncate">{{ q.customer.name|default:"— Sin cliente —" }}</p>
+                            {% if q.notes %}<p class="text-[0.7rem] text-slate-400 truncate max-w-xs">{{ q.notes|truncatechars:48 }}</p>{% endif %}
+                        </td>
+                        <td class="px-4 py-3.5 text-center">
+                            {% if q.sale_type == 'WHOLESALE' %}
+                            <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-amber-50 text-amber-700 border border-amber-200">Mayorista</span>
+                            {% else %}
+                            <span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-sky-50 text-sky-700 border border-sky-200">Minorista</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3.5 text-center text-[0.75rem] text-slate-600">{{ q.valid_until|date:"d M" }}</td>
+                        <td class="px-4 py-3.5 text-right font-bold text-slate-900 tabular-nums">${{ q.total|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3.5 text-center">
+                            {% if q.status == 'DRAFT' %}<span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-slate-100 text-slate-700 border border-slate-200">Borrador</span>
+                            {% elif q.status == 'SENT' %}<span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-sky-50 text-sky-700 border border-sky-200">Enviado</span>
+                            {% elif q.status == 'ACCEPTED' %}<span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Aceptado</span>
+                            {% elif q.status == 'REJECTED' %}<span class="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-semibold bg-rose-50 text-rose-700 border border-rose-200">Rechazado</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3.5">
+                            <div class="flex items-center justify-center gap-1">
+                                <a href="{% url 'quotation_pdf' pk=q.pk %}" target="_blank" title="Ver PDF"
+                                   class="w-7 h-7 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white flex items-center justify-center transition-all">
+                                    <i class="fas fa-file-pdf text-[0.7rem]"></i>
+                                </a>
+                                <a href="{% url 'quotation_edit' pk=q.pk %}" title="Editar"
+                                   class="w-7 h-7 rounded-md bg-slate-100 text-slate-500 hover:bg-slate-900 hover:text-white flex items-center justify-center transition-all">
+                                    <i class="fas fa-pen text-[0.7rem]"></i>
+                                </a>
+                                <a href="{% url 'quotation_duplicate' pk=q.pk %}" title="Duplicar"
+                                   class="w-7 h-7 rounded-md bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white flex items-center justify-center transition-all">
+                                    <i class="fas fa-copy text-[0.7rem]"></i>
+                                </a>
+                                <a href="{% url 'quotation_to_sale' pk=q.pk %}" title="Generar venta"
+                                   onclick="return confirm('¿Generar una venta a partir de este presupuesto?\n\nSe copiarán todos los productos, precios y datos del cliente.')"
+                                   class="w-7 h-7 rounded-md bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all">
+                                    <i class="fas fa-shopping-cart text-[0.7rem]"></i>
+                                </a>
+                                <a href="{% url 'quotation_delete' pk=q.pk %}" title="Eliminar"
+                                   class="w-7 h-7 rounded-md bg-red-50 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all">
+                                    <i class="fas fa-trash text-[0.7rem]"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        {% url 'quotation_create' as create_url %}
+        {% include "includes/ui/empty_state.html" with icon="fa-file-invoice-dollar" title="Sin presupuestos" hint="Creá tu primer presupuesto para enviarle PDF al cliente y, si lo aceptan, convertirlo a venta con un click." cta_url=create_url cta_text="Crear primer presupuesto" %}
+        {% endif %}
+    </div>
 </div>
 {% endblock %}

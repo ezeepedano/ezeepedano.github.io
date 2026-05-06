@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Eliminar Asiento — Propel{% endblock %}
+{% block header_title %}Eliminar Asiento{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+    <div class="mb-5">
+        <a href="{% url 'accounting_ledger' %}"
+           class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary-600 transition-colors">
+            <i class="fas fa-arrow-left text-[0.7rem]"></i><span>Volver al libro diario</span>
+        </a>
+    </div>
+
+    <div class="card-soft p-7 border-l-4 border-rose-400">
+        <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg shrink-0">
+                <i class="fas fa-triangle-exclamation"></i>
+            </div>
+            <div class="min-w-0">
+                <h1 class="text-xl font-bold text-slate-900 mb-1">¿Eliminar este asiento?</h1>
+                <p class="text-sm text-slate-500">Acción irreversible. Sólo asientos en borrador se pueden eliminar.</p>
+            </div>
+        </div>
+
+        <div class="mt-5 grid grid-cols-2 gap-3 text-sm bg-slate-50 rounded-lg p-4 border border-slate-100">
+            <div>
+                <p class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.12em]">Nº</p>
+                <p class="font-mono font-bold text-primary-700">#{{ entry.id }}</p>
+            </div>
+            <div>
+                <p class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.12em]">Fecha</p>
+                <p class="font-semibold text-slate-800">{{ entry.date|date:"d M Y" }}</p>
+            </div>
+            <div class="col-span-2">
+                <p class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.12em]">Concepto</p>
+                <p class="text-slate-700">{{ entry.description }}</p>
+            </div>
+            {% if entry.reference %}
+            <div class="col-span-2">
+                <p class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.12em]">Referencia</p>
+                <p class="text-slate-700">{{ entry.reference }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <form method="post" class="mt-6 flex items-center justify-end gap-3">
+            {% csrf_token %}
+            <a href="{% url 'accounting_ledger_detail' entry.pk %}"
+               class="px-4 py-2 rounded-md text-slate-500 text-sm font-semibold hover:bg-slate-50 hover:text-slate-700 transition-colors">
+                Cancelar
+            </a>
+            <button type="submit"
+                    class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-sm font-semibold shadow-sm hover:shadow-md transition-all">
+                <i class="fas fa-trash mr-1.5 text-xs"></i> Sí, eliminar
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

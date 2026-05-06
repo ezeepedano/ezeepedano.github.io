@@ -3,6 +3,12 @@ from . import views
 from . import pdf_views
 
 urlpatterns = [
+    # Production Hub (root)
+    path('', views.production_hub, name='production_hub'),
+
+    # BPM/ISO Compliance
+    path('compliance/', views.compliance_dashboard, name='production_compliance'),
+
     # Reports Hub
     path('reports/', pdf_views.reports_hub, name='reports_hub'),
 
@@ -10,16 +16,18 @@ urlpatterns = [
     path('orders/', views.ProductionOrderListView.as_view(), name='production_order_list'),
     path('orders/create/', views.ProductionOrderCreateView.as_view(), name='production_order_create'),
     path('orders/<int:pk>/update/', views.ProductionOrderUpdateView.as_view(), name='production_order_update'),
+    path('orders/<int:pk>/quick-status/', views.order_quick_status, name='production_order_quick_status'),
     path('orders/bulk-delete/', views.bulk_delete_orders, name='bulk_delete_orders'),
     path('ajax/boms/', views.get_boms_for_product, name='ajax_get_boms'),
     path('api/bom/<int:pk>/', views.bom_detail_api, name='bom_detail_api'),
     path('api/bom/<int:bom_id>/validate-stock/', views.stock_validation_api, name='stock_validation_api'),
-    
+
     # Formulas (BOMs)
     path('formulas/', views.BillOfMaterialListView.as_view(), name='bom_list'),
     path('formulas/bulk-delete/', views.bulk_delete_boms, name='bulk_delete_boms'),
     path('formulas/create/', views.BillOfMaterialCreateView.as_view(), name='bom_create'),
     path('formulas/<int:pk>/update/', views.BillOfMaterialUpdateView.as_view(), name='bom_update'),
+    path('formulas/<int:pk>/duplicate/', views.bom_duplicate, name='bom_duplicate'),
 
     # PDF Reports
     path('reports/orden/<int:pk>/', pdf_views.production_order_pdf, name='report_production_order'),
@@ -30,5 +38,9 @@ urlpatterns = [
     path('reports/fefo/', pdf_views.fefo_expiry_pdf, name='report_fefo_expiry'),
     path('reports/kardex/<int:ingredient_id>/', pdf_views.kardex_pdf, name='report_kardex'),
     path('reports/rendimiento/<int:batch_id>/', pdf_views.batch_yield_pdf, name='report_batch_yield'),
-]
 
+    # WIP Stock (Producto en Proceso)
+    path('wip/', views.wip_stock_list, name='wip_stock_list'),
+    path('wip/save/', views.wip_stock_save, name='wip_stock_save'),
+    path('wip/<int:pk>/delete/', views.wip_stock_delete, name='wip_stock_delete'),
+]

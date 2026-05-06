@@ -121,10 +121,11 @@ class Product(models.Model):
     """
     
     UNIT_CHOICES = [
-        ('g', 'Gramos'),
+        ('g',  'Gramos'),
         ('kg', 'Kilogramos'),
         ('ml', 'Mililitros'),
-        ('l', 'Litros')
+        ('l',  'Litros'),
+        ('u',  'Unidades'),
     ]
     
     user = models.ForeignKey(
@@ -186,12 +187,17 @@ class Product(models.Model):
         default=0,
         help_text="Current stock quantity (units)"
     )
-    
+    min_stock = models.IntegerField(
+        default=10,
+        help_text="Minimum stock threshold for low-stock alerts. "
+                  "Customizable per product (was hardcoded to 10 before)."
+    )
+
     # Traceability: weight per unit in kg for logistics
     weight_kg = models.DecimalField(
         max_digits=6,
-        decimal_places=3,
-        default=1.000,
+        decimal_places=2,
+        default=1.00,
         help_text="Weight per unit in kg (e.g., 0.500 for 500g bottle)"
     )
     
@@ -239,12 +245,19 @@ class Product(models.Model):
     @property
     def is_low_stock(self) -> bool:
         """
-        Check if product stock is below minimum threshold.
-        
+        Check if product stock is at or below the per-product threshold.
+
         Returns:
-            True if stock is low (< 10 units), False otherwise
+            True when ``stock_quantity <= min_stock``; False otherwise.
+            Defaults to 10 if ``min_stock`` is unset (legacy rows).
         """
-        return self.stock_quantity < 10
+        threshold = self.min_stock if self.min_stock is not None else 10
+        return self.stock_quantity <= threshold
+
+    @property
+    def is_selling_at_loss(self) -> bool:
+        """True when the configured sale price is below acquisition cost."""
+        return (self.cost_price or 0) > 0 and (self.sale_price or 0) < (self.cost_price or 0)
 
 class Ingredient(models.Model):
     """
@@ -311,8 +324,8 @@ class Ingredient(models.Model):
     )
     code = models.CharField(
         max_length=10,
-        unique=True,
-        help_text="Unique code for lot identification (e.g., MGS, CIT, VITC)"
+        help_text="Unique-per-user code for lot identification (e.g., MGS, CIT, VITC). "
+                  "Uniqueness is enforced via Meta.constraints, scoped to the owning user."
     )
     type = models.CharField(
         max_length=20,
@@ -328,7 +341,7 @@ class Ingredient(models.Model):
     )
     cost_per_unit = models.DecimalField(
         max_digits=10,
-        decimal_places=4,
+        decimal_places=2,
         default=0.0,
         help_text="Purchase cost per unit"
     )
@@ -349,6 +362,9 @@ class Ingredient(models.Model):
         verbose_name = "Ingredient"
         verbose_name_plural = "Ingredients"
         ordering = ['code', 'name']
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'code'], name='uniq_ingredient_user_code'),
+        ]
         indexes = [
             models.Index(fields=['code']),
             models.Index(fields=['type']),

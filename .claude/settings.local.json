@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(pip list:*)",
+      "Bash(rm -rf venv)",
+      "Bash(python -m venv venv)",
+      "Bash(venv/Scripts/pip install:*)",
+      "Bash(venv/Scripts/python manage.py check)",
+      "Bash(venv/Scripts/python manage.py makemigrations)",
+      "Bash(venv/Scripts/python manage.py migrate)",
+      "Bash(echo \"from django.contrib.auth.models import User; User.objects.filter\\(username=''''admin''''\\).exists\\(\\) or User.objects.create_superuser\\(''''admin'''', ''''admin@test.com'''', ''''admin123''''\\)\")",
+      "Bash(venv/Scripts/python manage.py shell)",
+      "Bash(grep -r \"Last 30 Days\\\\|Search here\\\\|Admin Panel\\\\|Toggle navigation\\\\|Notifications\\\\|Overview\" '/c/Users/heeye/OneDrive - alumnos.iua.edu.ar/JKGE 2025/ERP/templates' --include=*.html)",
+      "Bash(grep -r \"Administrator\\\\|User\\\\|Search\\\\|Items\\\\|OK\\\\|Line Clearance\" '/c/Users/heeye/OneDrive - alumnos.iua.edu.ar/JKGE 2025/ERP/templates' --include=*.html)",
+      "Bash(rm -rf ~/.claude/skills/ui-ux-pro-max-skill)",
+      "Bash(npx uipro-cli *)",
+      "Bash(rm -rf __TRACKED_VAR__/.claude/skills/caveman)",
+      "Bash(claude --version)"
+    ]
+  }
+}

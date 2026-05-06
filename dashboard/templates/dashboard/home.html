@@ -1,638 +1,544 @@
 {% extends 'base.html' %}
 {% load humanize %}
 
-{% block title %}Tablero Ejecutivo{% endblock %}
+{% block title %}Tablero — Propel{% endblock %}
+{% block header_title %}Tablero{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center">
-        <h1 class="text-2xl font-bold text-slate-800">Tablero Ejecutivo</h1>
-        
-        <!-- Controls -->
-        <div class="flex items-center space-x-3 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
-            <div class="flex space-x-1">
-                <button onclick="setDateRange('today')" class="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-gray-50 text-gray-600 transition-colors">Hoy</button>
-                <button onclick="setDateRange('7d')" class="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-gray-50 text-gray-600 transition-colors">7D</button>
-                <button onclick="setDateRange('30d')" class="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-gray-50 text-gray-600 transition-colors">30D</button>
-                <button onclick="setDateRange('ytd')" class="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-gray-50 text-gray-600 transition-colors" id="ytd-btn">YTD</button>
-                <button onclick="setDateRange('all')" class="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-gray-50 text-gray-600 transition-colors">Histórico</button>
+<div class="space-y-6" id="dashboard-root" data-refresh-ms="300000">
+
+    {# ────────── Header / Controls ────────── #}
+    <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight leading-tight">Tablero ejecutivo</h1>
+            <p class="text-sm text-slate-500 mt-1.5">
+                <span id="period-label">Últimos 30 días</span>
+                <span class="text-slate-300 mx-2">·</span>
+                <span class="inline-flex items-center gap-1.5 text-xs">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="text-slate-500">Auto-refresh cada 5 min</span>
+                </span>
+                <span class="text-slate-300 mx-2">·</span>
+                <span class="text-xs text-slate-400">Última act.: <span id="last-refresh-at">—</span></span>
+            </p>
+        </div>
+
+        <div class="flex flex-wrap items-stretch gap-2">
+            <div class="inline-flex bg-slate-100 p-1 rounded-md" role="tablist" aria-label="Rango">
+                <button data-range="today" class="range-btn px-3 py-1.5 rounded-sm text-xs font-semibold text-slate-600 transition-all duration-200 ease-soft hover:text-slate-900">Hoy</button>
+                <button data-range="7d"    class="range-btn px-3 py-1.5 rounded-sm text-xs font-semibold text-slate-600 transition-all duration-200 ease-soft hover:text-slate-900">7D</button>
+                <button data-range="30d"   class="range-btn px-3 py-1.5 rounded-sm text-xs font-semibold text-slate-600 transition-all duration-200 ease-soft hover:text-slate-900 is-active bg-white text-slate-900 shadow-xs">30D</button>
+                <button data-range="mtd"   class="range-btn px-3 py-1.5 rounded-sm text-xs font-semibold text-slate-600 transition-all duration-200 ease-soft hover:text-slate-900">MTD</button>
+                <button data-range="ytd"   class="range-btn px-3 py-1.5 rounded-sm text-xs font-semibold text-slate-600 transition-all duration-200 ease-soft hover:text-slate-900">YTD</button>
             </div>
-            
-            <div class="h-6 w-px bg-gray-200"></div>
-            
-            <select id="channel-filter" class="text-sm border-none focus:ring-0 text-gray-600 font-medium bg-transparent cursor-pointer">
-                <option value="ALL">Todos los Canales</option>
-                <option value="MercadoLibre">MercadoLibre</option>
-                <option value="TiendaNube">TiendaNube</option>
-                <option value="Local">Local / Mostrador</option>
+
+            <select id="channel-filter" class="bg-white border border-slate-200 rounded-md px-3 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500/30 cursor-pointer">
+                <option value="ALL">Todos los canales</option>
+                <option value="MERCADOLIBRE">MercadoLibre</option>
+                <option value="TIENDANUBE">TiendaNube</option>
+                <option value="WHOLESALE">Mayorista</option>
             </select>
-            
-            <button onclick="refreshDashboard()" class="p-1.5 text-gray-400 hover:text-indigo-600 transition-colors" title="Actualizar">
-                <i class="fas fa-sync-alt"></i>
-            </button>
-            <button onclick="window.print()" class="p-1.5 text-gray-400 hover:text-indigo-600 transition-colors" title="Exportar como PDF">
-                <i class="fas fa-file-export"></i>
+
+            <button id="btn-refresh" class="inline-flex items-center justify-center w-9 h-9 rounded-md bg-white border border-slate-200 text-slate-500 hover:text-primary-600 hover:border-primary-300 transition-all duration-200 ease-soft" title="Refrescar ahora">
+                <i class="fas fa-sync-alt text-xs"></i>
             </button>
         </div>
     </div>
 
-    <!-- KPI Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <!-- Revenue -->
-        <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">INGRESOS</div>
-            <div class="text-xl font-bold text-slate-800 tracking-tight" id="kpi-revenue">
-                <div class="h-6 w-24 bg-gray-200 rounded animate-pulse"></div>
-            </div>
-            <div id="kpi-revenue-trend" class="text-xs mt-2 font-medium flex items-center text-gray-400">
-                <div class="h-4 w-16 bg-gray-100 rounded animate-pulse"></div>
-            </div>
-        </div>
-        
-        <!-- Orders -->
-        <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">PEDIDOS</div>
-            <div class="text-xl font-bold text-slate-800 tracking-tight" id="kpi-orders">
-                <div class="h-6 w-16 bg-gray-200 rounded animate-pulse"></div>
-            </div>
-            <div id="kpi-orders-trend-container">
-                <span id="kpi-orders-trend"><div class="h-4 w-16 bg-gray-100 rounded animate-pulse mt-1"></div></span>
-            </div>
-        </div>
-        
-        <!-- Units -->
-        <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">UNIDADES</div>
-            <div class="text-xl font-bold text-slate-800 tracking-tight" id="kpi-units">
-                <div class="h-6 w-16 bg-gray-200 rounded animate-pulse"></div>
-            </div>
-            <div id="kpi-units-trend-container">
-                 <span id="kpi-units-trend"><div class="h-4 w-16 bg-gray-100 rounded animate-pulse mt-1"></div></span>
-            </div>
-        </div>
-        
-        <!-- Ticket -->
-        <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">TICKET PROM.</div>
-            <div class="text-xl font-bold text-slate-800 tracking-tight" id="kpi-ticket">
-                <div class="h-6 w-20 bg-gray-200 rounded animate-pulse"></div>
-            </div>
-            <div id="kpi-ticket-trend-container">
-                 <span id="kpi-ticket-trend"><div class="h-4 w-16 bg-gray-100 rounded animate-pulse mt-1"></div></span>
-            </div>
-        </div>
-        
-        <!-- Margin -->
-        <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">MARGEN BRUTO</div>
-            <div class="text-xl font-bold text-slate-800 tracking-tight" id="kpi-margin-pct">
-                <div class="h-6 w-14 bg-gray-200 rounded animate-pulse"></div>
-            </div>
-            <div class="text-xs text-gray-400 mt-0.5" id="kpi-margin-abs">
-                <div class="h-4 w-20 bg-gray-100 rounded animate-pulse"></div>
-            </div>
-             <div id="kpi-margin-trend-container">
-                 <span id="kpi-margin-trend"><div class="h-4 w-16 bg-gray-100 rounded animate-pulse mt-1"></div></span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Chart Section -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Sales Trend -->
-        <div class="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-            <div class="flex justify-between items-start mb-6">
-                <div>
-                    <h3 class="font-bold text-slate-800">Tendencia de Ventas</h3>
-                    <div id="trend-summary" class="text-sm text-gray-500 mt-1">Cargando...</div>
+    {# ────────── Capa 1 — Pulso (KPIs) ────────── #}
+    <div class="grid grid-cols-2 xl:grid-cols-5 gap-3" id="kpi-grid">
+        {# Hero KPI: Ingresos with target #}
+        <div class="relative overflow-hidden p-5 rounded-lg bg-gradient-to-br from-primary-600 to-primary-900 text-white shadow-glow xl:col-span-1">
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+            <div class="relative z-10">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="w-9 h-9 rounded-md bg-white/15 backdrop-blur flex items-center justify-center text-sm">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <span id="kpi-revenue-trend" class="inline-flex items-center gap-1 text-[0.7rem] font-semibold bg-white/15 backdrop-blur px-2 py-0.5 rounded-full">
+                        <span class="skeleton-mini bg-white/30 rounded h-3 w-10"></span>
+                    </span>
                 </div>
-                <div class="flex space-x-2">
-                    <select id="trend-bucket" onchange="updateTrendSettings()" class="text-xs border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                <p class="text-[0.7rem] font-semibold text-white/70 uppercase tracking-[0.12em] mb-1">Ingresos</p>
+                <h3 id="kpi-revenue" class="text-2xl font-bold tracking-tight leading-none">
+                    <span class="skeleton-mini bg-white/30 rounded h-6 w-24 inline-block"></span>
+                </h3>
+                <div id="kpi-revenue-target" class="mt-3 hidden">
+                    <div class="flex items-center justify-between text-[0.65rem] text-white/80 mb-1">
+                        <span>Meta auto</span>
+                        <span id="kpi-revenue-target-pct">—</span>
+                    </div>
+                    <div class="h-1.5 bg-white/15 rounded-full overflow-hidden">
+                        <div id="kpi-revenue-target-bar" class="h-full bg-white/80 rounded-full transition-all duration-500 ease-soft" style="width: 0%"></div>
+                    </div>
+                    <p class="text-[0.6rem] text-white/60 mt-1">Objetivo: <span id="kpi-revenue-target-val">—</span></p>
+                </div>
+            </div>
+        </div>
+
+        {% include "dashboard/_kpi_card.html" with id="orders" label="Pedidos" icon="fa-shopping-bag" tone="info" %}
+        {% include "dashboard/_kpi_card.html" with id="ticket" label="Ticket prom." icon="fa-receipt" tone="warning" %}
+        {% include "dashboard/_kpi_card.html" with id="margin" label="Margen %" icon="fa-percent" tone="success" suffix="%" %}
+        {% include "dashboard/_kpi_card.html" with id="cash"   label="Caja disponible" icon="fa-wallet" tone="primary" %}
+    </div>
+
+    {# ────────── Capa 2 — Alertas accionables ────────── #}
+    <div id="alerts-shell" class="hidden">
+        <div class="card-soft p-5">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="font-semibold text-slate-900 text-base flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-md bg-red-50 text-red-600 flex items-center justify-center">
+                            <i class="fas fa-bell text-xs"></i>
+                        </span>
+                        Hay que actuar
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-0.5"><span id="alerts-count">0</span> alertas — ordenadas por urgencia</p>
+                </div>
+            </div>
+            <div id="alerts-list" class="grid grid-cols-1 lg:grid-cols-2 gap-2"></div>
+        </div>
+    </div>
+
+    {# ────────── Capa 3 — Tendencia + Canal ────────── #}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 card-soft p-6">
+            <div class="flex items-start justify-between mb-4 gap-3">
+                <div>
+                    <h3 class="font-semibold text-slate-900 text-base">Ventas — histórico + proyección</h3>
+                    <p id="trend-summary" class="text-xs text-slate-500 mt-0.5">Cargando…</p>
+                </div>
+                <div class="flex gap-2">
+                    <select id="trend-bucket" class="text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500/30 cursor-pointer">
                         <option value="day">Diario</option>
                         <option value="week" selected>Semanal</option>
                         <option value="month">Mensual</option>
                     </select>
-                    <select id="trend-window" onchange="updateTrendSettings()" class="text-xs border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="12" selected>Últimos 12</option>
-                        <option value="30">Últimos 30</option>
-                        <option value="9999">Todos</option>
-                    </select>
                 </div>
             </div>
-            <div class="h-64 relative">
-                <canvas id="salesChart"></canvas>
+            <div class="h-72 relative"><canvas id="salesTrendChart"></canvas></div>
+            <div class="flex items-center gap-4 mt-3 text-[0.7rem] text-slate-500">
+                <span class="inline-flex items-center gap-1.5"><span class="w-3 h-0.5 bg-primary-600"></span> Histórico</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-3 h-0.5 bg-primary-400" style="border-top:2px dashed #818CF8;"></span> Proyección</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-3 h-2 bg-primary-100 rounded-sm"></span> Banda confianza</span>
             </div>
         </div>
 
-        <!-- Channel Mix -->
-        <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col">
-            <h3 class="font-bold text-slate-800 mb-4">Mix de Canales</h3>
-            <div id="channel-list" class="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar" style="max-height: 250px;">
-                <!-- Filled via JS -->
-                <div class="animate-pulse space-y-3">
-                    <div class="h-12 bg-gray-100 rounded-lg"></div>
-                    <div class="h-12 bg-gray-100 rounded-lg"></div>
+        <div class="card-soft p-6 flex flex-col">
+            <h3 class="font-semibold text-slate-900 text-base">Mix por canal</h3>
+            <p class="text-xs text-slate-500 mt-0.5 mb-4">Ingresos por origen de venta</p>
+            <div class="h-44 relative flex items-center justify-center mb-4">
+                <canvas id="channelChart"></canvas>
+                <div id="channel-center" class="absolute text-center pointer-events-none">
+                    <p class="text-[0.65rem] text-slate-500 font-semibold uppercase tracking-[0.14em]">Total</p>
+                    <p id="channel-total" class="text-xl font-bold text-slate-900 tracking-tight leading-none mt-1">—</p>
                 </div>
             </div>
+            <div id="channel-legend" class="space-y-1.5"></div>
         </div>
     </div>
-    
-    <!-- Bottom Grid -->
+
+    {# ────────── Capa 4 — Top productos · Top clientes · Caja ────────── #}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Finance Snapshot -->
-        <div class="bg-slate-900 text-white p-6 rounded-xl shadow-lg flex flex-col">
-            <div class="flex justify-between items-center mb-6">
-                <div class="flex items-center space-x-2">
-                    <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center">
-                        <i class="fas fa-wallet text-white text-sm"></i>
-                    </div>
-                    <div>
-                        <h3 class="font-bold">Finanzas</h3>
-                        <p class="text-xs text-slate-400">Saldos en vivo</p>
-                    </div>
-                </div>
-                <a href="{% url 'cashflow_dashboard' %}" class="text-xs text-indigo-300 hover:text-white">Ver Todo →</a>
-            </div>
-            
-            <div id="finance-balances" class="space-y-4 mb-6">
-                <!-- JS populated -->
-            </div>
-            
-            <div class="mt-auto pt-4 border-t border-white/10">
-                <h4 class="text-xs font-bold text-slate-400 uppercase mb-3">Movimientos Recientes</h4>
-                <div id="recent-moves" class="space-y-3 text-sm">
-                    <!-- JS populated -->
-                </div>
-            </div>
+        <div class="card-soft p-6">
+            <h3 class="font-semibold text-slate-900 text-base flex items-center gap-2">
+                <i class="fas fa-trophy text-amber-500 text-xs"></i> Top productos
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5 mb-4">Por ingreso en el período</p>
+            <div id="top-products" class="space-y-2"></div>
         </div>
-        
-        <!-- Aging / Debts -->
-        <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-            <h3 class="font-bold text-slate-800 mb-4">Cuentas Corrientes</h3>
-            
-            <div class="mb-4">
-                <h4 class="text-xs font-bold text-gray-400 uppercase mb-2">A cobrar (Receivables)</h4>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <tbody id="receivables-list">
-                             <!-- JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <div>
-                <h4 class="text-xs font-bold text-gray-400 uppercase mb-2">A pagar (Payables)</h4>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <tbody id="payables-list">
-                             <!-- JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+
+        <div class="card-soft p-6">
+            <h3 class="font-semibold text-slate-900 text-base flex items-center gap-2">
+                <i class="fas fa-users text-sky-500 text-xs"></i> Segmentos de clientes
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5 mb-4">Distribución RFM</p>
+            <div id="customer-segments" class="space-y-2"></div>
         </div>
-        
-        <!-- Stock Alerts & Top Products -->
-        <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-             <div class="flex space-x-4 border-b border-gray-100 mb-4">
-                 <button id="tab-stock" onclick="switchStockTab('stock')" class="pb-2 border-b-2 border-indigo-600 font-bold text-indigo-600 text-sm">Alertas Stock</button>
-                 <button id="tab-top" onclick="switchStockTab('top')" class="pb-2 border-b-2 border-transparent font-medium text-gray-500 text-sm hover:text-gray-700">Top Productos</button>
-             </div>
-             
-             <div class="overflow-y-auto custom-scrollbar" style="max-height: 300px;">
-                 <table class="w-full text-sm">
-                     <thead>
-                         <tr class="text-xs text-gray-400 text-left">
-                             <th class="font-medium py-2">Producto</th>
-                             <th class="font-medium py-2 text-right">Stock</th>
-                             <th class="font-medium py-2 text-right">Cobertura</th>
-                         </tr>
-                     </thead>
-                     <tbody id="stock-alerts-list">
-                         <!-- JS -->
-                     </tbody>
-                 </table>
-                 
-                  <table class="w-full text-sm hidden" id="top-products-table">
-                     <thead>
-                         <tr class="text-xs text-gray-400 text-left">
-                             <th class="font-medium py-2">Producto</th>
-                             <th class="font-medium py-2 text-right">Cant.</th>
-                             <th class="font-medium py-2 text-right">Ingresos</th>
-                         </tr>
-                     </thead>
-                     <tbody id="top-products-list">
-                         <!-- JS -->
-                     </tbody>
-                 </table>
-             </div>
+
+        <div class="card-soft p-6">
+            <h3 class="font-semibold text-slate-900 text-base flex items-center gap-2">
+                <i class="fas fa-wallet text-emerald-500 text-xs"></i> Caja por cuenta
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5 mb-4">Saldos en vivo</p>
+            <div id="finance-balances" class="space-y-2"></div>
         </div>
     </div>
 </div>
 
-<!-- ChartJS -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .skeleton-mini { display: inline-block; animation: skel 1.4s ease-in-out infinite; }
+    @keyframes skel { 0%,100% { opacity: .55 } 50% { opacity: 1 } }
+    .range-btn.is-active { background: #fff; color: #0F172A; box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 1px 1px rgba(15,23,42,.02); }
+    @media (prefers-reduced-motion: reduce) { .skeleton-mini, .animate-pulse { animation: none; } }
+</style>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-    let salesChartInstance = null;
-    let currentFilters = {
-        date_from: '2024-01-01', // Default 2024
-        date_to: '',
-        channel: 'ALL'
+(() => {
+    'use strict';
+
+    // ─── Helpers ──────────────────────────────────────────────────────────
+    const $ = (s, r=document) => r.querySelector(s);
+    const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+
+    const money = (n, compact=true) => {
+        const v = Number(n) || 0;
+        if (compact) {
+            const abs = Math.abs(v);
+            if (abs >= 1e9) return '$' + (v/1e9).toLocaleString('es-AR',{maximumFractionDigits:1}) + 'MM';
+            if (abs >= 1e6) return '$' + (v/1e6).toLocaleString('es-AR',{maximumFractionDigits:1}) + 'M';
+            if (abs >= 1e3) return '$' + (v/1e3).toLocaleString('es-AR',{maximumFractionDigits:1}) + 'K';
+            return '$' + v.toLocaleString('es-AR',{maximumFractionDigits:0});
+        }
+        return '$' + v.toLocaleString('es-AR',{maximumFractionDigits:0});
+    };
+    const num = (n) => Number(n||0).toLocaleString('es-AR',{maximumFractionDigits:0});
+    const pct = (v) => (Number(v||0)).toLocaleString('es-AR',{maximumFractionDigits:1}) + '%';
+    const fmtTime = (d=new Date()) => d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+
+    const trendBadge = (val, withBg=true) => {
+        if (val === null || val === undefined) return `<span class="text-slate-400">—</span>`;
+        const v = Number(val);
+        const arrow = v >= 0 ? '↑' : '↓';
+        const cls = withBg
+            ? (v >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700')
+            : (v >= 0 ? 'text-emerald-200' : 'text-red-200');
+        return `<span class="${withBg?'inline-flex items-center gap-0.5 text-[0.7rem] font-semibold px-2 py-0.5 rounded-full '+cls:cls}">${arrow} ${Math.abs(v).toFixed(1)}%</span>`;
     };
 
-    document.addEventListener('DOMContentLoaded', () => {
-        refreshDashboard();
-        
-        document.getElementById('channel-filter').addEventListener('change', (e) => {
-            currentFilters.channel = e.target.value;
-            refreshDashboard();
-        });
-    });
+    // ─── State ────────────────────────────────────────────────────────────
+    const state = {
+        range: '30d',
+        channel: 'ALL',
+        bucket: 'week',
+        date_from: null, date_to: null,
+        salesChart: null, channelChart: null,
+        refreshTimer: null,
+    };
 
-    function setDateRange(range) {
-        const now = new Date();
-        let from = new Date();
-        
-        // Reset styles
-        document.querySelectorAll('button[onclick^="setDateRange"]').forEach(btn => {
-            btn.className = "px-3 py-1.5 text-sm font-medium rounded-md hover:bg-gray-50 text-gray-600 transition-colors";
-        });
-        
-        // Style active button
-        let targetBtn = document.querySelector(`button[onclick="setDateRange('${range}')"]`);
-        if (targetBtn) targetBtn.className = "px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow-sm text-indigo-600 ring-1 ring-indigo-100";
-        
+    const computeRange = (range) => {
+        const today = new Date();
+        const fmt = d => d.toISOString().slice(0,10);
+        const from = new Date(today);
         if (range === 'today') {
-            from = now;
+            return { from: fmt(today), to: fmt(today), label: 'Hoy' };
         } else if (range === '7d') {
-            from.setDate(now.getDate() - 7);
+            from.setDate(today.getDate() - 6);
+            return { from: fmt(from), to: fmt(today), label: 'Últimos 7 días' };
         } else if (range === '30d') {
-            from.setDate(now.getDate() - 30);
+            from.setDate(today.getDate() - 29);
+            return { from: fmt(from), to: fmt(today), label: 'Últimos 30 días' };
+        } else if (range === 'mtd') {
+            from.setDate(1);
+            return { from: fmt(from), to: fmt(today), label: 'Mes actual' };
         } else if (range === 'ytd') {
-        from = new Date(now.getFullYear(), 0, 1);
-        } else if (range === 'all') {
-             currentFilters.date_from = '';
-             currentFilters.date_to = '';
-             refreshDashboard();
-             return; 
+            return { from: today.getFullYear() + '-01-01', to: fmt(today), label: 'Año en curso' };
         }
-        
-        currentFilters.date_from = from.toISOString().split('T')[0];
-        // Ensure date_to is Today to define the range clearly, unless it's strictly "Since X"
-        // But for "Last 7 days", we usually mean "Until Now".
-        currentFilters.date_to = now.toISOString().split('T')[0];
-        
-        refreshDashboard();
-    }
+        from.setDate(today.getDate() - 29);
+        return { from: fmt(from), to: fmt(today), label: 'Últimos 30 días' };
+    };
 
-    async function refreshDashboard() {
-        const params = new URLSearchParams(currentFilters);
-        params.append('_t', Date.now()); // Anti-cache
-        
-        // 1. KPIs
-        fetch(`{% url 'api_kpis' %}?${params.toString()}`)
-            .then(r => r.json())
-            .then(data => {
-                // Revenue
-                const kpiRevenue = document.getElementById('kpi-revenue');
-                kpiRevenue.innerText = formatCurrency(data.revenue, true); // Compact
-                kpiRevenue.title = formatCurrency(data.revenue); // Tooltip full
-                renderTrend('kpi-revenue-trend', data.growth ? data.growth.revenue : null);
-                
-                // Orders
-                const kpiOrders = document.getElementById('kpi-orders');
-                kpiOrders.innerText = data.orders; // Usually fits, but could be compacted if needed
-                renderTrend('kpi-orders-trend-container', data.growth ? data.growth.orders : null, true);
-                
-                // Units
-                const kpiUnits = document.getElementById('kpi-units');
-                kpiUnits.innerText = data.units.toLocaleString('es-AR');
-                renderTrend('kpi-units-trend-container', data.growth ? data.growth.units : null, true);
-                
-                // Ticket Average
-                const kpiTicket = document.getElementById('kpi-ticket');
-                kpiTicket.innerText = formatCurrency(data.ticket_avg, true); // Compact
-                kpiTicket.title = formatCurrency(data.ticket_avg); // Tooltip full
-                renderTrend('kpi-ticket-trend-container', data.growth ? data.growth.ticket_avg : null, true);
-                
-                document.getElementById('kpi-margin-pct').innerText = `${parseFloat(data.gross_margin_pct).toFixed(1)}%`;
-                
-                const kpiMarginAbs = document.getElementById('kpi-margin-abs');
-                kpiMarginAbs.innerText = `(${formatCurrency(data.gross_margin, true)})`;
-                kpiMarginAbs.title = formatCurrency(data.gross_margin);
-                renderTrend('kpi-margin-trend-container', data.growth ? data.growth.gross_margin : null, true);
-            })
-            .catch(e => console.error("KPI Error:", e));
+    const buildQuery = () => {
+        const p = new URLSearchParams();
+        if (state.date_from) p.set('date_from', state.date_from);
+        if (state.date_to)   p.set('date_to',   state.date_to);
+        if (state.channel && state.channel !== 'ALL') p.set('channel', state.channel);
+        return p.toString();
+    };
 
-        // 2. Trends
-        updateTrendChart();
+    const fetchJSON = async (url) => {
+        const r = await fetch(url, {credentials:'same-origin'});
+        if (!r.ok) throw new Error(`${r.status} ${url}`);
+        return await r.json();
+    };
 
-        // 3. Channels
-        fetch(`{% url 'api_channels' %}?${params.toString()}`)
-            .then(r => r.json())
-            .then(data => {
-                const container = document.getElementById('channel-list');
-                container.innerHTML = '';
-                data.forEach(ch => {
-                    const html = `
-                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <span class="font-medium text-gray-700">${ch.channel || 'Desconocido'}</span>
-                        <div class="text-right">
-                            <div class="font-bold text-gray-900">${formatCurrency(ch.revenue)}</div>
-                            <div class="text-xs text-gray-500">${ch.orders} pedidos</div>
-                        </div>
-                    </div>`;
-                    container.innerHTML += html;
-                });
-            })
-            .catch(e => {
-                console.error('Channels Error:', e);
-                document.getElementById('channel-list').innerHTML = '<div class="text-red-400 text-sm p-3">Error al cargar canales</div>';
-            });
+    // ─── Renderers ────────────────────────────────────────────────────────
+    const setKPIRaw = (id, html, trendHtml) => {
+        const el = $('#kpi-'+id); if (el) el.innerHTML = html;
+        const t = $('#kpi-'+id+'-trend'); if (t) t.innerHTML = trendHtml || '';
+    };
 
-        // 4. Finance
-        fetch(`{% url 'api_finance' %}`)
-            .then(r => r.json())
-            .then(data => {
-                const container = document.getElementById('finance-balances');
-                container.innerHTML = '';
-                data.forEach(acc => {
-                    const html = `
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <span class="text-slate-300 text-sm block">${acc.name}</span>
-                            <span class="text-xs text-slate-500">${acc.currency}</span>
-                        </div>
-                        <span class="font-mono text-xl font-bold tracking-tight">${formatCurrency(acc.balance)}</span>
-                    </div>`;
-                    container.innerHTML += html;
-                });
-            })
-            .catch(e => {
-                console.error('Finance Error:', e);
-                document.getElementById('finance-balances').innerHTML = '<div class="text-red-400 text-sm">Error al cargar finanzas</div>';
-            });
+    const renderKPIs = async () => {
+        const q = buildQuery();
+        const kpis = await fetchJSON(`/api/kpis/?${q}`);
+        const rev = Number(kpis.revenue || 0);
+        const orders = Number(kpis.orders || 0);
+        const ticket = Number(kpis.ticket_avg || 0);
+        const marginPct = Number(kpis.gross_margin_pct || 0);
 
-         fetch(`{% url 'api_recent_moves' %}`)
-            .then(r => r.json())
-            .then(data => {
-                 const container = document.getElementById('recent-moves');
-                 container.innerHTML = '';
-                 data.forEach(m => {
-                     const color = m.type === 'IN' ? 'text-green-400' : 'text-red-400';
-                     const sign = m.type === 'IN' ? '+' : '-';
-                     container.innerHTML += `
-                     <div class="flex justify-between border-b border-white/5 pb-2 last:border-0">
-                        <div>
-                            <span class="block font-medium dark:text-gray-200">${m.description || m.category}</span>
-                            <span class="text-xs text-gray-500 dark:text-gray-500">${m.date} | ${m.account}</span>
-                        </div>
-                        <span class="font-medium ${color}">${sign}${formatCurrency(m.amount)}</span>
-                     </div>`;
-                 });
-            });
+        setKPIRaw('revenue', money(rev, true), trendBadge(kpis.growth ? kpis.growth.revenue : null, false));
+        setKPIRaw('orders',  num(orders),       trendBadge(kpis.growth ? kpis.growth.orders : null));
+        setKPIRaw('ticket',  money(ticket, true), trendBadge(kpis.growth ? kpis.growth.ticket_avg : null));
+        setKPIRaw('margin',  pct(marginPct),    `<span class="text-[0.7rem] text-slate-500">vs período prev.</span>`);
+    };
 
-        // 5. Aging
-        fetch(`{% url 'api_aging' %}`)
-            .then(r => r.json())
-            .then(data => {
-                 const rec = document.getElementById('receivables-list');
-                 rec.innerHTML = '';
-                 data.receivables.forEach(item => {
-                     rec.innerHTML += `
-                     <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50">
-                        <td class="px-3 py-2 font-medium">${item.entity}</td>
-                        <td class="px-3 py-2 text-right font-bold text-gray-700">${formatCurrency(item.amount)}</td>
-                        <td class="px-3 py-2 text-right ${item.overdue ? 'text-red-600 font-bold' : 'text-gray-500'}">${item.due_date}</td>
-                     </tr>`;
-                 });
-                 
-                 const pay = document.getElementById('payables-list');
-                 pay.innerHTML = '';
-                 data.payables.forEach(item => {
-                     pay.innerHTML += `
-                     <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50">
-                        <td class="px-3 py-2 font-medium">${item.entity}</td>
-                        <td class="px-3 py-2 text-right font-bold text-gray-700">${formatCurrency(item.amount)}</td>
-                        <td class="px-3 py-2 text-right ${item.overdue ? 'text-red-600 font-bold' : 'text-gray-500'}">${item.due_date}</td>
-                     </tr>`;
-                 });
-            })
-            .catch(e => {
-                console.error('Aging Error:', e);
-            });
-            
-        // 6. Stock
-        fetch(`{% url 'api_stock_alerts' %}`)
-            .then(r => r.json())
-            .then(data => {
-                const list = document.getElementById('stock-alerts-list');
-                list.innerHTML = '';
-                data.forEach(item => {
-                    let badgeColor = item.status === 'red' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700';
-                    list.innerHTML += `
-                    <tr class="border-b border-gray-50 last:border-0">
-                        <td class="py-2 text-gray-700 font-medium">${item.product_name}</td>
-                        <td class="py-2 text-right text-gray-500">${item.stock}</td>
-                        <td class="py-2 text-right">
-                            <span class="px-2 py-0.5 rounded text-xs font-bold ${badgeColor}">${item.cover}d</span>
-                        </td>
-                    </tr>`;
-                });
-            })
-            .catch(e => {
-                console.error('Stock Alerts Error:', e);
-                document.getElementById('stock-alerts-list').innerHTML = '<tr><td colspan="3" class="py-4 text-center text-red-400">Error al cargar alertas</td></tr>';
-            });
-            
-        fetch(`{% url 'api_top_products' %}?${params}`)
-            .then(r => r.json())
-            .then(data => {
-                const list = document.getElementById('top-products-list');
-                list.innerHTML = '';
-                data.forEach(item => {
-                    list.innerHTML += `
-                    <tr class="border-b border-gray-50 last:border-0">
-                        <td class="py-2 text-gray-700 font-medium">${item.product__name}</td>
-                        <td class="py-2 text-right text-gray-500">${item.qty}</td>
-                        <td class="py-2 text-right font-bold text-gray-900">${formatCurrency(item.revenue)}</td>
-                    </tr>`;
-                });
-            })
-            .catch(e => {
-                console.error('Top Products Error:', e);
-                document.getElementById('top-products-list').innerHTML = '<tr><td colspan="3" class="py-4 text-center text-red-400">Error al cargar productos</td></tr>';
-            });
-    }
+    const renderTargets = async () => {
+        try {
+            const q = buildQuery();
+            const targets = await fetchJSON(`/api/targets/?${q}&bucket=${state.bucket}&window=12`);
+            const tg = targets && targets.revenue;
+            if (!tg || !(tg.value > 0) || !tg.progress) return;
+            $('#kpi-revenue-target').classList.remove('hidden');
+            $('#kpi-revenue-target-val').textContent = money(tg.value, true) + ` (auto · ${tg.method})`;
+            $('#kpi-revenue-target-pct').textContent = `${tg.progress.pct}%`;
+            $('#kpi-revenue-target-bar').style.width = Math.min(100, tg.progress.pct) + '%';
+        } catch (e) { console.warn('targets', e); }
+    };
 
-    // Tab switching for Stock Alerts / Top Products
-    function switchStockTab(tab) {
-        const stockTable = document.querySelector('table:has(#stock-alerts-list)');
-        const topTable = document.getElementById('top-products-table');
-        const tabStock = document.getElementById('tab-stock');
-        const tabTop = document.getElementById('tab-top');
+    const renderCash = async () => {
+        const finance = await fetchJSON('/api/finance/');
+        const totalCash = (finance || []).reduce((s,a) => s + Number(a.balance||0), 0);
+        setKPIRaw('cash', money(totalCash, true), `<span class="text-[0.7rem] text-slate-500">${(finance||[]).length} cuentas</span>`);
+    };
 
-        if (tab === 'stock') {
-            stockTable.classList.remove('hidden');
-            topTable.classList.add('hidden');
-            tabStock.className = 'pb-2 border-b-2 border-indigo-600 font-bold text-indigo-600 text-sm';
-            tabTop.className = 'pb-2 border-b-2 border-transparent font-medium text-gray-500 text-sm hover:text-gray-700';
-        } else {
-            stockTable.classList.add('hidden');
-            topTable.classList.remove('hidden');
-            tabTop.className = 'pb-2 border-b-2 border-indigo-600 font-bold text-indigo-600 text-sm';
-            tabStock.className = 'pb-2 border-b-2 border-transparent font-medium text-gray-500 text-sm hover:text-gray-700';
+    const renderTrendForecast = async () => {
+        const q = buildQuery();
+        const data = await fetchJSON(`/api/sales-forecast/?${q}&bucket=${state.bucket}&window=12&horizon=4`);
+        const hist = data.history || [];
+        const fcst = data.forecast || [];
+        const labels = hist.map(p => p.start).concat(fcst.map(p => p.start));
+        const histVals = hist.map(p => Number(p.value||0)).concat(fcst.map(_ => null));
+        const fcstVals = hist.map(_ => null);
+        if (hist.length) fcstVals[hist.length-1] = Number(hist[hist.length-1].value||0); // bridge
+        fcst.forEach(p => fcstVals.push(Number(p.value||0)));
+
+        // Confidence band: fill between hi (dataset index 2) and lo (dataset index 3)
+        const lo = hist.map(_ => null).concat(fcst.map(p => Number(p.low||0)));
+        const hi = hist.map(_ => null).concat(fcst.map(p => Number(p.high||0)));
+        if (hist.length && fcst.length) {
+            lo[hist.length-1] = histVals[hist.length-1];
+            hi[hist.length-1] = histVals[hist.length-1];
         }
-    }
 
-    function updateTrendSettings() {
-        updateTrendChart();
-    }
+        const ctx = $('#salesTrendChart').getContext('2d');
+        if (state.salesChart) state.salesChart.destroy();
+        const grad = ctx.createLinearGradient(0,0,0,260);
+        grad.addColorStop(0, 'rgba(79,70,229,.22)'); grad.addColorStop(1, 'rgba(79,70,229,0)');
 
-    function updateTrendChart() {
-        const bucket = document.getElementById('trend-bucket').value;
-        const windowVal = document.getElementById('trend-window').value;
-        
-        const params = new URLSearchParams();
-        if (currentFilters.date_from) params.append('date_from', currentFilters.date_from);
-        if (currentFilters.date_to) params.append('date_to', currentFilters.date_to);
-        
-        if (currentFilters.channel && currentFilters.channel !== 'ALL') {
-            params.append('channel', currentFilters.channel);
-        }
-        
-        params.append('bucket', bucket);
-        params.append('window', windowVal);
-        params.append('_t', Date.now());
-        
-        const summaryEl = document.getElementById('trend-summary');
-        if (summaryEl) summaryEl.innerHTML = '<span class="text-gray-400">Calculando...</span>';
-        
-        fetch(`{% url 'api_trends' %}?${params.toString()}`)
-            .then(r => r.json())
-            .then(data => {
-                renderSalesChart(data);
-            })
-            .catch(err => {
-                console.error("Trend Error:", err);
-                if (summaryEl) summaryEl.innerHTML = `<span class="text-red-500">Error</span>`;
-            });
-    }
-
-    function renderSalesChart(data) {
-        const ctx = document.getElementById('salesChart').getContext('2d');
-        if (salesChartInstance) salesChartInstance.destroy();
-        
-        // Summary
-        const summaryEl = document.getElementById('trend-summary');
-        const formattedTotal = formatCurrency(data.summary.current_total);
-        const change = parseFloat(data.summary.change_pct);
-        const icon = change >= 0 ? '▲' : '▼';
-        const colorClass = change >= 0 ? 'text-green-600' : 'text-red-600';
-        let changeText = `${Math.abs(change)}%`;
-        if (change > 999) changeText = '>999%';
-        
-        summaryEl.innerHTML = `Total ${formattedTotal} <span class="ml-2 ${colorClass} font-medium text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200">${icon} ${changeText} vs anterior</span>`;
-
-        // Labels ES
-        const labels = data.points.map(p => {
-            if (data.bucket === 'month') {
-               if (!p.start) return '';
-               const parts = p.start.split('-');
-               return `${parts[2]}/${parts[1]}`;
-            } else if (data.bucket === 'day') {
-               if (!p.start) return '';
-               const parts = p.start.split('-');
-               return `${parts[2]}/${parts[1]}`;
-            } else {
-               if (!p.start) return '';
-               const parts = p.start.split('-');
-               return `${parts[2]}/${parts[1]}`; // Simplified for chart
-            }
-        });
-        
-        const values = data.points.map(p => parseFloat(p.value));
-        const chartType = data.bucket === 'month' ? 'line' : 'bar';
-        
-        salesChartInstance = new Chart(ctx, {
-            type: chartType,
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Ingresos',
-                    data: values,
-                    borderColor: '#4f46e5',
-                    backgroundColor: '#6366f1',
-                    borderWidth: 1,
-                    borderRadius: 4,
-                    tension: 0.3
-                }]
-            },
+        state.salesChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets: [
+                // ↓ Order matters for the fill: hi (idx 0) fills DOWN to lo (idx 1)
+                { label: 'Banda alta', data: hi, borderColor:'transparent', backgroundColor:'rgba(129,140,248,.18)', pointRadius:0, fill: '+1', spanGaps: false },
+                { label: 'Banda baja', data: lo, borderColor:'transparent', backgroundColor:'rgba(129,140,248,.18)', pointRadius:0, fill: false, spanGaps: false },
+                { label: 'Histórico',  data: histVals, borderColor: '#4F46E5', backgroundColor: grad, borderWidth: 2.5, tension:.35, fill:'origin', pointRadius:3, pointBackgroundColor:'#fff', pointBorderColor:'#4F46E5', pointBorderWidth:2, spanGaps: false },
+                { label: 'Proyección', data: fcstVals, borderColor: '#818CF8', borderDash:[6,4], borderWidth: 2, tension:.35, fill:false, pointRadius:3, pointBackgroundColor:'#fff', pointBorderColor:'#818CF8', pointBorderWidth:2, spanGaps: false },
+            ]},
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                if (value >= 1000000) return '$' + (value/1000000).toFixed(1) + 'M';
-                                if (value >= 1000) return '$' + (value/1000).toFixed(0) + 'K';
-                                return '$' + value;
-                            }
-                        }
-                    },
-                    x: {
-                        grid: { display: false },
-                        ticks: { autoSkip: true, maxTicksLimit: 10 }
+                responsive:true, maintainAspectRatio:false,
+                plugins:{
+                    legend:{display:false},
+                    tooltip:{
+                        backgroundColor:'#1E1B4B', cornerRadius:8, padding:10,
+                        titleFont:{family:'Plus Jakarta Sans', size:12, weight:'600'},
+                        bodyFont:{family:'Plus Jakarta Sans', size:12},
+                        callbacks:{ label: c => `${c.dataset.label}: ${money(c.parsed.y, false)}` }
                     }
-                }
+                },
+                scales:{
+                    y:{ grid:{color:'#EEF2F7'}, ticks:{font:{family:'Plus Jakarta Sans',size:11}, color:'#94A3B8', callback:v=>money(v,true)} },
+                    x:{ grid:{display:false}, ticks:{font:{family:'Plus Jakarta Sans',size:10}, color:'#94A3B8', maxRotation:0, autoSkip:true, maxTicksLimit:8} }
+                },
+                interaction:{mode:'index', intersect:false}
             }
         });
-    }
+        const totalHist = hist.reduce((s,p)=>s+Number(p.value||0),0);
+        const totalFcst = fcst.reduce((s,p)=>s+Number(p.value||0),0);
+        $('#trend-summary').innerHTML = `Histórico: <strong>${money(totalHist,true)}</strong> · Proyección ${fcst.length} períodos: <strong class="text-primary-700">${money(totalFcst,true)}</strong>`;
+    };
 
-    function formatCurrency(value, compact = false) {
-        if (value === null || value === undefined) return '--';
-        
-        let options = { style: 'currency', currency: 'ARS' };
-        if (compact) {
-            options.notation = 'compact';
-            options.compactDisplay = 'short';
-            options.maximumFractionDigits = 1;
-        }
-        
-        return new Intl.NumberFormat('es-AR', options).format(value);
-    }
-    
-    function renderTrend(elementId, growth, isContainer=false) {
-        if (growth === null || growth === undefined) {
-             if (isContainer) document.getElementById(elementId).innerHTML = '';
-             else document.getElementById(elementId).innerText = '--';
-             return;
-        }
-        
-        const isPositive = growth >= 0;
-        const color = isPositive ? 'text-green-500' : 'text-red-500';
-        const icon = isPositive ? 'fa-arrow-up' : 'fa-arrow-down';
-        const text = `${Math.abs(growth).toFixed(1)}% vs anterior`;
-        
-        const html = `<i class="fas ${icon} mr-1"></i> ${text}`;
-        
-        const el = document.getElementById(elementId);
-        if (isContainer) {
-            el.className = `text-xs mt-2 font-medium flex items-center ${color}`;
-            el.innerHTML = html;
-        } else {
-             el.innerText = `${Math.abs(growth).toFixed(1)}%`;
-             if (el.parentElement) {
-                 el.parentElement.className = `text-xs mt-2 font-medium flex items-center ${color}`;
-                 el.parentElement.innerHTML = html;
-             }
-        }
-    }
+    const CHANNEL_COLORS = {
+        'WHOLESALE': '#4F46E5', 'TIENDANUBE': '#0EA5E9', 'MERCADOLIBRE': '#F59E0B',
+        'LOCAL': '#10B981', 'OTROS': '#94A3B8',
+    };
+    const CHANNEL_LABELS = {
+        'WHOLESALE': 'Mayorista', 'TIENDANUBE': 'TiendaNube', 'MERCADOLIBRE': 'MercadoLibre',
+        'LOCAL': 'Local', 'OTROS': 'Otros',
+    };
+
+    const renderChannel = async () => {
+        const q = buildQuery();
+        const data = await fetchJSON(`/api/channels/?${q}`);
+        const items = (data || []).map(d => ({
+            channel: (d.channel || 'OTROS').toUpperCase(),
+            revenue: Number(d.revenue||0),
+            orders:  Number(d.orders||0),
+        }));
+        const total = items.reduce((s,i)=>s+i.revenue, 0);
+        $('#channel-total').textContent = money(total, true);
+
+        const ctx = $('#channelChart').getContext('2d');
+        if (state.channelChart) state.channelChart.destroy();
+        state.channelChart = new Chart(ctx, {
+            type:'doughnut',
+            data:{ labels: items.map(i => CHANNEL_LABELS[i.channel] || i.channel),
+                   datasets:[{data: items.map(i => i.revenue), backgroundColor: items.map(i => CHANNEL_COLORS[i.channel] || '#94A3B8'), borderWidth:0, hoverOffset:4}] },
+            options:{ responsive:true, maintainAspectRatio:false, cutout:'78%',
+                plugins:{ legend:{display:false}, tooltip:{
+                    backgroundColor:'#1E1B4B', cornerRadius:8, padding:10,
+                    titleFont:{family:'Plus Jakarta Sans', size:12, weight:'600'},
+                    bodyFont:{family:'Plus Jakarta Sans', size:12},
+                    callbacks:{ label: c => `${c.label}: ${money(c.parsed,false)} (${total>0?((c.parsed/total)*100).toFixed(1):0}%)` }
+                }}
+            }
+        });
+        $('#channel-legend').innerHTML = items.map(i => {
+            const p = total>0 ? (i.revenue/total*100) : 0;
+            return `<div class="flex items-center justify-between px-3 py-2 rounded-md bg-slate-50 border border-slate-100">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${CHANNEL_COLORS[i.channel]||'#94A3B8'}"></span>
+                    <span class="text-xs font-medium text-slate-700 truncate">${CHANNEL_LABELS[i.channel] || i.channel}</span>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs font-bold text-slate-900">${p.toFixed(1)}%</p>
+                    <p class="text-[0.65rem] text-slate-400">${money(i.revenue,true)}</p>
+                </div>
+            </div>`;
+        }).join('') || `<p class="text-xs text-slate-400 text-center py-3">Sin ventas en el período</p>`;
+    };
+
+    const renderTopProducts = async () => {
+        const q = buildQuery();
+        const data = await fetchJSON(`/api/top-products/?${q}`);
+        const max = Math.max(1, ...data.map(p=>Number(p.revenue||0)));
+        $('#top-products').innerHTML = data.slice(0,7).map((p,i) => {
+            const w = (Number(p.revenue||0)/max)*100;
+            return `<div>
+                <div class="flex items-center justify-between text-xs mb-1">
+                    <span class="font-medium text-slate-700 truncate">${i+1}. ${p.product__name || '—'}</span>
+                    <span class="font-bold text-slate-900 tabular-nums whitespace-nowrap pl-3">${money(p.revenue,true)}</span>
+                </div>
+                <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-primary-500 to-primary-700 rounded-full transition-all duration-700 ease-soft" style="width:${w}%"></div>
+                </div>
+            </div>`;
+        }).join('') || `<p class="text-xs text-slate-400 text-center py-3">Sin datos</p>`;
+    };
+
+    const SEGMENT_TONES = {
+        'VIP':           'bg-violet-100 text-violet-700 border-violet-200',
+        'Fiel':          'bg-emerald-100 text-emerald-700 border-emerald-200',
+        'ACTIVE':        'bg-emerald-100 text-emerald-700 border-emerald-200',
+        'Recurrente':    'bg-sky-100 text-sky-700 border-sky-200',
+        'Nuevo':         'bg-blue-100 text-blue-700 border-blue-200',
+        'En riesgo':     'bg-amber-100 text-amber-700 border-amber-200',
+        'Dormido':       'bg-slate-200 text-slate-700 border-slate-300',
+        'Sin segmentar': 'bg-slate-100 text-slate-600 border-slate-200',
+    };
+    const renderCustomers = async () => {
+        const q = buildQuery();
+        const raw = await fetchJSON(`/api/customers/?${q}`);
+        const data = (raw || []).map(r => ({
+            segment: r.segment || 'Sin segmentar',
+            count:   Number(r.count || 0),
+        })).filter(r => r.count > 0).sort((a,b) => b.count - a.count);
+        const total = data.reduce((s,r)=>s+r.count, 0);
+        $('#customer-segments').innerHTML = data.map(r => {
+            const tone = SEGMENT_TONES[r.segment] || 'bg-slate-100 text-slate-600 border-slate-200';
+            const p = total>0 ? (r.count/total*100) : 0;
+            return `<div class="flex items-center justify-between px-3 py-2 rounded-md bg-slate-50 border border-slate-100">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[0.7rem] font-semibold border ${tone}">${r.segment}</span>
+                <div class="text-right">
+                    <p class="text-xs font-bold text-slate-900">${num(r.count)}</p>
+                    <p class="text-[0.65rem] text-slate-400">${p.toFixed(1)}%</p>
+                </div>
+            </div>`;
+        }).join('') || `<p class="text-xs text-slate-400 text-center py-3">Sin segmentación aún</p>`;
+    };
+
+    const renderFinance = async () => {
+        const data = await fetchJSON('/api/finance/');
+        $('#finance-balances').innerHTML = (data||[]).slice(0,8).map(a => {
+            const bal = Number(a.balance||0);
+            const tone = bal < 0 ? 'text-red-600' : 'text-slate-900';
+            return `<div class="flex items-center justify-between px-3 py-2 rounded-md bg-slate-50 border border-slate-100">
+                <div class="min-w-0">
+                    <p class="text-xs font-semibold text-slate-700 truncate">${a.name}</p>
+                    <p class="text-[0.65rem] text-slate-400">${a.type || ''}</p>
+                </div>
+                <p class="text-xs font-bold ${tone} tabular-nums whitespace-nowrap pl-3">${money(bal,true)}</p>
+            </div>`;
+        }).join('') || `<p class="text-xs text-slate-400 text-center py-3">Sin cuentas configuradas</p>`;
+    };
+
+    const renderAlerts = async () => {
+        const data = await fetchJSON('/api/alerts/unified/');
+        const list = data.alerts || [];
+        $('#alerts-count').textContent = list.length;
+        if (list.length === 0) { $('#alerts-shell').classList.add('hidden'); return; }
+        $('#alerts-shell').classList.remove('hidden');
+        const tone = s => s==='red'  ? 'border-red-200 bg-red-50/60'
+                       : s==='amber' ? 'border-amber-200 bg-amber-50/60'
+                       :               'border-emerald-200 bg-emerald-50/60';
+        const dot  = s => s==='red'  ? 'bg-red-500'
+                       : s==='amber' ? 'bg-amber-500' : 'bg-emerald-500';
+        const kind = k => k==='ingredient' ? `<span class="text-[0.6rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">M.PRIMA</span>`
+                       : `<span class="text-[0.6rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary-100 text-primary-700">PRODUCTO</span>`;
+        $('#alerts-list').innerHTML = list.map(a => `
+            <div class="flex items-start gap-3 p-3 rounded-md border ${tone(a.severity)}">
+                <span class="w-2 h-2 mt-1.5 rounded-full ${dot(a.severity)} flex-shrink-0"></span>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        ${kind(a.kind)}
+                        <p class="text-sm font-semibold text-slate-900 truncate">${a.name}</p>
+                    </div>
+                    <p class="text-[0.7rem] text-slate-500 mt-0.5">
+                        Stock: <strong>${num(a.stock)} ${a.unit||''}</strong>
+                        · Velocidad: <strong>${a.velocity.toFixed(2)}/día</strong>
+                        · Cobertura: <strong class="${a.severity==='red'?'text-red-700':a.severity==='amber'?'text-amber-700':'text-emerald-700'}">${a.cover.toFixed(1)} días</strong>
+                    </p>
+                </div>
+            </div>
+        `).join('');
+    };
+
+    // ─── Refresh ──────────────────────────────────────────────────────────
+    const guarded = (label, fn) => fn().catch(e => { console.error('['+label+']', e); throw e; });
+
+    const refreshAll = async () => {
+        const r = computeRange(state.range);
+        state.date_from = r.from; state.date_to = r.to;
+        $('#period-label').textContent = r.label;
+        const tasks = [
+            ['KPIs',     renderKPIs],
+            ['Targets',  renderTargets],
+            ['Cash',     renderCash],
+            ['Trend',    renderTrendForecast],
+            ['Channel',  renderChannel],
+            ['TopProd',  renderTopProducts],
+            ['Customers',renderCustomers],
+            ['Finance',  renderFinance],
+            ['Alerts',   renderAlerts],
+        ];
+        const results = await Promise.allSettled(tasks.map(([n,fn]) => guarded(n, fn)));
+        const failed = results.filter(r => r.status === 'rejected').length;
+        $('#last-refresh-at').innerHTML = failed
+            ? `<span class="text-amber-600">${fmtTime()} · ${failed} error${failed>1?'es':''}</span>`
+            : fmtTime();
+    };
+
+    const startTimer = () => {
+        if (state.refreshTimer) clearInterval(state.refreshTimer);
+        const ms = parseInt($('#dashboard-root').dataset.refreshMs || '300000', 10);
+        state.refreshTimer = setInterval(refreshAll, ms);
+    };
+
+    // ─── Wire up ──────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+        $$('.range-btn').forEach(b => b.addEventListener('click', () => {
+            $$('.range-btn').forEach(x => x.classList.remove('is-active','bg-white','text-slate-900','shadow-xs'));
+            b.classList.add('is-active','bg-white','text-slate-900','shadow-xs');
+            state.range = b.dataset.range;
+            refreshAll();
+        }));
+        $('#channel-filter').addEventListener('change', e => { state.channel = e.target.value; refreshAll(); });
+        $('#trend-bucket').addEventListener('change', e => { state.bucket = e.target.value; renderTrendForecast(); });
+        $('#btn-refresh').addEventListener('click', refreshAll);
+        refreshAll();
+        startTimer();
+    });
+})();
 </script>
 {% endblock %}

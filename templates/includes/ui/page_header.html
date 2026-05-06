@@ -1,0 +1,30 @@
+{% comment %}
+    page_header — Soft UI Evolution
+    Use:
+        {% include "includes/ui/page_header.html" with title="..." subtitle="..." back_url="..." back_label="..." %}
+    For action buttons, render them next to the include in a
+    sibling element rather than as a slot — Django's include
+    doesn't support real slots.
+{% endcomment %}
+<div class="flex flex-col gap-5 mb-8 animate__animated animate__fadeIn">
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div class="min-w-0">
+            {% if back_url %}
+            <a href="{{ back_url }}"
+               class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary transition-colors duration-200 ease-soft mb-3">
+                <i class="fas fa-arrow-left text-[0.7rem]"></i>
+                <span>{{ back_label|default:"Volver" }}</span>
+            </a>
+            {% endif %}
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight leading-tight">{{ title }}</h1>
+            {% if subtitle %}
+            <p class="text-sm text-slate-500 mt-1.5">{{ subtitle }}</p>
+            {% endif %}
+        </div>
+        {% if page_actions %}
+        <div class="flex flex-wrap gap-2 md:justify-end">
+            {{ page_actions }}
+        </div>
+        {% endif %}
+    </div>
+</div>

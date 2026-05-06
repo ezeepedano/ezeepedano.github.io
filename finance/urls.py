@@ -19,6 +19,9 @@ urlpatterns = [
     path('purchases/hub/', views.PurchaseHubView.as_view(), name='purchase_hub'),
     path('purchases/general/new/', views.GeneralPurchaseCreateView.as_view(), name='general_purchase_create'),
     path('purchases/create/', views.purchase_create, name='purchase_create'),
+    path('purchases/<int:pk>/edit/', views.purchase_edit, name='purchase_edit'),
+    path('purchases/<int:pk>/delete/', views.purchase_delete, name='purchase_delete'),
+    path('purchases/<int:pk>/pay/', views.purchase_pay, name='purchase_pay'),
     # Assets
     path('assets/', views.asset_list, name='asset_list'),
     path('assets/create/', views.asset_create, name='asset_create'),

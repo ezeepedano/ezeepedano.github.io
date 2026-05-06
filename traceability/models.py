@@ -28,12 +28,12 @@ class IngredientLot(models.Model):
     # Cantidades
     quantity_initial = models.DecimalField(
         max_digits=10, 
-        decimal_places=3, 
+        decimal_places=2, 
         help_text="Cantidad inicial al recibir (kg)"
     )
     quantity_current = models.DecimalField(
         max_digits=10, 
-        decimal_places=3, 
+        decimal_places=2, 
         help_text="Cantidad actual disponible (kg)"
     )
     
@@ -130,12 +130,12 @@ class ProductionBatch(models.Model):
     # Cantidades
     quantity_produced = models.DecimalField(
         max_digits=10, 
-        decimal_places=3, 
+        decimal_places=2, 
         help_text="Cantidad producida (kg)"
     )
     quantity_remaining = models.DecimalField(
         max_digits=10,
-        decimal_places=3,
+        decimal_places=2,
         null=True,
         blank=True,
         help_text="kg disponibles para venta (no asignados)",
@@ -229,7 +229,7 @@ class BatchConsumption(models.Model):
     # Cantidad consumida de este lote específico
     quantity_consumed = models.DecimalField(
         max_digits=10, 
-        decimal_places=3, 
+        decimal_places=2, 
         help_text="Cantidad consumida de este lote (kg)"
     )
     
@@ -302,7 +302,7 @@ class TraceabilityConfig(models.Model):
     # Umbral de merma (en kg)
     waste_threshold_kg = models.DecimalField(
         max_digits=5, 
-        decimal_places=3, 
+        decimal_places=2, 
         default=0.100,
         help_text="Si queda menos de esta cantidad, se descarta como merma (kg)"
     )
@@ -359,7 +359,7 @@ class SaleBatchAllocation(models.Model):
     # Cantidades
     quantity_allocated = models.DecimalField(
         max_digits=10,
-        decimal_places=3,
+        decimal_places=2,
         help_text="kg asignados de este lote a esta venta"
     )
     
@@ -394,7 +394,43 @@ class SaleBatchAllocation(models.Model):
         """Validaciones de integridad"""
         from decimal import Decimal
         from django.db.models import Sum
-        
+
+        # Cross-tenant guard: batch and sale must belong to the same user.
+        sale = getattr(self.sale_item, 'sale', None)
+        batch = self.production_batch
+        if sale is not None and batch is not None:
+            sale_user_id = getattr(sale, 'user_id', None)
+            batch_user_id = getattr(batch, 'user_id', None)
+            if sale_user_id and batch_user_id and sale_user_id != batch_user_id:
+                raise ValidationError({
+                    'production_batch': "El lote pertenece a otro usuario y no puede asignarse a esta venta."
+                })
+
+        # CoA gating: every required ProductSpecification for the batch's
+        # product must have an approved QualityResult before the batch can
+        # be allocated to a sale.
+        if batch is not None and batch.product_id:
+            from production.models import ProductSpecification
+            required_specs = ProductSpecification.objects.filter(
+                product_id=batch.product_id
+            )
+            required_ids = list(required_specs.values_list('pk', flat=True))
+            if required_ids:
+                approved_ids = set(
+                    batch.quality_results.filter(
+                        approved=True,
+                        specification_id__in=required_ids,
+                    ).values_list('specification_id', flat=True)
+                )
+                missing = [sid for sid in required_ids if sid not in approved_ids]
+                if missing:
+                    raise ValidationError({
+                        'production_batch': (
+                            "El lote no tiene CoA aprobado: faltan resultados "
+                            "aprobados para todos los parametros de calidad del producto."
+                        )
+                    })
+
         # Validation: can't allocate more than batch has
         if self.production_batch.quantity_remaining is not None:
             if self.quantity_allocated > self.production_batch.quantity_remaining:
@@ -403,19 +439,19 @@ class SaleBatchAllocation(models.Model):
                                          f"El lote {self.production_batch.internal_lot_code} solo tiene "
                                          f"{self.production_batch.quantity_remaining} kg disponibles."
                 })
-        
+
         # Validation: can't allocate more than sale item needs
         total_allocated = self.sale_item.batch_allocations.exclude(pk=self.pk).aggregate(
             total=Sum('quantity_allocated')
         )['total'] or Decimal('0')
-        
+
         # Convert sale item quantity (units) to kg
         if self.sale_item.product and self.sale_item.product.weight_kg:
             item_kg = Decimal(str(self.sale_item.quantity)) * self.sale_item.product.weight_kg
         else:
             # Fallback: assume 1 unit = 1 kg
             item_kg = Decimal(str(self.sale_item.quantity))
-        
+
         if total_allocated + self.quantity_allocated > item_kg:
             raise ValidationError({
                 'quantity_allocated': f"No se pueden asignar {self.quantity_allocated} kg. "

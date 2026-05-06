@@ -1,81 +1,168 @@
 {% extends 'base.html' %}
+{% load humanize %}
+
+{% block header_title %}Fórmulas{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
+
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
             <h2 class="text-2xl font-bold text-slate-800">Fórmulas Maestras</h2>
-            <p class="text-slate-500 text-sm">Gestiona las recetas de tus productos.</p>
+            <p class="text-slate-500 text-sm">Recetas / BOM - Costo, validación de stock, duplicación.</p>
+            <a href="{% url 'production_hub' %}" class="inline-flex items-center text-sm text-slate-500 hover:text-primary-600 mt-2 transition-colors">
+                <i class="fas fa-arrow-left mr-1"></i> Volver a Producción
+            </a>
         </div>
         <div class="flex items-center gap-3">
-            <button type="submit" form="bulkDeleteForm" id="deleteBtn" class="hidden bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-xl text-sm font-medium transition-colors border border-red-200" onclick="return confirm('¿Estás seguro de eliminar las fórmulas seleccionadas?');">
+            <button type="submit" form="bulkDeleteForm" id="deleteBtn"
+                    class="hidden bg-rose-50 hover:bg-rose-100 text-rose-600 px-4 py-2 rounded-xl text-sm font-medium border border-rose-200"
+                    onclick="return confirm('¿Eliminar las fórmulas seleccionadas?');">
                 <i class="fas fa-trash-alt mr-2"></i>Eliminar Selección
             </button>
-            <a href="{% url 'bom_create' %}" class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-lg shadow-primary/30 flex items-center gap-2">
+            <a href="{% url 'bom_create' %}" class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg shadow-primary-500/30 flex items-center gap-2">
                 <i class="fas fa-flask"></i> Nueva Fórmula
             </a>
         </div>
     </div>
 
+    <!-- KPIs -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="card-soft p-4">
+            <div class="text-xs uppercase font-bold text-slate-400">Total</div>
+            <div class="text-2xl font-bold text-slate-800 mt-1 font-mono">{{ stats.total|intcomma }}</div>
+        </div>
+        <div class="card-soft p-4">
+            <div class="text-xs uppercase font-bold text-slate-400">Activas</div>
+            <div class="text-2xl font-bold text-emerald-600 mt-1 font-mono">{{ stats.active|intcomma }}</div>
+        </div>
+        <div class="card-soft p-4">
+            <div class="text-xs uppercase font-bold text-slate-400">Inactivas</div>
+            <div class="text-2xl font-bold text-slate-500 mt-1 font-mono">{{ stats.inactive|intcomma }}</div>
+        </div>
+        <div class="card-soft p-4">
+            <div class="text-xs uppercase font-bold text-slate-400">Costo prom.</div>
+            <div class="text-2xl font-bold text-amber-600 mt-1 font-mono">${{ stats.avg_cost|floatformat:0|intcomma }}</div>
+        </div>
+        <div class="card-soft p-4">
+            <div class="text-xs uppercase font-bold text-slate-400">Líneas totales</div>
+            <div class="text-2xl font-bold text-indigo-600 mt-1 font-mono">{{ stats.total_lines|intcomma }}</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form method="get" class="card-soft p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div class="md:col-span-2">
+            <label class="block text-xs uppercase font-bold text-slate-400 mb-1">Buscar</label>
+            <input type="text" name="q" value="{{ current_search }}" placeholder="Nombre o código..." class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
+        </div>
+        <div>
+            <label class="block text-xs uppercase font-bold text-slate-400 mb-1">Estado</label>
+            <select name="active" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
+                <option value="">Todas</option>
+                <option value="1" {% if current_active == '1' %}selected{% endif %}>Activas</option>
+                <option value="0" {% if current_active == '0' %}selected{% endif %}>Inactivas</option>
+            </select>
+        </div>
+        <div class="flex items-end gap-2">
+            <button class="flex-1 bg-slate-800 hover:bg-slate-900 text-white rounded-xl px-4 py-2 text-sm font-semibold">Filtrar</button>
+            <a href="{% url 'bom_list' %}" class="px-3 py-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 text-sm">Limpiar</a>
+        </div>
+    </form>
+
     <!-- Table -->
     <form id="bulkDeleteForm" method="post" action="{% url 'bulk_delete_boms' %}">
         {% csrf_token %}
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left">
-                <thead class="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-100">
-                    <tr>
-                        <th class="px-6 py-4 w-4">
-                            <input type="checkbox" id="selectAll" class="rounded border-gray-300 text-primary focus:ring-primary shadow-sm">
-                        </th>
-                        <th class="px-6 py-4">Nombre</th>
-                        <th class="px-6 py-4">Productos Asociados</th>
-                        <th class="px-6 py-4">Ingredientes</th>
-                        <th class="px-6 py-4">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    {% for bom in boms %}
-                    <tr class="hover:bg-slate-50/50 transition-colors group">
-                        <td class="px-6 py-4">
-                            <input type="checkbox" name="bom_ids" value="{{ bom.pk }}" class="bom-checkbox rounded border-gray-300 text-primary focus:ring-primary shadow-sm">
-                        </td>
-                        <td class="px-6 py-4 font-medium text-slate-700">
-                            <a href="{% url 'bom_update' bom.pk %}" class="hover:text-primary">{{ bom.name }}</a>
-                        </td>
-                        <td class="px-6 py-4 text-slate-600">
-                            <div class="flex flex-wrap gap-1">
-                                {% for prod in bom.products.all|slice:":3" %}
-                                    <span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs border border-indigo-100">{{ prod.name }}</span>
-                                {% endfor %}
-                                {% if bom.products.count > 3 %}
-                                    <span class="text-xs text-slate-400 self-center">+{{ bom.products.count|add:"-3" }} más</span>
+        <div class="card-soft overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-100">
+                        <tr>
+                            <th class="px-6 py-4 w-4">
+                                <input type="checkbox" id="selectAll" class="rounded border-slate-300 text-primary-600 focus:ring-primary-500">
+                            </th>
+                            <th class="px-6 py-4">Nombre</th>
+                            <th class="px-6 py-4">Productos</th>
+                            <th class="px-6 py-4 text-center">Líneas</th>
+                            <th class="px-6 py-4 text-right">Costo</th>
+                            <th class="px-6 py-4 text-center">Estado</th>
+                            <th class="px-6 py-4 text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for bom in boms %}
+                        <tr class="hover:bg-slate-50/50 transition-colors">
+                            <td class="px-6 py-4">
+                                <input type="checkbox" name="bom_ids" value="{{ bom.pk }}" class="bom-checkbox rounded border-slate-300 text-primary-600 focus:ring-primary-500">
+                            </td>
+                            <td class="px-6 py-4 font-medium text-slate-700">
+                                <a href="{% url 'bom_update' bom.pk %}" class="hover:text-primary-600">{{ bom.name }}</a>
+                                {% if bom.code %}<div class="text-xs text-slate-400 font-mono">{{ bom.code }}</div>{% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-slate-600">
+                                <div class="flex flex-wrap gap-1">
+                                    {% for prod in bom.products.all|slice:":3" %}
+                                        <span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs border border-indigo-100">{{ prod.name|truncatechars:18 }}</span>
+                                    {% endfor %}
+                                    {% if bom.product_count > 3 %}
+                                        <span class="text-xs text-slate-400 self-center">+{{ bom.product_count|add:"-3" }}</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-center text-slate-700 font-mono">{{ bom.line_count }}</td>
+                            <td class="px-6 py-4 text-right text-amber-600 font-mono font-semibold">${{ bom.cost_preview|floatformat:0|intcomma }}</td>
+                            <td class="px-6 py-4 text-center">
+                                {% if bom.is_active %}
+                                    <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-bold">Activa</span>
+                                {% else %}
+                                    <span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full text-xs font-bold">Inactiva</span>
                                 {% endif %}
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 text-slate-500">
-                            {{ bom.lines.count }} items
-                        </td>
-                        <td class="px-6 py-4">
-                            <a href="{% url 'bom_update' bom.pk %}" class="text-slate-400 hover:text-primary transition-colors">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="px-6 py-12 text-center text-slate-400">
-                            <i class="fas fa-flask text-4xl mb-3 opacity-50"></i>
-                            <p>No hay fórmulas maestras registradas.</p>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <div class="flex justify-end gap-1">
+                                    <a href="{% url 'bom_update' bom.pk %}" class="text-slate-400 hover:text-primary-600 px-2 py-1 rounded-lg" title="Editar"><i class="fas fa-edit"></i></a>
+                                    <button type="button" onclick="validateStock({{ bom.pk }}, '{{ bom.name|escapejs }}')" class="text-slate-400 hover:text-emerald-600 px-2 py-1 rounded-lg" title="Validar stock">
+                                        <i class="fas fa-check-circle"></i>
+                                    </button>
+                                    <a href="{% url 'report_mrp_explosion' bom.pk %}" target="_blank" class="text-slate-400 hover:text-rose-500 px-2 py-1 rounded-lg" title="MRP PDF"><i class="fas fa-file-pdf"></i></a>
+                                    <button type="submit" form="dup-form-{{ bom.pk }}" class="text-slate-400 hover:text-indigo-600 px-2 py-1 rounded-lg" title="Duplicar">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="px-6 py-12 text-center text-slate-400">
+                                <i class="fas fa-flask text-4xl mb-3 opacity-50"></i>
+                                <p>No hay fórmulas registradas.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
     </form>
+
+    <!-- Hidden duplicate forms -->
+    {% for bom in boms %}
+    <form id="dup-form-{{ bom.pk }}" method="post" action="{% url 'bom_duplicate' bom.pk %}" class="hidden">
+        {% csrf_token %}
+    </form>
+    {% endfor %}
+</div>
+
+<!-- Stock validation modal -->
+<div id="stock-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 id="stock-modal-title" class="font-bold text-slate-800">Validación de Stock</h3>
+            <button onclick="document.getElementById('stock-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="stock-modal-body" class="p-6 max-h-96 overflow-y-auto"></div>
+    </div>
 </div>
 
 <script>
@@ -83,44 +170,67 @@
         const selectAll = document.getElementById('selectAll');
         const checkboxes = document.querySelectorAll('.bom-checkbox');
         const deleteBtn = document.getElementById('deleteBtn');
-        const form = document.getElementById('bulkDeleteForm');
 
         function updateUI() {
-            const checkedCount = document.querySelectorAll('.bom-checkbox:checked').length;
-            
-            if (checkedCount > 0) {
+            const checked = document.querySelectorAll('.bom-checkbox:checked').length;
+            if (checked > 0) {
                 deleteBtn.classList.remove('hidden');
-                deleteBtn.innerHTML = `<i class="fas fa-trash-alt mr-2"></i>Eliminar (${checkedCount})`;
+                deleteBtn.innerHTML = `<i class="fas fa-trash-alt mr-2"></i>Eliminar (${checked})`;
             } else {
                 deleteBtn.classList.add('hidden');
             }
         }
-
         if (selectAll) {
             selectAll.addEventListener('change', function() {
-                checkboxes.forEach(cb => {
-                    cb.checked = selectAll.checked;
-                });
+                checkboxes.forEach(cb => cb.checked = this.checked);
                 updateUI();
             });
         }
+        checkboxes.forEach(cb => cb.addEventListener('change', function() {
+            const all = Array.from(checkboxes).every(c => c.checked);
+            if (selectAll) selectAll.checked = all;
+            updateUI();
+        }));
+    });
 
-        checkboxes.forEach(cb => {
-            cb.addEventListener('change', function() {
-                const allChecked = Array.from(checkboxes).every(c => c.checked);
-                if (selectAll) selectAll.checked = allChecked;
-                updateUI();
-            });
-        });
+    function validateStock(bomId, name) {
+        const modal = document.getElementById('stock-modal');
+        document.getElementById('stock-modal-title').textContent = 'Stock para: ' + name;
+        document.getElementById('stock-modal-body').innerHTML = '<p class="text-slate-400 text-sm text-center py-8"><i class="fas fa-spinner fa-spin mr-2"></i>Validando...</p>';
+        modal.classList.remove('hidden');
 
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                if (document.querySelectorAll('.bom-checkbox:checked').length === 0) {
-                    e.preventDefault();
-                    alert('Por favor selecciona al menos una fórmula para eliminar.');
+        fetch(`/production/api/bom/${bomId}/validate-stock/?quantity=1`)
+            .then(r => r.json())
+            .then(data => {
+                let html = '';
+                if (data.results.length === 0) {
+                    html = '<p class="text-slate-400 text-sm text-center py-6">Esta fórmula no tiene ingredientes registrados.</p>';
+                } else {
+                    const ok = data.all_sufficient;
+                    html = `<div class="mb-4 p-3 rounded-xl ${ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'} text-sm font-semibold">
+                        <i class="fas fa-${ok ? 'check' : 'exclamation-triangle'} mr-2"></i>
+                        ${ok ? 'Stock suficiente para producir 1 unidad.' : 'Stock insuficiente para producir.'}
+                    </div>`;
+                    html += '<table class="w-full text-sm"><thead><tr class="text-xs text-slate-500 uppercase border-b border-slate-100"><th class="text-left py-2">Ingrediente</th><th class="text-right py-2">Necesario</th><th class="text-right py-2">Disponible</th><th class="text-right py-2">Estado</th></tr></thead><tbody>';
+                    data.results.forEach(r => {
+                        html += `<tr class="border-b border-slate-50">
+                            <td class="py-2 text-slate-700">${r.ingredient}</td>
+                            <td class="py-2 text-right font-mono text-slate-700">${r.needed.toFixed(2)} ${r.unit}</td>
+                            <td class="py-2 text-right font-mono text-slate-500">${r.available.toFixed(2)} ${r.unit}</td>
+                            <td class="py-2 text-right"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${r.sufficient ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${r.sufficient ? 'OK' : 'Falta'}</span></td>
+                        </tr>`;
+                    });
+                    html += '</tbody></table>';
                 }
+                document.getElementById('stock-modal-body').innerHTML = html;
+            })
+            .catch(e => {
+                document.getElementById('stock-modal-body').innerHTML = '<p class="text-rose-500 text-sm text-center py-6">Error al validar stock.</p>';
             });
-        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') document.getElementById('stock-modal').classList.add('hidden');
     });
 </script>
 {% endblock %}

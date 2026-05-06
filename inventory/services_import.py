@@ -49,9 +49,9 @@ class InventoryImportService:
 
                 try:
                     product, created = Product.objects.get_or_create(
+                        user=user,
                         sku=sku,
                         defaults={
-                            'user': user,
                             'name': name or "Nuevo Producto",
                             'stock_quantity': stock if stock is not None else 0,
                             'cost_price': cost if cost is not None else 0,
@@ -59,15 +59,13 @@ class InventoryImportService:
                             'description': 'Imported via Excel'
                         }
                     )
-                    
-                    if not created: 
+
+                    if not created:
                         # Update existing
                         if name: product.name = name
                         if stock is not None: product.stock_quantity = Decimal(str(stock))
                         if cost is not None: product.cost_price = Decimal(str(cost))
                         if price is not None: product.sale_price = Decimal(str(price))
-                        # Ensure user is set (fix for previously orphaned products)
-                        if not product.user: product.user = user
                         
                     # Handle Category
                     if category_name:

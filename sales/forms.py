@@ -9,24 +9,46 @@ class UploadFileForm(forms.Form):
 class CustomerForm(forms.ModelForm):
     class Meta:
         model = Customer
-        fields = ['name', 'document_number', 'billing_name', 'billing_address', 'city', 'state', 'is_wholesaler']
+        fields = [
+            'name', 'email', 'phone', 'document_number', 'tax_condition',
+            'billing_name', 'billing_address', 'shipping_address',
+            'city', 'state', 'is_wholesaler',
+        ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'}),
+            'email': forms.EmailInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary', 'placeholder': 'correo@ejemplo.com'}),
+            'phone': forms.TextInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary', 'placeholder': '+54 351 ...'}),
             'document_number': forms.TextInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'}),
+            'tax_condition': forms.Select(
+                choices=[
+                    ('', '— Seleccionar —'),
+                    ('RESPONSABLE INSCRIPTO', 'Responsable Inscripto'),
+                    ('MONOTRIBUTISTA', 'Monotributista'),
+                    ('EXENTO', 'Exento'),
+                    ('CONSUMIDOR FINAL', 'Consumidor Final'),
+                    ('NO RESPONSABLE', 'No Responsable'),
+                ],
+                attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'}
+            ),
             'billing_name': forms.TextInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'}),
             'billing_address': forms.TextInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'}),
+            'shipping_address': forms.TextInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary', 'placeholder': 'Dirección de entrega'}),
             'city': forms.TextInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'}),
             'state': forms.TextInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:border-primary'}),
             'is_wholesaler': forms.CheckboxInput(attrs={'class': 'w-5 h-5 text-primary focus:ring-primary border-gray-300 rounded'}),
         }
         labels = {
             'name': 'Nombre / Razón Social',
+            'email': 'Email',
+            'phone': 'Teléfono',
             'document_number': 'CUIT / DNI',
-            'billing_name': 'Nombre Facturación',
-            'billing_address': 'Dirección',
+            'tax_condition': 'Condición de IVA',
+            'billing_name': 'Razón Social (Facturación)',
+            'billing_address': 'Dirección Fiscal',
+            'shipping_address': 'Dirección de Entrega',
             'city': 'Ciudad',
             'state': 'Provincia',
-            'is_wholesaler': 'Es Mayorista'
+            'is_wholesaler': 'Es Mayorista',
         }
 
 class SaleForm(forms.ModelForm):
@@ -145,15 +167,47 @@ class SaleForm(forms.ModelForm):
                 self.initial['date'] = self.instance.date.strftime('%Y-%m-%d')
             if self.instance.due_date:
                 self.initial['due_date'] = self.instance.due_date.strftime('%Y-%m-%d')
-            
+            elif self.instance.payment_status in ('PENDING', 'PARTIAL'):
+                # Legacy sales sometimes carry a PENDING status without a
+                # due_date. The model.clean() then refuses every save and
+                # the user sees the page reload with no apparent reason.
+                # Pre-fill the form with sale_date + 30 days so the field
+                # is populated and submission goes through; the user can
+                # still override it before saving.
+                from datetime import timedelta
+                base = self.instance.date.date() if hasattr(self.instance.date, 'date') else self.instance.date
+                if base is not None:
+                    self.initial['due_date'] = (base + timedelta(days=30)).strftime('%Y-%m-%d')
+
             # Try to populate payment_account from CashMovement
             from django.contrib.contenttypes.models import ContentType
             from finance.models import CashMovement
-            
+
             ct = ContentType.objects.get_for_model(Sale)
             movement = CashMovement.objects.filter(content_type=ct, object_id=self.instance.pk).first()
             if movement:
                 self.initial['payment_account'] = movement.account
+
+    def clean(self):
+        """
+        Auto-fill ``due_date`` if the user kept payment_status =
+        PENDING/PARTIAL but didn't explicitly set a date. We default to
+        sale_date + 30 days. This keeps the model.clean() validator
+        happy without forcing the user to manually fix every legacy
+        sale they edit.
+        """
+        cleaned = super().clean()
+        ps = cleaned.get('payment_status')
+        if ps in ('PENDING', 'PARTIAL') and not cleaned.get('due_date'):
+            from datetime import timedelta
+            base = cleaned.get('date') or (self.instance.date if self.instance.pk else None)
+            if base is not None:
+                base = base.date() if hasattr(base, 'date') else base
+                cleaned['due_date'] = base + timedelta(days=30)
+                # Also surface the value on instance so the model's clean()
+                # passes when called by save().
+                self.instance.due_date = cleaned['due_date']
+        return cleaned
 
     class Meta:
         model = Sale
@@ -169,25 +223,61 @@ class ProductChoiceField(forms.ModelChoiceField):
         return obj.name
 
 class SaleItemForm(forms.ModelForm):
+    # ── All three fields are required=False at the field level so that
+    # Django's formset machinery treats truly-empty extra rows as blank
+    # and skips them.  We enforce "all-or-nothing" in clean() below.
     product = ProductChoiceField(
         queryset=Product.objects.filter(stock_quantity__gt=0).order_by('name'),
         widget=forms.Select(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary'}),
-        required=True
+        required=False,
     )
     quantity = forms.IntegerField(
-        initial=1,
         min_value=1,
-        widget=forms.NumberInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary'})
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary',
+            'placeholder': '1',
+        }),
     )
     unit_price = forms.DecimalField(
-        widget=forms.NumberInput(attrs={'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary'})
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-primary focus:border-primary',
+            'placeholder': '0.00',
+        }),
     )
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super(SaleItemForm, self).__init__(*args, **kwargs)
         if user:
-            self.fields['product'].queryset = Product.objects.filter(user=user, stock_quantity__gt=0).order_by('name')
+            # Include ALL user products (not just in-stock) so that existing
+            # sale items whose product now has 0 stock still validate.
+            self.fields['product'].queryset = Product.objects.filter(user=user).order_by('name')
+
+    def clean(self):
+        """All-or-nothing validation: if any field has data, all are required."""
+        cleaned = super().clean()
+        product = cleaned.get('product')
+        quantity = cleaned.get('quantity')
+        unit_price = cleaned.get('unit_price')
+        has_any = product or quantity or unit_price is not None
+
+        # If this is a completely blank extra row, skip validation
+        if not has_any and not self.instance.pk:
+            return cleaned
+
+        # If the row has data (or is an existing item), enforce required
+        errors = {}
+        if not product:
+            errors['product'] = 'Este campo es requerido.'
+        if not quantity:
+            errors['quantity'] = 'Este campo es requerido.'
+        if unit_price is None:
+            errors['unit_price'] = 'Este campo es requerido.'
+        if errors:
+            raise forms.ValidationError(errors)
+        return cleaned
 
     class Meta:
         model = SaleItem

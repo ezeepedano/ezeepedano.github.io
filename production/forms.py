@@ -1,6 +1,6 @@
 from django import forms
 from django.forms import inlineformset_factory
-from .models import ProductionOrder, BillOfMaterial, BomLine
+from .models import ProductionOrder, BillOfMaterial, BomLine, WorkInProcessStock
 
 
 class CleanNumberInput(forms.NumberInput):
@@ -64,8 +64,6 @@ class ProductionOrderForm(forms.ModelForm):
 class BillOfMaterialForm(forms.ModelForm):
     class Meta:
         model = BillOfMaterial
-    class Meta:
-        model = BillOfMaterial
         fields = ['name', 'products', 'is_active']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'w-full rounded-xl border border-slate-200 focus:border-primary focus:ring focus:ring-primary/20 transition-all'}),
@@ -93,12 +91,19 @@ class BomLineForm(forms.ModelForm):
         max_digits=10,
         decimal_places=2,
         required=False,
+        initial=0,
         widget=CleanNumberInput(attrs={
             'class': 'w-full rounded-lg border border-slate-200 text-sm focus:border-primary focus:ring focus:ring-primary/20',
             'placeholder': '%',
             'step': '0.01',
         })
     )
+
+    def clean_scrap_factor(self):
+        value = self.cleaned_data.get('scrap_factor')
+        if value is None:
+            return 0
+        return value
 
     class Meta:
         model = BomLine
@@ -117,3 +122,35 @@ BomLineFormSet = inlineformset_factory(
     extra=1,
     can_delete=True,
 )
+
+
+class WorkInProcessStockForm(forms.ModelForm):
+    class Meta:
+        model = WorkInProcessStock
+        fields = ['product', 'stage', 'quantity', 'unit', 'notes']
+        widgets = {
+            'product': forms.Select(attrs={
+                'class': 'w-full rounded-xl border border-slate-200 focus:border-brand-600 focus:ring focus:ring-brand-600/20 transition-all'
+            }),
+            'stage': forms.Select(attrs={
+                'class': 'w-full rounded-xl border border-slate-200 focus:border-brand-600 focus:ring focus:ring-brand-600/20 transition-all'
+            }),
+            'quantity': forms.NumberInput(attrs={
+                'class': 'w-full rounded-xl border border-slate-200 focus:border-brand-600 focus:ring focus:ring-brand-600/20 transition-all',
+                'step': '0.01', 'min': '0',
+            }),
+            'unit': forms.Select(attrs={
+                'class': 'w-full rounded-xl border border-slate-200 focus:border-brand-600 focus:ring focus:ring-brand-600/20 transition-all'
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'w-full rounded-xl border border-slate-200 focus:border-brand-600 focus:ring focus:ring-brand-600/20 transition-all',
+                'rows': 2, 'placeholder': 'Ej: Tupper azul, pote sin cuchara...'
+            }),
+        }
+        labels = {
+            'product': 'Producto',
+            'stage': 'Etapa',
+            'quantity': 'Cantidad',
+            'unit': 'Unidad',
+            'notes': 'Notas',
+        }

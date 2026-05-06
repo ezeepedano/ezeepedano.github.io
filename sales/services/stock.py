@@ -10,6 +10,9 @@ Updated: 2026-02-16
 
 import logging
 from django.db import transaction
+from django.db.models import F
+
+from inventory.models import Product
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +48,10 @@ class StockService:
         updated = 0
         for item in sale.items.select_related('product').all():
             if item.product:
-                item.product.stock_quantity -= item.quantity
-                item.product.save(update_fields=['stock_quantity'])
+                # Atomic, race-free decrement at the DB level
+                Product.objects.filter(pk=item.product.pk).update(
+                    stock_quantity=F('stock_quantity') - item.quantity
+                )
                 updated += 1
 
         if updated:
@@ -81,8 +86,9 @@ class StockService:
         updated = 0
         for item in sale.items.select_related('product').all():
             if item.product:
-                item.product.stock_quantity += item.quantity
-                item.product.save(update_fields=['stock_quantity'])
+                Product.objects.filter(pk=item.product.pk).update(
+                    stock_quantity=F('stock_quantity') + item.quantity
+                )
                 updated += 1
 
         if updated:
@@ -106,6 +112,7 @@ class StockService:
             quantity: Number of units to deduct.
         """
         if product:
-            product.stock_quantity -= quantity
-            product.save(update_fields=['stock_quantity'])
+            Product.objects.filter(pk=product.pk).update(
+                stock_quantity=F('stock_quantity') - quantity
+            )
 

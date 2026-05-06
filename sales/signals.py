@@ -50,10 +50,8 @@ def update_customer_on_sale(sender, instance, created, **kwargs):
     stats, _ = CustomerStats.objects.get_or_create(customer=customer)
 
     sales_qs = Sale.objects.filter(
-        customer=customer
-    ).exclude(
-        status__icontains='cancel'
-    )
+        customer=customer,
+    ).exclude(status__icontains='cancel')
 
     aggregates = sales_qs.aggregate(
         total_spent=Sum('total'),
@@ -61,7 +59,14 @@ def update_customer_on_sale(sender, instance, created, **kwargs):
         total_paid=Sum('paid_amount'),
         last_order=Max('date'),
         first_order=Min('date'),
+        max_ticket=Max('total'),
     )
+
+    # Units sold via items (one extra query)
+    from .models import SaleItem
+    units_total = SaleItem.objects.filter(
+        sale__in=sales_qs,
+    ).aggregate(t=Sum('quantity'))['t'] or 0
 
     total_spent = aggregates['total_spent'] or Decimal('0')
     total_orders = aggregates['total_orders'] or 0
@@ -69,30 +74,63 @@ def update_customer_on_sale(sender, instance, created, **kwargs):
 
     stats.total_spent = total_spent
     stats.total_orders = total_orders
+    stats.total_units = int(units_total)
+    stats.max_ticket = aggregates['max_ticket'] or Decimal('0')
     stats.last_order_date = aggregates['last_order']
     stats.first_order_date = aggregates['first_order']
-    stats.avg_ticket = (total_spent / total_orders) if total_orders > 0 else 0
+    stats.avg_ticket = (total_spent / total_orders) if total_orders > 0 else Decimal('0')
 
     if stats.last_order_date:
         delta = timezone.now() - stats.last_order_date
-        stats.days_since_last_order = delta.days
+        # Future-dated test data can produce negative deltas; clamp to 0.
+        stats.days_since_last_order = max(0, delta.days)
     else:
         stats.days_since_last_order = 999
 
     # =========================================================================
-    # 2. AUTO-ASSIGN CUSTOMER SEGMENT (uses data already computed above)
+    # 1b. RFM SCORES (1–5 scale, larger = better)
     # =========================================================================
-    days_since_last = stats.days_since_last_order or 999
+    # Recency: smaller days_since_last → higher score
+    days = stats.days_since_last_order
+    if days <= 30:    stats.r_score = 5
+    elif days <= 60:  stats.r_score = 4
+    elif days <= 90:  stats.r_score = 3
+    elif days <= 180: stats.r_score = 2
+    else:             stats.r_score = 1
 
+    if total_orders >= 10:  stats.f_score = 5
+    elif total_orders >= 5: stats.f_score = 4
+    elif total_orders >= 3: stats.f_score = 3
+    elif total_orders >= 2: stats.f_score = 2
+    elif total_orders >= 1: stats.f_score = 1
+    else:                   stats.f_score = 0
+
+    spent = float(total_spent)
+    if spent >= 200000:   stats.m_score = 5
+    elif spent >= 100000: stats.m_score = 4
+    elif spent >= 50000:  stats.m_score = 3
+    elif spent >= 20000:  stats.m_score = 2
+    elif spent > 0:       stats.m_score = 1
+    else:                 stats.m_score = 0
+
+    # =========================================================================
+    # 2. AUTO-ASSIGN CUSTOMER SEGMENT (Spanish labels — match UI)
+    # =========================================================================
     old_segment = stats.segment
-    if total_spent > 100000:  # > 100k ARS
+    if total_orders == 0:
+        stats.segment = 'Nuevo'
+    elif spent >= 200000 and days <= 90:
         stats.segment = 'VIP'
-    elif total_orders >= 5 and days_since_last < 90:
-        stats.segment = 'LOYAL'
-    elif days_since_last > 180:
-        stats.segment = 'DORMANT'
+    elif total_orders >= 5 and days <= 90:
+        stats.segment = 'Fiel'
+    elif days > 180:
+        stats.segment = 'Dormido'
+    elif days > 90:
+        stats.segment = 'En riesgo'
+    elif total_orders == 1 and days <= 60:
+        stats.segment = 'Nuevo'
     else:
-        stats.segment = 'ACTIVE'
+        stats.segment = 'Recurrente'
 
     if old_segment and old_segment != stats.segment:
         logger.info(

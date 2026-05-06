@@ -34,14 +34,41 @@ class BillOfMaterial(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def calculate_cost(self):
-        """Calculates total cost of BOM and returns total cost."""
-        total = 0
+        """Calculates total BOM cost for the BOM's batch size.
+
+        Convention:
+          - Raw material lines (`ingredient.type == 'raw_material'`):
+            `quantity` is a percentage of the batch. Cost is
+            `(percentage / 100) * batch_size * cost_per_unit`.
+          - Supply lines (`ingredient.type == 'supply'`, e.g. packaging):
+            `quantity` is an absolute count per batch. Cost is
+            `quantity * cost_per_unit`.
+          - Component product lines: absolute units per batch.
+
+        Batch size is `self.quantity` (defaults to 1, i.e. "1 kg of mix").
+        """
+        from decimal import Decimal
+        batch_size = self.quantity if self.quantity and self.quantity > 0 else Decimal('1')
+        total = Decimal('0')
         for line in self.lines.all():
+            qty = line.quantity or Decimal('0')
             if line.ingredient:
-                total += (line.quantity * line.ingredient.cost_per_unit)
+                cpu = line.ingredient.cost_per_unit or Decimal('0')
+                if getattr(line.ingredient, 'type', 'raw_material') == 'supply':
+                    total += qty * cpu
+                else:
+                    # Percentage of batch
+                    total += (qty / Decimal('100')) * batch_size * cpu
             elif line.component_product:
-                total += (line.quantity * line.component_product.cost_price)
+                total += qty * (line.component_product.cost_price or Decimal('0'))
         return total
+
+    def calculate_cost_per_kg(self):
+        """Cost per kg/unit of the produced batch (cost / batch_size)."""
+        from decimal import Decimal
+        batch_size = self.quantity if self.quantity and self.quantity > 0 else Decimal('1')
+        total = self.calculate_cost()
+        return total / batch_size if batch_size else total
 
     def __str__(self):
         if self.product:
@@ -58,9 +85,14 @@ class BomLine(models.Model):
     ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE, null=True, blank=True)
     component_product = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True, related_name='used_in_boms')
     
-    quantity = models.DecimalField(max_digits=10, decimal_places=4, help_text="Cantidad requerida")
-    scrap_factor = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, help_text="% de desperdicio estimado")
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, help_text="Cantidad requerida")
+    scrap_factor = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, blank=True, help_text="% de desperdicio estimado")
     
+    def save(self, *args, **kwargs):
+        if self.scrap_factor is None:
+            self.scrap_factor = 0
+        super().save(*args, **kwargs)
+
     def __str__(self):
         item_name = self.ingredient.name if self.ingredient else (self.component_product.name if self.component_product else "Unknown")
         return f"{self.quantity} of {item_name}"
@@ -228,3 +260,58 @@ class CompanyConfig(models.Model):
     def get_config(cls):
         config, _ = cls.objects.get_or_create(pk=1)
         return config
+
+
+class WorkInProcessStock(models.Model):
+    """
+    Stock de producto en proceso (WIP) por etapa de producción.
+    
+    Permite registrar inventario intermedio que no es materia prima
+    ni producto terminado. Ejemplo:
+      - Polvo ya mezclado/formulado en un tupper (falta envasar)
+      - Producto ya envasado en doypack/pote (falta etiqueta/cuchara)
+    """
+    STAGE_CHOICES = [
+        ('MIXED', 'Mezclado (polvo suelto)'),
+        ('PACKAGED', 'Envasado (sin etiquetar)'),
+    ]
+
+    UNIT_CHOICES = [
+        ('kg', 'Kilogramos'),
+        ('g', 'Gramos'),
+        ('u', 'Unidades'),
+    ]
+
+    user = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name='wip_stocks',
+        help_text="Producto al que corresponde este WIP"
+    )
+    stage = models.CharField(
+        max_length=20, choices=STAGE_CHOICES,
+        help_text="Etapa de producción"
+    )
+    quantity = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0.00,
+        help_text="Cantidad disponible en esta etapa"
+    )
+    unit = models.CharField(
+        max_length=10, choices=UNIT_CHOICES, default='kg',
+        help_text="Unidad de medida"
+    )
+    notes = models.TextField(
+        blank=True, null=True,
+        help_text="Notas (ej: tupper azul, pote sin cuchara)"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Stock en Proceso (WIP)"
+        verbose_name_plural = "Stock en Proceso (WIP)"
+        ordering = ['stage', 'product__name']
+
+    def __str__(self):
+        return f"{self.product.name} - {self.get_stage_display()} ({self.quantity} {self.unit})"

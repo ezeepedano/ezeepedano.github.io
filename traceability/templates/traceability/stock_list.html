@@ -2,47 +2,125 @@
 {% load humanize %}
 
 {% block title %}Stock y Trazabilidad{% endblock %}
-
 {% block header_title %}Stock y Trazabilidad{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Header Section -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-            <h2 class="text-2xl font-bold text-slate-800"><i class="fas fa-boxes text-primary mr-2"></i> Inventario y Trazabilidad</h2>
-            <p class="text-slate-500 mt-1">Control de stock con trazabilidad completa por lotes</p>
-        </div>
-        <div class="flex gap-3">
-            <a href="{% url 'traceability:download_full_report' %}" 
-               class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all flex items-center gap-2 shadow-sm">
-                <i class="fas fa-file-excel"></i> <span class="hidden sm:inline">Reporte Completo</span>
-            </a>
-             <a href="{% url 'traceability:production_history' %}" class="px-4 py-2 bg-white border border-slate-200 text-slate-600 hover:text-primary hover:border-primary rounded-lg shadow-sm transition-all flex items-center gap-2">
-                <i class="fas fa-history"></i> <span class="hidden sm:inline">Historial</span>
-            </a>
-            <a href="{% url 'traceability:alert_list' %}" class="px-4 py-2 bg-white border border-slate-200 text-slate-600 hover:text-warning hover:border-warning rounded-lg shadow-sm transition-all flex items-center gap-2">
-                <i class="fas fa-bell"></i> <span class="hidden sm:inline">Alertas</span>
-            </a>
+<div class="max-w-7xl mx-auto space-y-6">
+
+    {# ────────── Header ────────── #}
+    <div class="card-soft p-6 md:p-7 bg-gradient-to-br from-primary-600 via-primary-500 to-indigo-500 text-white relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-72 h-72 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <a href="{% url 'production_hub' %}" class="inline-flex items-center gap-1.5 text-xs font-medium text-white/80 hover:text-white transition-colors mb-2">
+                    <i class="fas fa-arrow-left text-[0.7rem]"></i><span>Volver al hub de producción</span>
+                </a>
+                <p class="text-xs uppercase tracking-widest font-bold text-white/70">Trazabilidad</p>
+                <h1 class="text-2xl md:text-3xl font-bold tracking-tight mt-1">Stock por lotes</h1>
+                <p class="text-white/80 text-sm mt-1">FIFO, vencimientos y merma · {{ today|date:"d/m/Y" }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2 md:justify-end">
+                <a href="{% url 'traceability:purchase_create' %}"
+                   class="bg-white text-primary-700 hover:bg-white/90 px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition-colors flex items-center gap-2">
+                    <i class="fas fa-truck-loading"></i> Ingresar compra
+                </a>
+                <a href="{% url 'traceability:production_create' %}"
+                   class="bg-white/15 hover:bg-white/25 text-white border border-white/20 px-4 py-2 rounded-xl text-sm font-semibold backdrop-blur-sm transition-colors flex items-center gap-2">
+                    <i class="fas fa-industry"></i> Registrar producción
+                </a>
+                <a href="{% url 'report_fefo_expiry' %}" target="_blank"
+                   class="bg-white/15 hover:bg-white/25 text-white border border-white/20 px-4 py-2 rounded-xl text-sm font-semibold backdrop-blur-sm transition-colors flex items-center gap-2 {% if kpi_near_expiry_count or kpi_expired_count %}ring-2 ring-rose-300/60{% endif %}">
+                    <i class="fas fa-file-pdf"></i> FEFO PDF
+                </a>
+                <a href="{% url 'traceability:download_full_report' %}"
+                   class="bg-white/15 hover:bg-white/25 text-white border border-white/20 px-4 py-2 rounded-xl text-sm font-semibold backdrop-blur-sm transition-colors flex items-center gap-2">
+                    <i class="fas fa-file-excel"></i> Reporte completo
+                </a>
+                <a href="{% url 'traceability:alert_list' %}"
+                   class="bg-white/15 hover:bg-white/25 text-white border border-white/20 px-4 py-2 rounded-xl text-sm font-semibold backdrop-blur-sm transition-colors flex items-center gap-2">
+                    <i class="fas fa-bell"></i> Alertas
+                </a>
+                <a href="{% url 'traceability:production_history' %}"
+                   class="bg-white/15 hover:bg-white/25 text-white border border-white/20 px-4 py-2 rounded-xl text-sm font-semibold backdrop-blur-sm transition-colors flex items-center gap-2">
+                    <i class="fas fa-history"></i> Historial
+                </a>
+            </div>
         </div>
     </div>
 
-    <!-- Alertas Activas -->
-    {% if alerts %}
-    <div class="bg-orange-50 border-l-4 border-orange-400 p-4 rounded-r shadow-sm">
-        <div class="flex items-center justify-between mb-2">
-            <h5 class="font-bold text-orange-800 flex items-center gap-2">
-                <i class="fas fa-exclamation-triangle"></i> Alertas Activas ({{ alerts.count }})
-            </h5>
-            <a href="{% url 'traceability:alert_list' %}" class="text-xs font-semibold text-orange-700 hover:text-orange-900 underline">Ver todas</a>
+    {# ────────── KPIs ────────── #}
+    <div class="grid grid-cols-2 lg:grid-cols-6 gap-3">
+        <div class="card-soft p-5 border-l-4 border-emerald-500">
+            <div class="flex items-start justify-between mb-2">
+                <div class="w-9 h-9 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="fas fa-cubes"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em]">Ingredientes con stock</p>
+            <h3 class="text-2xl font-bold text-slate-900 tracking-tight font-mono">{{ kpi_total_ingredients|intcomma }}</h3>
+            <p class="text-[0.7rem] text-slate-500 mt-1">{{ kpi_total_lots_active|intcomma }} lotes activos</p>
         </div>
-        <div class="space-y-2">
+
+        <div class="card-soft p-5 border-l-4 border-primary-500">
+            <div class="flex items-start justify-between mb-2">
+                <div class="w-9 h-9 rounded-md bg-primary-50 text-primary-600 flex items-center justify-center"><i class="fas fa-coins"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em]">Valor de stock</p>
+            <h3 class="text-2xl font-bold text-slate-900 tracking-tight font-mono">${{ kpi_total_stock_value|floatformat:0|intcomma }}</h3>
+            <p class="text-[0.7rem] text-slate-500 mt-1">a costo de compra</p>
+        </div>
+
+        <a href="?view=low{% if filter_type %}&type={{ filter_type }}{% endif %}" class="card-soft p-5 border-l-4 border-amber-500 hover:-translate-y-0.5 transition-all">
+            <div class="flex items-start justify-between mb-2">
+                <div class="w-9 h-9 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fas fa-arrow-down"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em]">Stock bajo</p>
+            <h3 class="text-2xl font-bold text-amber-700 tracking-tight font-mono">{{ kpi_low_stock_count|intcomma }}</h3>
+            <p class="text-[0.7rem] text-slate-500 mt-1">bajo umbral {{ config.low_stock_threshold_kg|floatformat:2 }} kg</p>
+        </a>
+
+        <a href="?view=near_expiry{% if filter_type %}&type={{ filter_type }}{% endif %}" class="card-soft p-5 border-l-4 border-amber-500 hover:-translate-y-0.5 transition-all">
+            <div class="flex items-start justify-between mb-2">
+                <div class="w-9 h-9 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fas fa-hourglass-half"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em]">Próx. a vencer</p>
+            <h3 class="text-2xl font-bold text-amber-700 tracking-tight font-mono">{{ kpi_near_expiry_count|intcomma }}</h3>
+            <p class="text-[0.7rem] text-slate-500 mt-1">en {{ config.expiry_alert_days }} días</p>
+        </a>
+
+        <a href="?view=expired{% if filter_type %}&type={{ filter_type }}{% endif %}" class="card-soft p-5 border-l-4 border-rose-500 hover:-translate-y-0.5 transition-all">
+            <div class="flex items-start justify-between mb-2">
+                <div class="w-9 h-9 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center"><i class="fas fa-triangle-exclamation"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em]">Vencidos</p>
+            <h3 class="text-2xl font-bold text-rose-700 tracking-tight font-mono">{{ kpi_expired_count|intcomma }}</h3>
+            <p class="text-[0.7rem] text-slate-500 mt-1">descartar urgente</p>
+        </a>
+
+        <a href="?view=wasted{% if filter_type %}&type={{ filter_type }}{% endif %}" class="card-soft p-5 border-l-4 border-slate-400 hover:-translate-y-0.5 transition-all">
+            <div class="flex items-start justify-between mb-2">
+                <div class="w-9 h-9 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-recycle"></i></div>
+            </div>
+            <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em]">Merma</p>
+            <h3 class="text-2xl font-bold text-slate-700 tracking-tight font-mono">{{ kpi_wasted_count|intcomma }}</h3>
+            <p class="text-[0.7rem] text-slate-500 mt-1">{{ kpi_batches_active }} lotes prod. activos</p>
+        </a>
+    </div>
+
+    {# ────────── Banner de alertas ────────── #}
+    {% if alerts %}
+    <div class="card-soft border-l-4 border-amber-500 p-4 bg-amber-50/40">
+        <div class="flex items-center justify-between mb-2">
+            <h5 class="font-bold text-amber-800 flex items-center gap-2 text-sm">
+                <i class="fas fa-bell"></i> Alertas activas ({{ alerts|length }})
+            </h5>
+            <a href="{% url 'traceability:alert_list' %}" class="text-xs font-semibold text-amber-700 hover:text-amber-900 underline">Ver todas</a>
+        </div>
+        <div class="space-y-1.5">
             {% for alert in alerts|slice:":3" %}
-            <div class="flex items-start gap-2 text-sm text-orange-800">
-                <i class="fas fa-circle text-[6px] mt-2 opacity-50"></i>
+            <div class="flex items-start gap-2 text-sm text-amber-900">
+                <i class="fas fa-circle text-[6px] mt-2 opacity-60"></i>
                 <div class="flex-1">
                     <span class="font-bold">[{{ alert.get_alert_type_display }}]</span> {{ alert.message }}
-                    <span class="text-xs text-orange-600/70 ml-2">- {{ alert.created_at|date:"d/m H:i" }}</span>
+                    <span class="text-xs text-amber-700/70 ml-2">{{ alert.created_at|date:"d/m H:i" }}</span>
                 </div>
             </div>
             {% endfor %}
@@ -50,143 +128,427 @@
     </div>
     {% endif %}
 
-    <!-- Acciones Rápidas -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <a href="{% url 'production_order_list' %}" class="group relative overflow-hidden bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-all">
-            <div class="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div class="flex items-center gap-4 relative z-10">
-                <div class="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
-                    <i class="fas fa-industry"></i>
-                </div>
-                <div>
-                    <h3 class="font-bold text-slate-800">Registrar Producción</h3>
-                    <p class="text-sm text-slate-500">Crear nuevo lote de producto terminado</p>
-                </div>
-                <i class="fas fa-arrow-right ml-auto text-slate-300 group-hover:text-primary transition-colors"></i>
+    {# ────────── Filtros ────────── #}
+    <form method="get" class="card-soft p-4 flex flex-wrap items-end gap-3">
+        <div class="flex flex-col flex-1 min-w-[220px]">
+            <label class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Buscar</label>
+            <div class="relative">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" name="q" value="{{ search_query }}"
+                       placeholder="Ingrediente, código, lote proveedor…"
+                       class="pl-9 pr-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm w-full transition-all">
+            </div>
+        </div>
+
+        <div class="flex flex-col">
+            <label class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Vista</label>
+            <div class="inline-flex rounded-md bg-slate-100 p-1 gap-1">
+                {% with cur=filter_view %}
+                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if filter_type %}type={{ filter_type }}&{% endif %}view=all"
+                   class="px-3 py-1 rounded text-xs font-semibold transition-colors {% if cur == 'all' or not cur %}bg-white text-primary-700 shadow-sm{% else %}text-slate-500 hover:text-slate-700{% endif %}">Todos</a>
+                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if filter_type %}type={{ filter_type }}&{% endif %}view=low"
+                   class="px-3 py-1 rounded text-xs font-semibold transition-colors {% if cur == 'low' %}bg-white text-amber-700 shadow-sm{% else %}text-slate-500 hover:text-slate-700{% endif %}">Bajo</a>
+                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if filter_type %}type={{ filter_type }}&{% endif %}view=near_expiry"
+                   class="px-3 py-1 rounded text-xs font-semibold transition-colors {% if cur == 'near_expiry' %}bg-white text-amber-700 shadow-sm{% else %}text-slate-500 hover:text-slate-700{% endif %}">Próx. vencer</a>
+                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if filter_type %}type={{ filter_type }}&{% endif %}view=expired"
+                   class="px-3 py-1 rounded text-xs font-semibold transition-colors {% if cur == 'expired' %}bg-white text-rose-700 shadow-sm{% else %}text-slate-500 hover:text-slate-700{% endif %}">Vencidos</a>
+                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if filter_type %}type={{ filter_type }}&{% endif %}view=wasted"
+                   class="px-3 py-1 rounded text-xs font-semibold transition-colors {% if cur == 'wasted' %}bg-white text-slate-700 shadow-sm{% else %}text-slate-500 hover:text-slate-700{% endif %}">Merma</a>
+                {% endwith %}
+            </div>
+        </div>
+
+        <div class="flex flex-col">
+            <label class="text-[0.65rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Tipo</label>
+            <div class="inline-flex rounded-md bg-slate-100 p-1 gap-1">
+                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if filter_view %}view={{ filter_view }}&{% endif %}type="
+                   class="px-3 py-1 rounded text-xs font-semibold transition-colors {% if not filter_type %}bg-white text-primary-700 shadow-sm{% else %}text-slate-500 hover:text-slate-700{% endif %}">Todos</a>
+                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if filter_view %}view={{ filter_view }}&{% endif %}type=raw_material"
+                   class="px-3 py-1 rounded text-xs font-semibold transition-colors {% if filter_type == 'raw_material' %}bg-white text-primary-700 shadow-sm{% else %}text-slate-500 hover:text-slate-700{% endif %}">Materia prima</a>
+                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if filter_view %}view={{ filter_view }}&{% endif %}type=supply"
+                   class="px-3 py-1 rounded text-xs font-semibold transition-colors {% if filter_type == 'supply' %}bg-white text-primary-700 shadow-sm{% else %}text-slate-500 hover:text-slate-700{% endif %}">Insumos</a>
+            </div>
+        </div>
+
+        <button type="submit"
+                class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-md text-sm font-semibold transition-all">
+            <i class="fas fa-filter text-[0.7rem] mr-1"></i> Aplicar
+        </button>
+
+        {% if search_query or filter_view and filter_view != 'all' or filter_type %}
+        <a href="{% url 'traceability:stock_list' %}"
+           class="px-3 py-2 text-xs font-semibold text-slate-500 hover:text-rose-600 transition-colors">
+            <i class="fas fa-times mr-1"></i> Limpiar
+        </a>
+        {% endif %}
+    </form>
+
+    {# ────────── Acciones rápidas ────────── #}
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <a href="{% url 'traceability:purchase_create' %}" class="card-soft p-4 hover:-translate-y-0.5 hover:border-emerald-200 transition-all flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="fas fa-truck-loading"></i></div>
+            <div>
+                <div class="font-semibold text-slate-800 text-sm">Ingresar compra</div>
+                <div class="text-xs text-slate-500">Nuevo lote de MP</div>
             </div>
         </a>
-
-        <a href="{% url 'traceability:purchase_create' %}" class="group relative overflow-hidden bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-all">
-            <div class="absolute inset-0 bg-gradient-to-r from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div class="flex items-center gap-4 relative z-10">
-                <div class="w-12 h-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
-                    <i class="fas fa-truck-loading"></i>
-                </div>
-                <div>
-                    <h3 class="font-bold text-slate-800">Ingresar Compra</h3>
-                    <p class="text-sm text-slate-500">Registrar entrada de materia prima</p>
-                </div>
-                <i class="fas fa-arrow-right ml-auto text-slate-300 group-hover:text-green-600 transition-colors"></i>
+        <a href="{% url 'traceability:production_create' %}" class="card-soft p-4 hover:-translate-y-0.5 hover:border-primary-200 transition-all flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center"><i class="fas fa-industry"></i></div>
+            <div>
+                <div class="font-semibold text-slate-800 text-sm">Registrar producción</div>
+                <div class="text-xs text-slate-500">FIFO automático</div>
+            </div>
+        </a>
+        <a href="{% url 'production_order_create' %}" class="card-soft p-4 hover:-translate-y-0.5 hover:border-indigo-200 transition-all flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fas fa-clipboard-list"></i></div>
+            <div>
+                <div class="font-semibold text-slate-800 text-sm">Crear orden</div>
+                <div class="text-xs text-slate-500">Producción planificada</div>
+            </div>
+        </a>
+        <a href="{% url 'traceability:alert_list' %}" class="card-soft p-4 hover:-translate-y-0.5 hover:border-amber-200 transition-all flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fas fa-bell"></i></div>
+            <div>
+                <div class="font-semibold text-slate-800 text-sm">Ver alertas</div>
+                <div class="text-xs text-slate-500">Centro de avisos</div>
             </div>
         </a>
     </div>
 
-    <!-- Resumen de Stock -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-            <h5 class="font-bold text-slate-700 flex items-center gap-2">
-                <i class="fas fa-list text-slate-400"></i> Resumen de Stock por Ingrediente
-            </h5>
+    {# ────────── Sugerencias de reabastecimiento ────────── #}
+    {% if replenish_suggestions %}
+    <div class="card-soft overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-rose-50/40">
+            <div>
+                <h2 class="font-bold text-slate-800 flex items-center gap-2 text-sm">
+                    <i class="fas fa-bolt text-rose-500"></i> Sugerencias de reabastecimiento
+                </h2>
+                <p class="text-xs text-slate-500 mt-0.5">Ingredientes bajo umbral · cantidad sugerida = 2× umbral - stock actual</p>
+            </div>
+            <span class="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold">{{ replenish_suggestions|length }}</span>
         </div>
+        <div class="divide-y divide-slate-100">
+            {% for r in replenish_suggestions %}
+            <div class="px-5 py-3 flex items-center justify-between hover:bg-slate-50/60 transition-colors">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center text-sm">
+                        <i class="fas fa-{% if r.status == 'out' %}circle-exclamation{% else %}arrow-down{% endif %}"></i>
+                    </div>
+                    <div>
+                        <div class="font-semibold text-slate-800 text-sm">{{ r.ingredient.name }}</div>
+                        <div class="text-xs text-slate-500 mt-0.5">
+                            Stock <span class="font-mono">{{ r.total_stock|floatformat:2 }}</span> {{ r.ingredient.unit }}
+                            · Umbral <span class="font-mono">{{ config.low_stock_threshold_kg|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-xs font-bold font-mono">+{{ r.suggested_qty|floatformat:2 }} {{ r.ingredient.unit }}</span>
+                    <a href="{% url 'traceability:purchase_create' %}?ingredient={{ r.ingredient.pk }}"
+                       class="bg-primary-600 hover:bg-primary-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
+                        Crear compra
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ────────── Tabla principal ────────── #}
+    <div class="card-soft overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <div>
+                <h2 class="font-bold text-slate-800 flex items-center gap-2 text-sm">
+                    <i class="fas fa-list text-slate-400"></i> Stock por ingrediente
+                </h2>
+                <p class="text-xs text-slate-500 mt-0.5">{{ ingredients_data|length }} fila(s) · click en "Ver lotes" para FIFO detallado</p>
+            </div>
+        </div>
+
+        {% if ingredients_data %}
         <div class="overflow-x-auto">
-            <table class="w-full text-left">
-                <thead>
-                    <tr class="bg-slate-50 border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        <th class="px-6 py-3">Ingrediente</th>
-                        <th class="px-6 py-3">Tipo</th>
-                        <th class="px-6 py-3">Stock Total</th>
-                        <th class="px-6 py-3">Lotes Activos</th>
-                        <th class="px-6 py-3">Estado</th>
-                        <th class="px-6 py-3 text-right">Acciones</th>
+            <table class="w-full text-sm text-left border-collapse">
+                <thead class="bg-slate-50/60 border-b border-slate-100">
+                    <tr class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">
+                        <th class="px-4 py-3">Ingrediente</th>
+                        <th class="px-4 py-3 text-right">Stock total</th>
+                        <th class="px-4 py-3 text-center">Lotes</th>
+                        <th class="px-4 py-3">Próx. vencer</th>
+                        <th class="px-4 py-3 text-right">Consumido 30d</th>
+                        <th class="px-4 py-3 text-right">Valor</th>
+                        <th class="px-4 py-3 text-center">Estado</th>
+                        <th class="px-4 py-3 text-right">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     {% for item in ingredients_data %}
-                    <tr class="hover:bg-slate-50 transition-colors {% if item.is_low %}bg-orange-50/30{% endif %}">
-                        <td class="px-6 py-4 font-medium text-slate-800">
-                            {{ item.ingredient.name }}
+                    <tr class="hover:bg-slate-50/60 transition-colors {% if item.status == 'low' or item.status == 'out' %}bg-amber-50/20{% endif %}">
+                        <td class="px-4 py-3">
+                            <div class="flex items-center gap-2">
+                                <a href="{% url 'ingredient_edit' item.ingredient.pk %}" class="font-semibold text-slate-800 hover:text-primary-600 transition-colors">
+                                    {{ item.ingredient.name }}
+                                </a>
+                                {% if item.ingredient.type == 'raw_material' %}
+                                <span class="bg-primary-50 text-primary-700 px-2 py-0.5 rounded text-[0.65rem] font-semibold">MP</span>
+                                {% else %}
+                                <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[0.65rem] font-semibold">Insumo</span>
+                                {% endif %}
+                            </div>
+                            <div class="text-[0.7rem] text-slate-500 mt-0.5 font-mono">{{ item.ingredient.code }}</div>
                         </td>
-                        <td class="px-6 py-4 text-sm text-slate-500">
-                            {{ item.ingredient.get_type_display }}
+                        <td class="px-4 py-3 text-right font-mono font-semibold text-slate-700">
+                            {{ item.total_stock|floatformat:2 }} <span class="text-[0.65rem] text-slate-400 font-sans">{{ item.ingredient.unit }}</span>
                         </td>
-                        <td class="px-6 py-4 text-sm font-semibold text-slate-700">
-                            {{ item.total_stock|floatformat:3 }} kg
-                            {% if item.is_low %}
-                                <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">Bajo</span>
-                            {% endif %}
+                        <td class="px-4 py-3 text-center">
+                            <span class="inline-flex items-center justify-center min-w-[28px] h-6 px-2 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold font-mono">{{ item.lots_count }}</span>
                         </td>
-                        <td class="px-6 py-4 text-sm text-slate-500">
-                            {{ item.active_lots_count }}
-                        </td>
-                        <td class="px-6 py-4">
-                            {% if item.total_stock >= config.low_stock_threshold_kg %}
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">OK</span>
+                        <td class="px-4 py-3 text-xs">
+                            {% if item.next_to_expire and item.next_to_expire.expiration_date %}
+                                {% if item.next_to_expire.expiration_date < today %}
+                                <span class="text-rose-700 font-semibold">{{ item.next_to_expire.expiration_date|date:"d/m/Y" }}</span>
+                                <span class="block text-[0.65rem] text-rose-500">vencido</span>
+                                {% elif item.next_to_expire.expiration_date <= expiry_threshold %}
+                                <span class="text-amber-700 font-semibold">{{ item.next_to_expire.expiration_date|date:"d/m/Y" }}</span>
+                                <span class="block text-[0.65rem] text-amber-500">próximo</span>
+                                {% else %}
+                                <span class="text-slate-600">{{ item.next_to_expire.expiration_date|date:"d/m/Y" }}</span>
+                                {% endif %}
                             {% else %}
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Crítico</span>
+                                <span class="text-slate-400">—</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 text-right">
-                             <button onclick="document.getElementById('lots-row-{{ item.ingredient.id }}').classList.toggle('hidden')" class="text-primary hover:text-primary-dark font-medium text-sm transition-colors">
-                                <i class="fas fa-eye mr-1"></i> Ver Lotes
-                            </button>
+                        <td class="px-4 py-3 text-right font-mono text-slate-600">
+                            {% if item.consumed_30d %}{{ item.consumed_30d|floatformat:2 }}{% else %}<span class="text-slate-300">—</span>{% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono text-slate-700">
+                            ${{ item.stock_value|floatformat:0|intcomma }}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            {% if item.status == 'out' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.65rem] font-bold bg-rose-100 text-rose-700">Sin stock</span>
+                            {% elif item.status == 'low' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.65rem] font-bold bg-amber-100 text-amber-700">Bajo</span>
+                            {% elif item.status == 'overstocked' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.65rem] font-bold bg-indigo-100 text-indigo-700">Sobrestock</span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.65rem] font-bold bg-emerald-100 text-emerald-700">OK</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                            <div class="inline-flex items-center gap-1">
+                                <a href="{% url 'traceability:purchase_create' %}?ingredient={{ item.ingredient.pk }}"
+                                   class="px-2 py-1 text-[0.7rem] font-semibold rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                                   title="Comprar">
+                                    <i class="fas fa-cart-plus"></i> Comprar
+                                </a>
+                                <a href="{% url 'report_kardex' item.ingredient.pk %}" target="_blank"
+                                   class="px-2 py-1 text-[0.7rem] font-semibold rounded bg-slate-50 text-slate-700 hover:bg-slate-100 transition-colors"
+                                   title="Kardex PDF">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+                                <button type="button"
+                                        onclick="document.getElementById('lots-row-{{ item.ingredient.id }}').classList.toggle('hidden')"
+                                        class="px-2 py-1 text-[0.7rem] font-semibold rounded bg-primary-50 text-primary-700 hover:bg-primary-100 transition-colors">
+                                    <i class="fas fa-eye"></i> Lotes
+                                </button>
+                            </div>
                         </td>
                     </tr>
-                    
-                    <!-- Expanded Row (Lots) -->
-                    <tr id="lots-row-{{ item.ingredient.id }}" class="hidden bg-slate-50/50 shadow-inner">
-                        <td colspan="6" class="px-6 py-4">
-                            <div class="bg-white rounded border border-slate-200 p-4">
-                                <h6 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Lotes Activos de {{ item.ingredient.name }}:</h6>
+
+                    {# Sub-fila: lotes FIFO #}
+                    <tr id="lots-row-{{ item.ingredient.id }}" class="hidden bg-slate-50/40">
+                        <td colspan="8" class="px-4 py-3">
+                            <div class="bg-white rounded-md border border-slate-200 p-3">
+                                <h6 class="text-[0.65rem] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                                    Lotes activos (FIFO) — {{ item.ingredient.name }}
+                                </h6>
                                 {% if item.lots %}
                                 <div class="overflow-x-auto">
-                                    <table class="w-full text-sm">
+                                    <table class="w-full text-xs">
                                         <thead>
-                                            <tr class="text-xs text-slate-400 border-b border-slate-100">
-                                                <th class="pb-2 text-left">ID Interno</th>
-                                                <th class="pb-2 text-right">Stock Actual</th>
-                                                <th class="pb-2 text-right">Stock Inicial</th>
-                                                <th class="pb-2 text-left pl-4">Lote Prov.</th>
-                                                <th class="pb-2 text-left">Vencimiento</th>
-                                                <th class="pb-2 text-left">Recepción</th>
+                                            <tr class="text-[0.65rem] text-slate-400 border-b border-slate-100">
+                                                <th class="pb-2 text-left">ID interno</th>
+                                                <th class="pb-2 text-left">Lote prov.</th>
+                                                <th class="pb-2 text-left">Recibido</th>
+                                                <th class="pb-2 text-left">Vence</th>
+                                                <th class="pb-2 text-right">Actual</th>
+                                                <th class="pb-2 text-right">Inicial</th>
+                                                <th class="pb-2 text-right">Valor</th>
+                                                <th class="pb-2 text-center">Estado</th>
                                             </tr>
                                         </thead>
                                         <tbody class="divide-y divide-slate-50">
                                             {% for lot in item.lots %}
                                             <tr>
-                                                <td class="py-2 text-slate-600 font-mono">{{ lot.internal_id }}</td>
-                                                <td class="py-2 text-right font-medium text-slate-700">{{ lot.quantity_current|floatformat:3 }} kg</td>
-                                                <td class="py-2 text-right text-slate-400">{{ lot.quantity_initial|floatformat:3 }} kg</td>
-                                                <td class="py-2 pl-4 text-slate-600">{{ lot.supplier_lot }}</td>
-                                                <td class="py-2 text-slate-600">
-                                                    {{ lot.expiration_date|date:"d/m/Y"|default:"N/A" }}
-                                                    {% if lot.is_near_expiry %}
-                                                    <span class="ml-1 text-xs text-orange-600 font-bold">!</span>
+                                                <td class="py-1.5 text-slate-600 font-mono">{{ lot.internal_id }}</td>
+                                                <td class="py-1.5 text-slate-600">{{ lot.supplier_lot|default:"—" }}</td>
+                                                <td class="py-1.5 text-slate-500">{{ lot.received_date|date:"d/m/Y" }}</td>
+                                                <td class="py-1.5">
+                                                    {% if lot.expiration_date %}
+                                                        {% if lot.expiration_date < today %}
+                                                        <span class="text-rose-700 font-semibold">{{ lot.expiration_date|date:"d/m/Y" }}</span>
+                                                        {% elif lot.expiration_date <= expiry_threshold %}
+                                                        <span class="text-amber-700 font-semibold">{{ lot.expiration_date|date:"d/m/Y" }}</span>
+                                                        {% else %}
+                                                        <span class="text-slate-600">{{ lot.expiration_date|date:"d/m/Y" }}</span>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <span class="text-slate-300">—</span>
                                                     {% endif %}
                                                 </td>
-                                                <td class="py-2 text-slate-500">{{ lot.received_date|date:"d/m/Y" }}</td>
+                                                <td class="py-1.5 text-right font-mono font-semibold text-slate-700">{{ lot.quantity_current|floatformat:2 }}</td>
+                                                <td class="py-1.5 text-right font-mono text-slate-400">{{ lot.quantity_initial|floatformat:2 }}</td>
+                                                <td class="py-1.5 text-right font-mono text-slate-600">${{ lot.value|default:0|floatformat:0|intcomma }}</td>
+                                                <td class="py-1.5 text-center">
+                                                    {% if lot.is_wasted %}
+                                                    <span class="text-[0.6rem] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">Merma</span>
+                                                    {% elif lot.expiration_date and lot.expiration_date < today %}
+                                                    <span class="text-[0.6rem] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-700">Vencido</span>
+                                                    {% else %}
+                                                    <span class="text-[0.6rem] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">Activo</span>
+                                                    {% endif %}
+                                                </td>
                                             </tr>
                                             {% endfor %}
                                         </tbody>
                                     </table>
                                 </div>
                                 {% else %}
-                                <p class="text-sm text-slate-400 italic">No hay lotes activos para este ingrediente.</p>
+                                <p class="text-xs text-slate-400 italic">Sin lotes activos.</p>
                                 {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-slate-400">
-                            <div class="flex flex-col items-center">
-                                <i class="fas fa-box-open text-4xl mb-2 opacity-50"></i>
-                                <p>No hay ingredientes registrados en el sistema.</p>
                             </div>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+        {% else %}
+        <div class="px-6 py-12 text-center">
+            <div class="inline-flex flex-col items-center gap-3">
+                <div class="w-14 h-14 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-2xl">
+                    <i class="fas fa-box-open"></i>
+                </div>
+                <p class="text-sm text-slate-500">No hay ingredientes que coincidan con los filtros.</p>
+                <div class="flex gap-2">
+                    <a href="{% url 'ingredient_create' %}" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-semibold transition-all">
+                        <i class="fas fa-plus mr-1"></i> Nuevo ingrediente
+                    </a>
+                    <a href="{% url 'traceability:purchase_create' %}" class="px-4 py-2 bg-white border border-slate-200 hover:border-primary-300 text-slate-700 rounded-md text-sm font-semibold transition-all">
+                        <i class="fas fa-truck-loading mr-1"></i> Ingresar compra
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {# ────────── Paneles de conexión ────────── #}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        {# Top consumidos en 30 días #}
+        <div class="card-soft overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-100 bg-slate-50/50">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <i class="fas fa-fire text-amber-500"></i> Top 5 consumidos (30 días)
+                </h3>
+            </div>
+            <div class="p-4 space-y-2.5">
+                {% for c in top_consumers %}
+                <div>
+                    <div class="flex items-center justify-between text-xs mb-1">
+                        <span class="font-medium text-slate-700 truncate">{{ c.name }}</span>
+                        <span class="font-mono font-semibold text-slate-600">{{ c.total|floatformat:2 }} {{ c.unit }}</span>
+                    </div>
+                    <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                        {% widthratio c.total top_consumers_max 100 as pct %}
+                        <div class="h-full bg-gradient-to-r from-primary-500 to-indigo-500 rounded-full" style="width: {{ pct }}%"></div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-xs text-slate-400 italic">Sin consumos registrados en los últimos 30 días.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        {# Últimos lotes producidos #}
+        <div class="card-soft overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-100 bg-slate-50/50">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <i class="fas fa-industry text-primary-500"></i> Últimos lotes producidos
+                </h3>
+            </div>
+            <div class="divide-y divide-slate-100">
+                {% for batch in recent_batches %}
+                <a href="{% url 'traceability:production_detail' batch.pk %}" class="block px-5 py-2.5 hover:bg-slate-50/60 transition-colors">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="font-mono font-semibold text-slate-800 text-xs">{{ batch.internal_lot_code }}</div>
+                            <div class="text-[0.7rem] text-slate-500 mt-0.5">
+                                {{ batch.product.name|truncatechars:28 }} · {{ batch.production_date|date:"d/m/Y" }}
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs font-mono font-semibold text-slate-700">{{ batch.quantity_produced|floatformat:2 }}</div>
+                            {% if batch.quantity_remaining and batch.quantity_remaining > 0 %}
+                            <div class="text-[0.65rem] text-emerald-600 font-semibold">{{ batch.quantity_remaining|floatformat:2 }} disp.</div>
+                            {% else %}
+                            <div class="text-[0.65rem] text-slate-400">asignado</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+                {% empty %}
+                <p class="px-5 py-4 text-xs text-slate-400 italic">Sin lotes recientes.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        {# Compras pendientes de ingredientes #}
+        <div class="card-soft overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <i class="fas fa-receipt text-rose-500"></i> Compras pendientes
+                </h3>
+                <a href="{% url 'traceability:purchase_list' %}?status=PENDING" class="text-[0.65rem] font-semibold text-slate-500 hover:text-primary-700">Ver todas</a>
+            </div>
+            <div class="divide-y divide-slate-100">
+                {% for p in pending_ingredient_purchases %}
+                <div class="px-5 py-2.5">
+                    <div class="flex items-center justify-between">
+                        <div class="min-w-0">
+                            <div class="font-semibold text-slate-800 text-xs truncate">{{ p.provider.name|default:"Sin proveedor" }}</div>
+                            <div class="text-[0.7rem] text-slate-500 truncate">{{ p.description|default:p.code|default:"—"|truncatechars:38 }}</div>
+                        </div>
+                        <div class="text-right shrink-0 ml-2">
+                            <div class="font-mono font-semibold text-slate-700 text-xs">${{ p.balance|floatformat:0|intcomma }}</div>
+                            <div class="text-[0.65rem] {% if p.due_date and p.due_date < today %}text-rose-600 font-semibold{% else %}text-slate-400{% endif %}">
+                                {% if p.due_date %}vence {{ p.due_date|date:"d/m" }}{% else %}—{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="px-5 py-4 text-xs text-slate-400 italic">Sin compras de ingredientes pendientes.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {# ────────── Configuración (footer) ────────── #}
+    <div class="card-soft p-4 bg-slate-50/40">
+        <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-4 text-slate-500">
+                <span class="flex items-center gap-1.5">
+                    <i class="fas fa-cog text-slate-400"></i>
+                    <strong class="text-slate-700">Configuración trazabilidad</strong>
+                </span>
+                <span>Umbral merma: <strong class="font-mono text-slate-700">{{ config.waste_threshold_kg|floatformat:2 }} kg</strong></span>
+                <span>Stock bajo: <strong class="font-mono text-slate-700">{{ config.low_stock_threshold_kg|floatformat:2 }} kg</strong></span>
+                <span>Aviso vencimiento: <strong class="font-mono text-slate-700">{{ config.expiry_alert_days }} días</strong></span>
+            </div>
+            <span class="text-[0.65rem] text-slate-400">Editable desde el panel de administración</span>
         </div>
     </div>
 </div>

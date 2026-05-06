@@ -1,239 +1,221 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
-{% block title %}Inventario - Propel{% endblock %}
+{% block title %}Materia Prima — Propel{% endblock %}
+{% block header_title %}Materia Prima e Insumos{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto">
-    <!-- Header & Search -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-800">Inventario</h1>
-            <p class="text-secondary text-sm">Gestionar materias primas e insumos.</p>
-        </div>
-        <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-            <!-- Search Bar -->
-            <form method="get" class="relative w-full md:w-auto" id="search-form">
-                <input type="text" name="q" value="{{ search_query }}" id="search-input" placeholder="Buscar insumo..."
-                    class="pl-10 pr-4 py-2.5 rounded-xl bg-white border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all font-medium w-full md:w-64 shadow-sm text-sm"
-                    autocomplete="off">
-                <i class="fas fa-search absolute left-4 top-3.5 text-gray-400 text-xs"></i>
-                <div id="loading-indicator" class="hidden absolute right-4 top-3">
-                    <i class="fas fa-spinner fa-spin text-primary text-xs"></i>
-                </div>
-            </form>
 
+    {# ────────── Header ────────── #}
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 animate__animated animate__fadeIn">
+        <div>
+            <a href="{% url 'executive_dashboard' %}"
+               class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary transition-colors duration-200 ease-soft mb-2">
+                <i class="fas fa-arrow-left text-[0.7rem]"></i>
+                <span>Volver al tablero</span>
+            </a>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight leading-tight">Materia prima e insumos</h1>
+            <p class="text-sm text-slate-500 mt-1.5">Stock + cobertura proyectada según consumo de los últimos 30 días.</p>
+        </div>
+        <div class="flex flex-wrap gap-2 md:justify-end items-end">
+            <div class="relative">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="search-input" name="q" value="{{ search_query }}"
+                       placeholder="Buscar nombre o código…"
+                       class="pl-9 pr-3 py-2 rounded-md border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none text-sm w-64 transition-all duration-200 ease-soft">
+            </div>
             <a href="{% url 'ingredient_create' %}"
-                class="bg-primary hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-purple-200 flex items-center justify-center whitespace-nowrap">
-                <i class="fas fa-plus mr-2"></i> Nuevo Material
+               class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-semibold shadow-sm hover:shadow-md transition-all duration-200 ease-soft">
+                <i class="fas fa-plus text-xs"></i>
+                <span>Nuevo material</span>
             </a>
         </div>
     </div>
 
-    <!-- RAW MATERIALS SECTION -->
-    <div id="raw-materials-section"
-        class="bg-white rounded-3xl shadow-sm overflow-hidden mb-8 {% if not raw_materials %}hidden{% endif %}">
-        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-indigo-50/50">
-            <h2 class="text-lg font-bold text-indigo-900 flex items-center">
-                <i class="fas fa-flask mr-2 text-indigo-500"></i> Materias Primas <span
-                    class="text-xs text-indigo-400 ml-2 font-normal">(Fórmula)</span>
-            </h2>
-            <span class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded-full text-xs font-bold">{{ raw_materials|length }} Items</span>
-        </div>
+    {# ────────── KPI tiles ────────── #}
+    <div class="grid grid-cols-2 xl:grid-cols-5 gap-3 mb-5">
+        <a href="?type=all" class="block group">
+            <div class="card-soft p-5 h-full {% if type_filter == 'all' %}ring-2 ring-primary-600/40 border-primary-200{% else %}hover:-translate-y-0.5 hover:border-primary-200{% endif %} transition-all duration-200 ease-soft">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-primary-50 text-primary-600 flex items-center justify-center"><i class="fas fa-flask"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Total</p>
+                <h3 class="text-2xl font-bold text-slate-900 tracking-tight leading-none">{{ total_count }}</h3>
+            </div>
+        </a>
+        <a href="?type=raw" class="block group">
+            <div class="card-soft p-5 h-full {% if type_filter == 'raw' %}ring-2 ring-indigo-500/40 border-indigo-200{% else %}hover:-translate-y-0.5 hover:border-indigo-200{% endif %} transition-all duration-200 ease-soft">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fas fa-vial"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Materias primas</p>
+                <h3 class="text-2xl font-bold text-indigo-700 tracking-tight leading-none">{{ raw_count }}</h3>
+            </div>
+        </a>
+        <a href="?type=supply" class="block group">
+            <div class="card-soft p-5 h-full {% if type_filter == 'supply' %}ring-2 ring-orange-500/40 border-orange-200{% else %}hover:-translate-y-0.5 hover:border-orange-200{% endif %} transition-all duration-200 ease-soft">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-orange-50 text-orange-600 flex items-center justify-center"><i class="fas fa-box-open"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Insumos</p>
+                <h3 class="text-2xl font-bold text-orange-700 tracking-tight leading-none">{{ supply_count }}</h3>
+            </div>
+        </a>
+        <a href="?type=low_stock" class="block group">
+            <div class="card-soft p-5 h-full {% if type_filter == 'low_stock' %}ring-2 ring-amber-500/40 border-amber-200{% else %}hover:-translate-y-0.5 hover:border-amber-200{% endif %} transition-all duration-200 ease-soft">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fas fa-triangle-exclamation"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Stock bajo</p>
+                <h3 class="text-2xl font-bold text-amber-700 tracking-tight leading-none">{{ low_stock_count }}</h3>
+            </div>
+        </a>
+        <a href="?type=out_of_stock" class="block group">
+            <div class="card-soft p-5 h-full {% if type_filter == 'out_of_stock' %}ring-2 ring-red-500/40 border-red-200{% else %}hover:-translate-y-0.5 hover:border-red-200{% endif %} transition-all duration-200 ease-soft">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-10 h-10 rounded-md bg-red-50 text-red-600 flex items-center justify-center"><i class="fas fa-circle-xmark"></i></div>
+                </div>
+                <p class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.12em] mb-1">Sin stock</p>
+                <h3 class="text-2xl font-bold text-red-700 tracking-tight leading-none">{{ out_of_stock_count }}</h3>
+            </div>
+        </a>
+    </div>
 
+    <p class="text-xs text-slate-500 mb-4">
+        Valor total al costo: <strong class="text-slate-900">${{ inventory_value|floatformat:0|intcomma }}</strong>
+    </p>
+
+    {# Messages already rendered by base.html flash bar — skip duplicate here. #}
+
+    {# ────────── Raw Materials section ────────── #}
+    {% if raw_materials or type_filter == 'raw' or type_filter == 'all' %}
+    <div id="raw-materials-section" class="card-soft overflow-hidden p-0 mb-6 {% if not raw_materials and type_filter != 'all' and type_filter != 'raw' %}hidden{% endif %}">
+        <div class="flex items-center justify-between px-5 py-4 bg-indigo-50/50 border-b border-indigo-100">
+            <h2 class="font-semibold text-indigo-900 text-base flex items-center gap-2">
+                <i class="fas fa-vial text-indigo-500 text-xs"></i>
+                Materias primas
+                <span class="text-[0.65rem] font-normal text-indigo-500">(fórmula)</span>
+            </h2>
+            <span class="text-xs font-bold bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">{{ raw_materials|length }}</span>
+        </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="text-secondary text-xs font-semibold uppercase bg-gray-50 border-b border-gray-100">
-                        <th class="px-6 py-4">Nombre</th>
-                        <th class="px-6 py-4 text-center">Unidad</th>
-                        <th class="px-6 py-4 text-center">Stock</th>
-                        <th class="px-6 py-4 text-right">Costo / Unidad</th>
-                        <th class="px-6 py-4 text-right">Acción</th>
+                <thead class="bg-slate-50/60 border-b border-slate-100">
+                    <tr class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">
+                        <th class="px-4 py-3.5">Material</th>
+                        <th class="px-4 py-3.5 text-center">Stock</th>
+                        <th class="px-4 py-3.5 text-center">Uso/día</th>
+                        <th class="px-4 py-3.5 text-center">Cobertura</th>
+                        <th class="px-4 py-3.5 text-right">Costo unidad</th>
+                        <th class="px-4 py-3.5 text-center">Acciones</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
-                    {% for ingredient in raw_materials %}
-                    <tr class="hover:bg-gray-50 transition-colors group">
-                        <td class="px-6 py-4 align-middle">
-                            <div class="flex items-center gap-3">
-                                <div
-                                    class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500 group-hover:bg-white group-hover:shadow-md transition-all">
-                                    <i class="fas fa-flask"></i>
-                                </div>
-                                <div>
-                                    <p class="font-bold text-gray-800 text-sm">{{ ingredient.name }}</p>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 align-middle text-center text-sm font-medium text-gray-500">
-                            {{ ingredient.get_unit_display }}
-                        </td>
-                        <td class="px-6 py-4 align-middle text-center">
-                            <span class="font-bold text-gray-700">{{ ingredient.stock_quantity }}</span>
-                        </td>
-                        <td class="px-6 py-4 align-middle text-right text-sm font-bold text-gray-800">
-                            ${{ ingredient.cost_per_unit }}
-                        </td>
-                        <td class="px-6 py-4 align-middle text-right">
-                            <div class="flex justify-end gap-2">
-                                <a href="{% url 'ingredient_edit' ingredient.pk %}"
-                                    class="w-8 h-8 rounded-lg flex items-center justify-center text-secondary hover:text-primary hover:bg-purple-50 transition-colors">
-                                    <i class="fas fa-pen text-xs"></i>
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
+                <tbody class="text-sm text-slate-700 divide-y divide-slate-100">
+                    {% for ing in raw_materials %}
+                    {% include "inventory/_ingredient_row.html" with ing=ing %}
                     {% empty %}
-                    <tr>
-                        <td colspan="5" class="px-6 py-12 text-center text-secondary">
-                            <div class="flex flex-col items-center">
-                                <i class="fas fa-flask text-4xl mb-3 text-gray-300"></i>
-                                <p>No se encontraron materias primas.</p>
-                            </div>
-                        </td>
-                    </tr>
+                    <tr><td colspan="6">{% include "includes/ui/empty_state.html" with icon="fa-vial" title="Sin materias primas" %}</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
+    {% endif %}
 
-    <!-- SUPPLIES SECTION -->
-    <div id="supplies-section"
-        class="bg-white rounded-3xl shadow-sm overflow-hidden {% if not supplies %}hidden{% endif %}">
-        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-orange-50/50">
-            <h2 class="text-lg font-bold text-orange-900 flex items-center">
-                <i class="fas fa-box-open mr-2 text-orange-500"></i> Insumos <span
-                    class="text-xs text-orange-400 ml-2 font-normal">(Packaging)</span>
+    {# ────────── Supplies section ────────── #}
+    {% if supplies or type_filter == 'supply' or type_filter == 'all' %}
+    <div id="supplies-section" class="card-soft overflow-hidden p-0 {% if not supplies and type_filter != 'all' and type_filter != 'supply' %}hidden{% endif %}">
+        <div class="flex items-center justify-between px-5 py-4 bg-orange-50/50 border-b border-orange-100">
+            <h2 class="font-semibold text-orange-900 text-base flex items-center gap-2">
+                <i class="fas fa-box-open text-orange-500 text-xs"></i>
+                Insumos
+                <span class="text-[0.65rem] font-normal text-orange-500">(packaging / otros)</span>
             </h2>
-            <span class="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-xs font-bold">{{ supplies|length }} Items</span>
+            <span class="text-xs font-bold bg-orange-100 text-orange-700 px-2.5 py-0.5 rounded-full">{{ supplies|length }}</span>
         </div>
-
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="text-secondary text-xs font-semibold uppercase bg-gray-50 border-b border-gray-100">
-                        <th class="px-6 py-4">Nombre</th>
-                        <th class="px-6 py-4 text-center">Unidad</th>
-                        <th class="px-6 py-4 text-center">Stock</th>
-                        <th class="px-6 py-4 text-right">Costo / Unidad</th>
-                        <th class="px-6 py-4 text-right">Acción</th>
+                <thead class="bg-slate-50/60 border-b border-slate-100">
+                    <tr class="text-[0.7rem] font-semibold text-slate-500 uppercase tracking-[0.1em]">
+                        <th class="px-4 py-3.5">Insumo</th>
+                        <th class="px-4 py-3.5 text-center">Stock</th>
+                        <th class="px-4 py-3.5 text-center">Uso/día</th>
+                        <th class="px-4 py-3.5 text-center">Cobertura</th>
+                        <th class="px-4 py-3.5 text-right">Costo unidad</th>
+                        <th class="px-4 py-3.5 text-center">Acciones</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
-                    {% for ingredient in supplies %}
-                    <tr class="hover:bg-gray-50 transition-colors group">
-                        <td class="px-6 py-4 align-middle">
-                            <div class="flex items-center gap-3">
-                                <div
-                                    class="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-500 group-hover:bg-white group-hover:shadow-md transition-all">
-                                    <i class="fas fa-box-open"></i>
-                                </div>
-                                <div>
-                                    <p class="font-bold text-gray-800 text-sm">{{ ingredient.name }}</p>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 align-middle text-center text-sm font-medium text-gray-500">
-                            {{ ingredient.get_unit_display }}
-                        </td>
-                        <td class="px-6 py-4 align-middle text-center">
-                            <span class="font-bold text-gray-700">{{ ingredient.stock_quantity }}</span>
-                        </td>
-                        <td class="px-6 py-4 align-middle text-right text-sm font-bold text-gray-800">
-                            ${{ ingredient.cost_per_unit }}
-                        </td>
-                        <td class="px-6 py-4 align-middle text-right">
-                            <div class="flex justify-end gap-2">
-                                <a href="{% url 'ingredient_edit' ingredient.pk %}"
-                                    class="w-8 h-8 rounded-lg flex items-center justify-center text-secondary hover:text-primary hover:bg-purple-50 transition-colors">
-                                    <i class="fas fa-pen text-xs"></i>
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
+                <tbody class="text-sm text-slate-700 divide-y divide-slate-100">
+                    {% for ing in supplies %}
+                    {% include "inventory/_ingredient_row.html" with ing=ing %}
                     {% empty %}
-                    <tr>
-                        <td colspan="5" class="px-6 py-12 text-center text-secondary">
-                            <div class="flex flex-col items-center">
-                                <i class="fas fa-box-open text-4xl mb-3 text-gray-300"></i>
-                                <p>No se encontraron insumos.</p>
-                            </div>
-                        </td>
-                    </tr>
+                    <tr><td colspan="6">{% include "includes/ui/empty_state.html" with icon="fa-box-open" title="Sin insumos" %}</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
+    {% endif %}
+</div>
+
+<div id="invtoast" class="fixed bottom-6 right-6 z-50 hidden flex items-center gap-2.5 px-4 py-3 rounded-md shadow-lift bg-white border border-slate-200 text-sm font-medium animate__animated animate__fadeInUp">
+    <i id="invtoast-icon" class="fas fa-check-circle text-emerald-500"></i>
+    <span id="invtoast-msg">—</span>
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const searchInput = document.getElementById('search-input');
-        const searchForm = document.getElementById('search-form');
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const rawMaterialsSection = document.getElementById('raw-materials-section');
-        const suppliesSection = document.getElementById('supplies-section');
+(() => {
+    'use strict';
+    const csrf = (() => { const m = document.cookie.match(/csrftoken=([^;]+)/); return m ? m[1] : ''; })();
+    const toast = (msg, ok = true) => {
+        const t = document.getElementById('invtoast');
+        document.getElementById('invtoast-msg').textContent = msg;
+        const i = document.getElementById('invtoast-icon');
+        i.className = 'fas ' + (ok ? 'fa-check-circle text-emerald-500' : 'fa-triangle-exclamation text-rose-500');
+        t.classList.remove('hidden');
+        clearTimeout(toast._h);
+        toast._h = setTimeout(() => t.classList.add('hidden'), 2200);
+    };
 
-        // Prevent default form submission on enter
-        searchForm.addEventListener('submit', function (e) {
-            e.preventDefault();
-        });
-
-        // Debounce function
-        function debounce(func, wait) {
-            let timeout;
-            return function (...args) {
-                clearTimeout(timeout);
-                timeout = setTimeout(() => func.apply(this, args), wait);
-            };
-        }
-
-        // Live search logic
-        const performSearch = debounce(function () {
-            const query = searchInput.value;
-            loadingIndicator.classList.remove('hidden');
-
+    /* Live search via debounce */
+    const searchInput = document.getElementById('search-input');
+    let searchTimer;
+    searchInput.addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
             const url = new URL(window.location.href);
-            url.searchParams.set('q', query);
-
-            fetch(url)
-                .then(response => response.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-
-                    // Update DOM for Raw Materials
-                    const newRawMaterials = doc.getElementById('raw-materials-section');
-                    if (newRawMaterials) {
-                        if (rawMaterialsSection) { // Ensure element exists
-                            rawMaterialsSection.innerHTML = newRawMaterials.innerHTML;
-                            rawMaterialsSection.className = newRawMaterials.className;
-                        }
-                    }
-
-                    // Update DOM for Supplies
-                    const newSupplies = doc.getElementById('supplies-section');
-                    if (newSupplies) {
-                        if (suppliesSection) { // Ensure element exists
-                            suppliesSection.innerHTML = newSupplies.innerHTML;
-                            suppliesSection.className = newSupplies.className;
-                        }
-                    }
-
-                    // Update URL without reload
-                    window.history.pushState({}, '', url);
-                })
-                .catch(error => {
-                    console.error('Error fetching search results:', error);
-                })
-                .finally(() => {
-                    loadingIndicator.classList.add('hidden');
-                });
-        }, 300); // 300ms delay
-
-        searchInput.addEventListener('input', performSearch);
+            url.searchParams.set('q', searchInput.value);
+            window.location.href = url.toString();
+        }, 380);
     });
+
+    /* Quick stock +/- */
+    document.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.qty-btn');
+        if (!btn) return;
+        const row = btn.closest('tr[data-ing-pk]');
+        if (!row) return;
+        const pk = row.dataset.ingPk;
+        const delta = btn.dataset.delta;
+        if (!pk || !delta) return;
+        btn.disabled = true;
+        try {
+            const fd = new FormData(); fd.set('delta', delta);
+            const r = await fetch(`/inventory/ingredients/${pk}/stock-adjust/`, {
+                method: 'POST', headers: { 'X-CSRFToken': csrf }, body: fd, credentials: 'same-origin'
+            });
+            const data = await r.json();
+            if (!r.ok || !data.ok) { toast(data.error || `Error ${r.status}`, false); return; }
+            const stockSpan = row.querySelector('[data-stock]');
+            stockSpan.textContent = data.new_stock;
+            stockSpan.classList.remove('text-red-600', 'text-amber-600', 'text-slate-900');
+            stockSpan.classList.add(data.severity === 'red' ? 'text-red-600' : data.severity === 'amber' ? 'text-amber-600' : 'text-slate-900');
+            const sign = parseFloat(delta) > 0 ? '+' : '';
+            toast(`${data.name}: ${sign}${delta} ${data.unit} → ${data.new_stock}`, true);
+        } catch (err) { console.error(err); toast('Error de red', false); }
+        finally { btn.disabled = false; }
+    });
+})();
 </script>
 {% endblock %}

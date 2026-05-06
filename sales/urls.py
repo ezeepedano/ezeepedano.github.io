@@ -7,6 +7,7 @@ urlpatterns = [
     path('', views.sales_dashboard, name='sales_dashboard'),
     path('sale/<int:pk>/', views.sale_detail, name='sale_detail'),
     path('sale/<int:pk>/edit/', views.sale_edit, name='sale_edit'),
+    path('sale/<int:pk>/pdf/', views.sale_pdf, name='sale_pdf'),
     path('add/', views.sale_create, name='sale_create'),
     path('tiendanube/add/', views.tiendanube_create, name='tiendanube_create'),
     path('upload/', views.upload_sales, name='upload_sales'),
@@ -28,9 +29,13 @@ urlpatterns = [
     path('quotations/<int:pk>/delete/', quotation_views.quotation_delete, name='quotation_delete'),
     path('quotations/<int:pk>/pdf/', quotation_views.quotation_pdf, name='quotation_pdf'),
     path('quotations/<int:pk>/duplicate/', quotation_views.quotation_duplicate, name='quotation_duplicate'),
+    path('quotations/<int:pk>/to-sale/', quotation_views.quotation_to_sale, name='quotation_to_sale'),
     path('api/quotation/product/<int:pk>/', quotation_views.product_price_api_quotation, name='quotation_product_api'),
 
     # Company Config
     path('config/', quotation_views.company_config, name='company_config'),
+
+    # Returns / Devoluciones
+    path('returns/', views.return_list, name='return_list'),
 ]
 

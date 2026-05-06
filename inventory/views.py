@@ -34,9 +34,9 @@ def import_inventory(request):
         
         if result['success']:
             msg = f"Importación exitosa: {result['updated']} actualizados, {result['created']} creados."
-            if result.get('errors'):
-                msg += f" Hubo {len(result['errors'])} errores no fatales."
             messages.success(request, msg)
+            for err in (result.get('errors') or [])[:20]:
+                messages.warning(request, err)
         else:
             messages.error(request, f"Error: {result['message']}")
             
@@ -63,21 +63,65 @@ def dashboard(request):
 
 @login_required
 def product_list(request):
+    """
+    Product list with sales-velocity intelligence inline.
+
+    For every product on the page we annotate:
+        * units sold in the last 30 days
+        * last sale date
+        * derived velocity (units / day)
+        * derived days-of-cover (stock / velocity)
+        * profit margin %
+        * "selling at loss" flag
+
+    The annotations are computed via subqueries so the table renders in
+    a single round trip — no per-row queries when paginating 50 rows.
+    """
     from django.core.paginator import Paginator
-    from django.db.models import Sum, F
+    from django.db.models import Sum, F, Q, OuterRef, Subquery, IntegerField, DateTimeField
+    from django.db.models.functions import Coalesce
+    from django.utils import timezone
+    from datetime import timedelta
+    from sales.models import SaleItem
 
-    # Base queryset
-    products = Product.objects.filter(user=request.user).select_related('category')
+    thirty_days_ago = timezone.now() - timedelta(days=30)
 
-    # Calculate counts globally before filtering the list
-    total_count = products.count()
-    low_stock_count = products.filter(stock_quantity__gt=0, stock_quantity__lte=10).count()
-    out_of_stock_count = products.filter(stock_quantity__lte=0).count()
-    total_stock_value = products.aggregate(
+    # Per-product 30-day units sold (subquery, scoped to current user)
+    sold_30d_sq = SaleItem.objects.filter(
+        product=OuterRef('pk'),
+        sale__user=request.user,
+        sale__date__gte=thirty_days_ago,
+    ).order_by().values('product').annotate(t=Sum('quantity')).values('t')[:1]
+
+    # Last sale date for the product
+    last_sold_sq = SaleItem.objects.filter(
+        product=OuterRef('pk'),
+        sale__user=request.user,
+    ).order_by('-sale__date').values('sale__date')[:1]
+
+    products = (
+        Product.objects.filter(user=request.user)
+        .select_related('category')
+        .annotate(
+            sold_30d=Coalesce(Subquery(sold_30d_sq, output_field=IntegerField()), 0),
+            last_sold_at=Subquery(last_sold_sq, output_field=DateTimeField()),
+        )
+    )
+
+    # Global counts BEFORE any list-narrowing filters (search/category)
+    base = products
+    total_count = base.count()
+    out_of_stock_count = base.filter(stock_quantity__lte=0).count()
+    low_stock_count = base.filter(
+        stock_quantity__gt=0, stock_quantity__lte=F('min_stock')
+    ).count()
+    selling_at_loss_count = base.filter(
+        cost_price__gt=0, sale_price__lt=F('cost_price')
+    ).count()
+    total_stock_value = base.aggregate(
         val=Sum(F('stock_quantity') * F('cost_price'))
     )['val'] or 0
 
-    # Get categories for filter dropdown
     categories = Category.objects.filter(user=request.user).order_by('name')
 
     # Apply filters
@@ -86,23 +130,29 @@ def product_list(request):
     category_id = request.GET.get('category', '')
 
     if filter_type == 'low_stock':
-        products = products.filter(stock_quantity__gt=0, stock_quantity__lte=10)
+        products = products.filter(stock_quantity__gt=0, stock_quantity__lte=F('min_stock'))
     elif filter_type == 'out_of_stock':
         products = products.filter(stock_quantity__lte=0)
+    elif filter_type == 'selling_at_loss':
+        products = products.filter(cost_price__gt=0, sale_price__lt=F('cost_price'))
 
     if search:
-        products = products.filter(
-            models.Q(name__icontains=search) |
-            models.Q(sku__icontains=search)
-        )
+        products = products.filter(Q(name__icontains=search) | Q(sku__icontains=search))
 
     if category_id:
         products = products.filter(category_id=category_id)
 
-    # Sorting
+    # Sorting (extended with velocity)
     sort_field = request.GET.get('sort', 'name')
     sort_order = request.GET.get('order', 'asc')
-    allowed_sorts = {'name': 'name', 'stock': 'stock_quantity', 'cost': 'cost_price', 'price': 'sale_price'}
+    allowed_sorts = {
+        'name':     'name',
+        'stock':    'stock_quantity',
+        'cost':     'cost_price',
+        'price':    'sale_price',
+        'velocity': 'sold_30d',
+        'updated':  'updated_at',
+    }
     sort_col = allowed_sorts.get(sort_field, 'name')
     order_prefix = '-' if sort_order == 'desc' else ''
     products = products.order_by(f'{order_prefix}{sort_col}')
@@ -111,10 +161,38 @@ def product_list(request):
     page_number = request.GET.get('page')
     products_page = paginator.get_page(page_number)
 
+    # Per-row derived fields (velocity, cover, margin, severity).
+    # Computed in Python over the page slice (≤50 rows) — keeps the
+    # SQL simple and avoids dialect-specific division-by-zero guards.
+    for p in products_page:
+        sold = int(p.sold_30d or 0)
+        velocity = sold / 30.0 if sold else 0.0
+        if (p.stock_quantity or 0) <= 0:
+            cover, severity = 0.0, 'red'
+        elif velocity > 0:
+            cover = float(p.stock_quantity) / velocity
+            severity = 'red' if cover <= 7 else ('amber' if cover <= 21 else 'green')
+        else:
+            cover, severity = None, 'idle'  # has stock, never sells
+        p.velocity_30d = velocity
+        p.days_of_cover = cover
+        p.cover_severity = severity
+        # Margin % — ``is_selling_at_loss`` is a model @property, no need
+        # to set it on the instance.
+        cost = float(p.cost_price or 0)
+        sale = float(p.sale_price or 0)
+        if cost > 0:
+            p.margin_pct = (sale - cost) / cost * 100
+        elif sale > 0:
+            p.margin_pct = 100.0  # no cost recorded → treat as 100% margin
+        else:
+            p.margin_pct = None
+
     return render(request, 'inventory/product_list.html', {
         'products': products_page,
         'low_stock_count': low_stock_count,
         'out_of_stock_count': out_of_stock_count,
+        'selling_at_loss_count': selling_at_loss_count,
         'total_count': total_count,
         'total_stock_value': total_stock_value,
         'current_filter': filter_type,
@@ -123,6 +201,155 @@ def product_list(request):
         'selected_category': category_id,
         'sort_field': sort_field,
         'sort_order': sort_order,
+    })
+
+
+@login_required
+def bulk_product_action(request):
+    """
+    Bulk action endpoint for the product list.
+
+    POST body (JSON):
+        action: "price_pct" | "price_set" | "category_set" | "delete"
+        pks:    [int, ...]   product PKs (all must belong to current user)
+        params: dict (per action):
+            price_pct:    {"value": <float>, "field": "sale" | "cost"}
+            price_set:    {"value": <float>, "field": "sale" | "cost"}
+            category_set: {"category_id": <int|null>}
+            delete:       {}
+
+    All operations are atomic and tenant-scoped. Returns
+    {ok, affected, action} on success, {ok: false, error} on failure.
+    """
+    import json
+    from decimal import Decimal, InvalidOperation
+    from django.http import JsonResponse, HttpResponseBadRequest
+    from django.db import transaction
+
+    if request.method != 'POST':
+        return HttpResponseBadRequest('POST only')
+
+    try:
+        body = json.loads(request.body or b'{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'ok': False, 'error': 'JSON inválido'}, status=400)
+
+    action = (body.get('action') or '').strip()
+    pks = body.get('pks') or []
+    params = body.get('params') or {}
+
+    if action not in {'price_pct', 'price_set', 'category_set', 'delete'}:
+        return JsonResponse({'ok': False, 'error': f'acción desconocida: {action}'}, status=400)
+    if not isinstance(pks, list) or not pks:
+        return JsonResponse({'ok': False, 'error': 'sin productos seleccionados'}, status=400)
+    try:
+        pks = [int(x) for x in pks]
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'pks inválidos'}, status=400)
+
+    # Tenant scope: every product must belong to the current user.
+    qs = Product.objects.filter(user=request.user, pk__in=pks)
+    if qs.count() != len(set(pks)):
+        return JsonResponse({'ok': False, 'error': 'algunos productos no son tuyos'}, status=403)
+
+    affected = 0
+
+    try:
+        with transaction.atomic():
+            if action == 'delete':
+                affected, _ = qs.delete()
+
+            elif action in ('price_pct', 'price_set'):
+                field = params.get('field') or 'sale'
+                if field not in {'sale', 'cost'}:
+                    return JsonResponse({'ok': False, 'error': 'field debe ser sale o cost'}, status=400)
+                col = 'sale_price' if field == 'sale' else 'cost_price'
+                try:
+                    value = Decimal(str(params.get('value', '0')))
+                except (TypeError, InvalidOperation):
+                    return JsonResponse({'ok': False, 'error': 'value inválido'}, status=400)
+
+                if action == 'price_set':
+                    if value < 0:
+                        return JsonResponse({'ok': False, 'error': 'el precio no puede ser negativo'}, status=400)
+                    affected = qs.update(**{col: value})
+                else:  # price_pct
+                    # Apply per-row: new = round(current * (1 + value/100), 2)
+                    factor = Decimal('1') + (value / Decimal('100'))
+                    if factor < 0:
+                        return JsonResponse({'ok': False, 'error': 'el porcentaje deja precios negativos'}, status=400)
+                    for p in qs:
+                        current = getattr(p, col) or Decimal('0')
+                        new_val = (current * factor).quantize(Decimal('0.01'))
+                        setattr(p, col, new_val)
+                        p.save(update_fields=[col, 'updated_at'])
+                        affected += 1
+
+            elif action == 'category_set':
+                cat_id = params.get('category_id')
+                if cat_id in (None, '', 0):
+                    affected = qs.update(category=None)
+                else:
+                    try:
+                        cat_id = int(cat_id)
+                    except (TypeError, ValueError):
+                        return JsonResponse({'ok': False, 'error': 'category_id inválido'}, status=400)
+                    if not Category.objects.filter(pk=cat_id, user=request.user).exists():
+                        return JsonResponse({'ok': False, 'error': 'categoría no encontrada'}, status=404)
+                    affected = qs.update(category_id=cat_id)
+    except Exception as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=500)
+
+    return JsonResponse({'ok': True, 'action': action, 'affected': affected})
+
+
+@login_required
+def quick_stock_adjust(request, pk):
+    """
+    Quick +/- stock adjustment from the product list.
+
+    POST body (form-encoded):
+        delta:  signed integer (e.g. -5, +10)
+        reason: optional free text (logged for audit)
+
+    Returns JSON {ok, new_stock, severity} for the inline UI to update.
+    """
+    from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
+    from django.views.decorators.http import require_POST
+    if request.method != 'POST':
+        return HttpResponseBadRequest('POST only')
+
+    product = get_object_or_404(Product, pk=pk, user=request.user)
+    try:
+        delta = int(request.POST.get('delta', '0'))
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'delta inválido'}, status=400)
+    if delta == 0:
+        return JsonResponse({'ok': False, 'error': 'delta=0'}, status=400)
+
+    new_stock = (product.stock_quantity or 0) + delta
+    if new_stock < 0:
+        return JsonResponse({'ok': False, 'error': 'el stock no puede quedar negativo'}, status=400)
+
+    product.stock_quantity = new_stock
+    product.save(update_fields=['stock_quantity', 'updated_at'])
+
+    # Severity classification for the UI badge
+    threshold = product.min_stock if product.min_stock is not None else 10
+    if new_stock <= 0:
+        severity = 'red'
+    elif new_stock <= threshold:
+        severity = 'amber'
+    else:
+        severity = 'green'
+
+    reason = (request.POST.get('reason') or '').strip()[:200]
+    return JsonResponse({
+        'ok': True,
+        'new_stock': new_stock,
+        'severity': severity,
+        'product_name': product.name,
+        'reason': reason,
     })
 
 @login_required
@@ -161,19 +388,95 @@ def product_delete(request, pk):
 # Ingredient Views
 @login_required
 def ingredient_list(request):
-    search_query = request.GET.get('q', '')
-    ingredients = Ingredient.objects.filter(user=request.user).order_by('name')
+    """
+    Ingredient list with runway intelligence + KPIs.
 
+    Annotates each ingredient with:
+        - daily_usage (computed from recipes + recent sales)
+        - runway_days
+        - severity (red/amber/green/idle)
+    Aggregates stats up top: totals, low-stock count, out-of-stock count,
+    inventory value at cost.
+    """
+    from decimal import Decimal
+    from .services_intelligence import StockIntelligenceService
+
+    search_query = request.GET.get('q', '').strip()
+    type_filter = request.GET.get('type', 'all')   # all | raw | supply | low_stock | out_of_stock
+    ingredients_qs = Ingredient.objects.filter(user=request.user)
+
+    # Stats over the FULL collection (before search/type filter narrowing)
+    total_count = ingredients_qs.count()
+    out_of_stock_count = ingredients_qs.filter(stock_quantity__lte=0).count()
+    low_stock_count = ingredients_qs.filter(
+        stock_quantity__gt=0, min_stock__gt=0, stock_quantity__lte=models.F('min_stock')
+    ).count()
+    raw_count = ingredients_qs.filter(type='raw_material').count()
+    supply_count = ingredients_qs.filter(type='supply').count()
+    inventory_value = ingredients_qs.aggregate(
+        v=models.Sum(models.F('stock_quantity') * models.F('cost_per_unit'))
+    )['v'] or 0
+
+    # Apply search + type filters
+    qs = ingredients_qs
     if search_query:
-        ingredients = ingredients.filter(name__icontains=search_query)
+        qs = qs.filter(
+            models.Q(name__icontains=search_query) | models.Q(code__icontains=search_query)
+        )
+    if type_filter == 'raw':
+        qs = qs.filter(type='raw_material')
+    elif type_filter == 'supply':
+        qs = qs.filter(type='supply')
+    elif type_filter == 'low_stock':
+        qs = qs.filter(stock_quantity__gt=0, min_stock__gt=0, stock_quantity__lte=models.F('min_stock'))
+    elif type_filter == 'out_of_stock':
+        qs = qs.filter(stock_quantity__lte=0)
+    qs = qs.order_by('-stock_quantity').order_by('name')
 
-    raw_materials = ingredients.filter(type='raw_material')
-    supplies = ingredients.filter(type='supply')
+    # Annotate runway in Python (StockIntelligenceService already does it)
+    svc = StockIntelligenceService(user=request.user, days_history=30)
+    raw_materials = []
+    supplies = []
+    for ing in qs:
+        if ing.type == 'raw_material':
+            forecast = svc.calculate_ingredient_runway(ing)
+            ing.daily_usage = float(forecast['daily_usage'])
+            ing.runway_days = float(forecast['runway_days'])
+            ing.depletion_date = forecast['depletion_date']
+        else:
+            ing.daily_usage = 0.0
+            ing.runway_days = 9999
+            ing.depletion_date = None
+
+        # Visual severity (per-row badge)
+        threshold = ing.min_stock or Decimal('0')
+        if (ing.stock_quantity or 0) <= 0:
+            ing.severity = 'red'
+        elif threshold > 0 and ing.stock_quantity <= threshold:
+            ing.severity = 'amber'
+        elif ing.runway_days <= 7:
+            ing.severity = 'red'
+        elif ing.runway_days <= 21:
+            ing.severity = 'amber'
+        else:
+            ing.severity = 'green'
+
+        if ing.type == 'raw_material':
+            raw_materials.append(ing)
+        else:
+            supplies.append(ing)
 
     return render(request, 'inventory/ingredient_list.html', {
         'raw_materials': raw_materials,
         'supplies': supplies,
-        'search_query': search_query
+        'search_query': search_query,
+        'type_filter': type_filter,
+        'total_count': total_count,
+        'low_stock_count': low_stock_count,
+        'out_of_stock_count': out_of_stock_count,
+        'raw_count': raw_count,
+        'supply_count': supply_count,
+        'inventory_value': inventory_value,
     })
 
 @login_required
@@ -202,15 +505,107 @@ def ingredient_edit(request, pk):
         form = IngredientForm(request.POST, instance=ingredient, user=request.user)
         if form.is_valid():
             form.save()
+            messages.success(request, f"Ingrediente '{ingredient.name}' actualizado.")
             return redirect('ingredient_list')
     else:
         form = IngredientForm(instance=ingredient, user=request.user)
-        
+
     existing_ingredients = list(Ingredient.objects.filter(user=request.user).exclude(pk=pk).values_list('name', flat=True))
     return render(request, 'inventory/ingredient_form.html', {
-        'form': form, 
+        'form': form,
         'title': 'Editar Insumo / Materia Prima',
         'existing_ingredients': existing_ingredients
+    })
+
+
+@login_required
+def ingredient_delete(request, pk):
+    """
+    Delete an ingredient after confirming there is no production
+    dependency (recipes / BOMs / lots) referencing it.
+    """
+    ingredient = get_object_or_404(Ingredient, pk=pk, user=request.user)
+
+    # Detect blockers before deletion
+    blockers = []
+    try:
+        recipes_using = Recipe.objects.filter(ingredient=ingredient).count()
+        if recipes_using:
+            blockers.append(f"{recipes_using} receta(s) lo usan")
+    except Exception:
+        pass
+    try:
+        from production.models import BomLine
+        boms_using = BomLine.objects.filter(ingredient=ingredient).count()
+        if boms_using:
+            blockers.append(f"{boms_using} fórmula(s) BOM lo usan")
+    except Exception:
+        pass
+    try:
+        from traceability.models import IngredientLot
+        lots = IngredientLot.objects.filter(ingredient=ingredient).count()
+        if lots:
+            blockers.append(f"{lots} lote(s) registrados (trazabilidad)")
+    except Exception:
+        pass
+
+    if request.method == 'POST':
+        if blockers:
+            messages.error(request, f"No se puede eliminar: {', '.join(blockers)}.")
+            return redirect('ingredient_list')
+        name = ingredient.name
+        ingredient.delete()
+        messages.success(request, f"Ingrediente '{name}' eliminado.")
+        return redirect('ingredient_list')
+
+    return render(request, 'inventory/ingredient_confirm_delete.html', {
+        'ingredient': ingredient,
+        'blockers': blockers,
+    })
+
+
+@login_required
+def ingredient_quick_stock_adjust(request, pk):
+    """
+    Quick +/- adjustment for ingredient stock. Same contract as
+    quick_stock_adjust(Product) but uses Decimal because Ingredient
+    stock is fractional (g, ml, kg…).
+    """
+    from django.http import JsonResponse, HttpResponseBadRequest
+    from decimal import Decimal, InvalidOperation
+
+    if request.method != 'POST':
+        return HttpResponseBadRequest('POST only')
+
+    ingredient = get_object_or_404(Ingredient, pk=pk, user=request.user)
+    try:
+        delta = Decimal(request.POST.get('delta', '0'))
+    except (TypeError, InvalidOperation):
+        return JsonResponse({'ok': False, 'error': 'delta inválido'}, status=400)
+    if delta == 0:
+        return JsonResponse({'ok': False, 'error': 'delta=0'}, status=400)
+
+    new_stock = (ingredient.stock_quantity or Decimal('0')) + delta
+    if new_stock < 0:
+        return JsonResponse({'ok': False, 'error': 'el stock no puede quedar negativo'}, status=400)
+
+    ingredient.stock_quantity = new_stock
+    ingredient.save(update_fields=['stock_quantity'])
+
+    threshold = ingredient.min_stock or Decimal('0')
+    if new_stock <= 0:
+        severity = 'red'
+    elif threshold > 0 and new_stock <= threshold:
+        severity = 'amber'
+    else:
+        severity = 'green'
+
+    return JsonResponse({
+        'ok': True,
+        'new_stock': float(new_stock),
+        'severity': severity,
+        'name': ingredient.name,
+        'unit': ingredient.unit,
     })
 
 @login_required

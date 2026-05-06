@@ -1,6 +1,13 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CategoryViewSet, ProductViewSet, product_list, product_create, product_edit, product_delete, ingredient_list, ingredient_create, ingredient_edit, product_recipe, produce_product, dashboard, import_inventory
+from .views import (
+    CategoryViewSet, ProductViewSet,
+    product_list, product_create, product_edit, product_delete,
+    ingredient_list, ingredient_create, ingredient_edit,
+    ingredient_delete, ingredient_quick_stock_adjust,
+    product_recipe, produce_product, dashboard, import_inventory,
+    quick_stock_adjust,
+)
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename='category')
@@ -17,10 +24,13 @@ urlpatterns = [
     path('products/<int:pk>/edit/', product_edit, name='product_edit'),
     path('products/<int:pk>/recipe/', product_recipe, name='product_recipe'),
     path('products/<int:pk>/delete/', product_delete, name='product_delete'),
-    
+    path('products/<int:pk>/stock-adjust/', quick_stock_adjust, name='quick_stock_adjust'),
+
     path('ingredients/', ingredient_list, name='ingredient_list'),
     path('ingredients/new/', ingredient_create, name='ingredient_create'),
     path('ingredients/<int:pk>/edit/', ingredient_edit, name='ingredient_edit'),
-    
+    path('ingredients/<int:pk>/delete/', ingredient_delete, name='ingredient_delete'),
+    path('ingredients/<int:pk>/stock-adjust/', ingredient_quick_stock_adjust, name='ingredient_quick_stock_adjust'),
+
     path('production/', produce_product, name='produce_product'),
 ]

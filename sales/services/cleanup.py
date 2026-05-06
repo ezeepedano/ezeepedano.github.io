@@ -60,18 +60,21 @@ def clean_sales_dataframe(df):
                 df[col] = df[col].apply(lambda x: timezone.make_aware(x) if pd.notnull(x) and timezone.is_naive(x) else x)
 
     numeric_cols = [
-        'Ingresos por productos (ARS)', 
-        'Cargo por venta e impuestos (ARS)', 
+        'Ingresos por productos (ARS)',
+        'Cargo por venta e impuestos (ARS)',
         'Cargo por venta',
         'Costo fijo',
         'Costo por ofrecer cuotas',
         'Impuestos',
+        # MeLi 2026 column name. Older exports used "Descuentos" — both
+        # are coerced if present so renames don't silently drop data.
         'Descuentos',
-        'Ingresos por envío (ARS)', 
-        'Costos de envío (ARS)', 
+        'Descuentos y bonificaciones',
+        'Ingresos por envío (ARS)',
+        'Costos de envío (ARS)',
         'Costo de envío basado en medidas y peso declarados',
         'Cargo por diferencias en medidas y peso del paquete',
-        'Anulaciones y reembolsos (ARS)', 
+        'Anulaciones y reembolsos (ARS)',
         'Total (ARS)',
         'Precio unitario de venta de la publicación (ARS)',
         'Unidades'

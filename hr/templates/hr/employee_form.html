@@ -1,109 +1,163 @@
 {% extends 'base.html' %}
-{% block content %}
 
-<div class="max-w-4xl mx-auto">
-    <div class="flex items-center gap-4 mb-6">
-        <a href="{% url 'employee_list' %}" class="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary transition-colors">
-            <i class="fas fa-arrow-left"></i>
-        </a>
-        <h2 class="text-2xl font-bold text-gray-800">{{ title }}</h2>
-    </div>
+{% block title %}{{ title }} — Propel{% endblock %}
+{% block header_title %}{{ title }}{% endblock %}
 
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-        <form method="post" class="space-y-6">
-            {% csrf_token %}
-            
-            {% if form.errors %}
-                <div class="bg-red-50 text-red-600 p-4 rounded-xl mb-6">
-                    <p class="font-bold">Please correct the errors below:</p>
-                    {{ form.errors }}
-                </div>
-            {% endif %}
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Personal Info -->
-                <div class="space-y-4">
-                    <h3 class="font-bold text-gray-800 border-b pb-2">Personal Data</h3>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">First Name</label>
-                        {{ form.first_name }} 
-                        <!-- Assuming form renders via django defaults, or we can iterate fields. 
-                             Ideally we reuse the form styling from other apps or use widget_tweaks. 
-                             For simplicity in this step, I'll rely on default rendering but might look ugly without CSS classes. 
-                             Let's quickly manually render key fields or just loop. -->
-                    </div>
-                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
-                        {{ form.last_name }} 
-                    </div>
-                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">DNI</label>
-                        {{ form.dni }} 
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">CUIL</label>
-                        {{ form.cuil }} 
-                    </div>
-                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Birth Date</label>
-                        {{ form.birth_date }} 
-                    </div>
-                </div>
-
-                <!-- Contact & Job Info -->
-                <div class="space-y-4">
-                     <h3 class="font-bold text-gray-800 border-b pb-2">Contact & Job</h3>
-                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                        {{ form.email }} 
-                    </div>
-                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                        {{ form.phone }} 
-                    </div>
-                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                        {{ form.address }} 
-                    </div>
-                    
-                    <div class="pt-4 border-t">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Position</label>
-                            {{ form.position }} 
-                        </div>
-                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Hire Date</label>
-                            {{ form.hire_date }} 
-                        </div>
-                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Basic Salary ($)</label>
-                            {{ form.basic_salary }} 
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex justify-end pt-6 border-t mt-6">
-                <a href="{% url 'employee_list' %}" class="px-6 py-2 rounded-xl text-gray-500 hover:bg-gray-50 mr-2">Cancel</a>
-                <button type="submit" class="bg-primary text-white px-8 py-2 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all font-medium">Save Employee</button>
-            </div>
-        </form>
-    </div>
-</div>
-
+{% block extra_css %}
 <style>
-    /* Quick fix for form inputs until global CSS update */
-    input[type="text"], input[type="email"], input[type="date"], input[type="number"], textarea {
+    /* Soft UI form inputs */
+    form input[type="text"],
+    form input[type="email"],
+    form input[type="date"],
+    form input[type="number"],
+    form input[type="tel"],
+    form textarea,
+    form select {
         width: 100%;
-        padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
-        border: 1px solid #e5e7eb;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.375rem;
+        border: 1px solid #E2E8F0;
+        background: #F8FAFC;
+        font-size: 0.875rem;
+        color: #0F172A;
         outline: none;
+        transition: all 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
     }
-    input:focus, textarea:focus {
-        border-color: #8b5cf6;
-        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.1);
+    form input:focus,
+    form textarea:focus,
+    form select:focus {
+        background: #FFFFFF;
+        border-color: #6366F1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    }
+    form textarea { min-height: 80px; resize: vertical; }
+    form input[type="checkbox"] {
+        width: auto;
+        margin-right: 0.5rem;
     }
 </style>
+{% endblock %}
 
+{% block content %}
+<div class="max-w-5xl mx-auto">
+
+    {# ────────── Header ────────── #}
+    <div class="flex items-center gap-4 mb-6 animate__animated animate__fadeIn">
+        <a href="{% url 'employee_list' %}"
+           class="w-10 h-10 flex items-center justify-center rounded-md bg-white border border-slate-200 text-slate-500 hover:text-primary-700 hover:border-primary-300 transition-all">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">{{ title }}</h1>
+            <p class="text-sm text-slate-500 mt-1">Datos personales, laborales y bancarios.</p>
+        </div>
+    </div>
+
+    <form method="post" class="space-y-5">
+        {% csrf_token %}
+
+        {% if form.errors %}
+        <div class="card-soft p-4 border-l-4 border-rose-500 bg-rose-50/40">
+            <p class="font-bold text-rose-700 mb-2"><i class="fas fa-circle-exclamation mr-2"></i>Corregí los siguientes errores:</p>
+            <ul class="text-sm text-rose-700 space-y-1 ml-6 list-disc">
+                {% for field, errs in form.errors.items %}
+                <li><span class="font-semibold">{{ field }}:</span> {{ errs|join:", " }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+            {# ── Datos personales ── #}
+            <div class="card-soft p-6">
+                <div class="flex items-center gap-3 mb-5 pb-3 border-b border-slate-100">
+                    <div class="w-9 h-9 rounded-md bg-primary-50 text-primary-600 flex items-center justify-center"><i class="fas fa-id-card"></i></div>
+                    <h3 class="font-bold text-slate-900">Datos personales</h3>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[0.7rem] font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Nombre</label>
+                            {{ form.first_name }}
+                        </div>
+                        <div>
+                            <label class="block text-[0.7rem] font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Apellido</label>
+                            {{ form.last_name }}
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[0.7rem] font-semibold text-slate-600 uppercase tracking-wide mb-1.5">DNI</label>
+                            {{ form.dni }}
+                        </div>
+                        <div>
+                            <label class="block text-[0.7rem] font-semibold text-slate-600 uppercase tracking-wide mb-1.5">CUIL</label>
+                            {{ form.cuil }}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[0.7rem] font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Fecha de nacimiento</label>
+                        {{ form.birth_date }}
+                    </div>
+                    <div>
+                        <label class="block text-[0.7rem] font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Email</label>
+                        {{ form.email }}
+                    </div>
+                    <div>
+                        <label class="block text-[0.7rem] font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Teléfono</label>
+                        {{ form.phone }}
+                    </div>
+                    <div>
+                        <label class="block text-[0.7rem] font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Domicilio</label>
+                        {{ form.address }}
+                    </div>
+                </div>
+            </div>
+
+            {# ── Datos laborales ── #}
+            <div class="card-soft p-6">
+                <div class="flex items-center gap-3 mb-5 pb-3 border-b border-slate-100">
+                    <div class="w-9 h-9 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fas fa-briefcase"></i></div>
+                    <h3 class="font-bold text-slate-900">Datos laborales</h3>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[0.7rem] font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Puesto / Cargo</label>
+                        {{ form.position }}
+                    </div>
+                    <div>
+                        <label class="block text-[0.7rem] font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Fecha de ingreso</label>
+                        {{ form.hire_date }}
+                    </div>
+                    <div>
+                        <label class="block text-[0.7rem] font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Sueldo básico bruto (ARS)</label>
+                        {{ form.basic_salary }}
+                        <p class="text-[0.7rem] text-slate-500 mt-1.5">Las retenciones (jubilación 11%, obra social 3%, PAMI 3%) se calculan automáticamente al generar nómina.</p>
+                    </div>
+                    <div class="pt-2">
+                        <label class="inline-flex items-center text-sm font-medium text-slate-700">
+                            {{ form.is_active }} Empleado activo
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        {# ── Actions ── #}
+        <div class="card-soft p-4 flex items-center justify-end gap-2">
+            <a href="{% url 'employee_list' %}"
+               class="px-4 py-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 rounded-md text-sm font-semibold transition-all">
+                Cancelar
+            </a>
+            <button type="submit"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-semibold shadow-sm hover:shadow-md transition-all">
+                <i class="fas fa-save text-xs"></i> Guardar empleado
+            </button>
+        </div>
+    </form>
+</div>
 {% endblock %}
