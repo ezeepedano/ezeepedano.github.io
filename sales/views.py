@@ -13,6 +13,36 @@ from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
+import re as _re
+
+
+def _patch_formset_total(post, prefix='items'):
+    """Return a mutable POST copy whose ``<prefix>-TOTAL_FORMS`` equals the
+    real number of submitted rows.
+
+    The wholesale form clones rows client-side. If the management
+    ``TOTAL_FORMS`` counter ever drifts below the real row count (stale
+    counter, failed clone, double-submit), Django parses only the first
+    ``TOTAL_FORMS`` forms and silently drops the rest — the user sees
+    "only the first items saved". We recompute the counter from the
+    actual posted keys so every row is always parsed, regardless of the
+    JS state.
+    """
+    post = post.copy()
+    pat = _re.compile(r'^%s-(\d+)-' % _re.escape(prefix))
+    max_idx = -1
+    for key in post.keys():
+        m = pat.match(key)
+        if m:
+            max_idx = max(max_idx, int(m.group(1)))
+    needed = max_idx + 1
+    try:
+        current = int(post.get('%s-TOTAL_FORMS' % prefix, 0))
+    except (TypeError, ValueError):
+        current = 0
+    if needed > current:
+        post['%s-TOTAL_FORMS' % prefix] = str(needed)
+    return post
 
 
 def _recalculate_sale_totals(sale):
@@ -61,7 +91,7 @@ def sale_create(request):
     """Create a new manual sale (generic)."""
     if request.method == 'POST':
         form = SaleForm(request.POST, user=request.user)
-        formset = SaleItemFormSet(request.POST, form_kwargs={'user': request.user})
+        formset = SaleItemFormSet(_patch_formset_total(request.POST), form_kwargs={'user': request.user})
         
         if form.is_valid() and formset.is_valid():
             sale = form.save(commit=False)
@@ -190,7 +220,7 @@ def tiendanube_create(request):
     """Create a new manual Tienda Nube sale."""
     if request.method == 'POST':
         form = SaleForm(request.POST, user=request.user)
-        formset = SaleItemFormSet(request.POST, form_kwargs={'user': request.user})
+        formset = SaleItemFormSet(_patch_formset_total(request.POST), form_kwargs={'user': request.user})
         
         if form.is_valid() and formset.is_valid():
             with transaction.atomic():
@@ -370,7 +400,7 @@ def sale_edit(request, pk):
     
     if request.method == 'POST':
         form = SaleForm(request.POST, instance=sale, user=request.user)
-        formset = SaleItemFormSet(request.POST, instance=sale, form_kwargs={'user': request.user})
+        formset = SaleItemFormSet(_patch_formset_total(request.POST), instance=sale, form_kwargs={'user': request.user})
         
         if form.is_valid() and formset.is_valid():
             
