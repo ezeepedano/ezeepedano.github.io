@@ -366,26 +366,35 @@
 <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Customer Select
-        new TomSelect("#id_customer", {
-            create: function(input) {
-                window.location.href = "{% url 'customer_create' %}?name=" + encodeURIComponent(input);
-                return false;
-            },
-            sortField: { field: "text", direction: "asc" },
-            placeholder: "Buscar o crear cliente...",
-            plugins: ['dropdown_input'],
-            render: {
-                option_create: function(data, escape) {
-                    return '<div class="create"><i class="fas fa-plus-circle mr-2"></i>Crear cliente <strong>' + escape(data.input) + '</strong></div>';
-                },
-                no_results: function(data, escape) {
-                    return '<div class="no-results p-3 text-gray-500">No se encontraron resultados para "' + escape(data.input) + '"</div>';
-                }
+        // Customer Select — guarded: a TomSelect/CDN failure must NOT abort the
+        // rest of the handler (otherwise the add-product-row logic never binds
+        // and only the first item gets saved).
+        try {
+            if (window.TomSelect && document.getElementById('id_customer')) {
+                new TomSelect("#id_customer", {
+                    create: function(input) {
+                        window.location.href = "{% url 'customer_create' %}?name=" + encodeURIComponent(input);
+                        return false;
+                    },
+                    sortField: { field: "text", direction: "asc" },
+                    placeholder: "Buscar o crear cliente...",
+                    plugins: ['dropdown_input'],
+                    render: {
+                        option_create: function(data, escape) {
+                            return '<div class="create"><i class="fas fa-plus-circle mr-2"></i>Crear cliente <strong>' + escape(data.input) + '</strong></div>';
+                        },
+                        no_results: function(data, escape) {
+                            return '<div class="no-results p-3 text-gray-500">No se encontraron resultados para "' + escape(data.input) + '"</div>';
+                        }
+                    }
+                });
             }
-        });
+        } catch (e) { console.error('TomSelect init failed:', e); }
 
-        // --- MAP LOGIC ---
+        // --- MAP LOGIC --- (guarded: Leaflet CDN/markup failure must not kill
+        // the formset row logic below.)
+        try {
+        if (!window.L || !document.getElementById('map')) { throw new Error('Leaflet/#map unavailable'); }
         // Initialize Map (Default: Argentina center)
         const map = L.map('map').setView([-34.6037, -58.3816], 4);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -493,12 +502,15 @@
             });
         }
 
+        } catch (e) { console.error('Map init failed:', e); }
+
         // --- PRODUCT SUGGESTIONS FROM CUSTOMER HISTORY ---
         const suggestionsContainer = document.getElementById('product-suggestions');
         const chipsContainer = document.getElementById('suggestion-chips');
-        
-        if(customerSelect) {
-            customerSelect.addEventListener('change', function() {
+        const customerSelectEl = document.getElementById('id_customer');
+
+        if(customerSelectEl && suggestionsContainer && chipsContainer) {
+            customerSelectEl.addEventListener('change', function() {
                 const customerId = this.value;
                 if(!customerId) {
                     suggestionsContainer.classList.add('hidden');
