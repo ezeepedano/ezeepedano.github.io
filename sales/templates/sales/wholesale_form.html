@@ -585,15 +585,39 @@
 
         if (btnAddItem && formsetContainer && emptyRowTpl && totalFormsInput) {
             btnAddItem.addEventListener('click', function() {
-                const newIndex = parseInt(totalFormsInput.value, 10);
+                const newIndex = formsetContainer.querySelectorAll('.item-row').length;
                 const html = emptyRowTpl.innerHTML.replace(/__prefix__/g, newIndex);
                 const wrapper = document.createElement('div');
                 wrapper.innerHTML = html.trim();
                 const newRow = wrapper.firstElementChild;
                 formsetContainer.appendChild(newRow);
-                totalFormsInput.value = newIndex + 1;
-                calculateTotal();
+                totalFormsInput.value = formsetContainer.querySelectorAll('.item-row').length;
+                try { calculateTotal(); } catch (e) { console.error(e); }
             });
+
+            // Defensive: right before submit, re-sequence every row's
+            // name/id index (0..n-1) and force items-TOTAL_FORMS to the real
+            // DOM row count. This guarantees Django parses EVERY row even if
+            // a clone left the indices or the management counter out of sync
+            // (root cause of "only some items saved").
+            const saleForm = totalFormsInput.closest('form');
+            if (saleForm) {
+                saleForm.addEventListener('submit', function() {
+                    const rows = formsetContainer.querySelectorAll('.item-row');
+                    rows.forEach(function(row, idx) {
+                        row.querySelectorAll('input, select, textarea, label').forEach(function(el) {
+                            ['name', 'id', 'htmlFor'].forEach(function(attr) {
+                                const val = (attr === 'htmlFor') ? el.htmlFor : el.getAttribute(attr);
+                                if (!val) return;
+                                const fixed = val.replace(/(items-)(\d+|__prefix__)(-)/, '$1' + idx + '$3');
+                                if (attr === 'htmlFor') { el.htmlFor = fixed; }
+                                else { el.setAttribute(attr, fixed); }
+                            });
+                        });
+                    });
+                    totalFormsInput.value = rows.length;
+                });
+            }
         }
 
         // Account Creation Logic

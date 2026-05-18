@@ -1,5 +1,8 @@
 import uuid
+import logging
 from decimal import Decimal
+
+logger = logging.getLogger('sales')
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -156,6 +159,22 @@ def sale_create(request):
 
             messages.success(request, f'Venta mayorista #{sale.order_id} registrada.')
             return redirect('sales_dashboard')
+        else:
+            logger.warning(
+                "sale_create invalid form_errors=%s formset_nonform=%s formset_errors=%s",
+                form.errors.as_json(),
+                formset.non_form_errors(), [f.errors for f in formset.forms],
+            )
+            _fs_msgs = []
+            for _i, _f in enumerate(formset.forms):
+                for _field, _errs in _f.errors.items():
+                    _fs_msgs.append(f"Ítem {_i + 1} · {_field}: {', '.join(_errs)}")
+            for _e in formset.non_form_errors():
+                _fs_msgs.append(str(_e))
+            if _fs_msgs:
+                messages.error(request, "No se guardó: " + " | ".join(_fs_msgs[:8]))
+            elif form.errors:
+                messages.error(request, "Revisá los datos de la venta.")
     else:
         initial_data = {'date': timezone.now()}
         if request.GET.get('customer'):
@@ -440,6 +459,22 @@ def sale_edit(request, pk):
             
             messages.success(request, f'Venta #{sale.order_id} actualizada.')
             return redirect('sale_detail', pk=sale.pk)
+        else:
+            logger.warning(
+                "sale_edit invalid pk=%s form_errors=%s formset_nonform=%s formset_errors=%s",
+                pk, form.errors.as_json(),
+                formset.non_form_errors(), [f.errors for f in formset.forms],
+            )
+            _fs_msgs = []
+            for _i, _f in enumerate(formset.forms):
+                for _field, _errs in _f.errors.items():
+                    _fs_msgs.append(f"Ítem {_i + 1} · {_field}: {', '.join(_errs)}")
+            for _e in formset.non_form_errors():
+                _fs_msgs.append(str(_e))
+            if _fs_msgs:
+                messages.error(request, "No se guardó: " + " | ".join(_fs_msgs[:8]))
+            elif form.errors:
+                messages.error(request, "Revisá los datos de la venta.")
     else:
         form = SaleForm(instance=sale, user=request.user)
         formset = SaleItemFormSet(instance=sale, form_kwargs={'user': request.user})
